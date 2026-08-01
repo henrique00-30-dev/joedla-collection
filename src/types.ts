@@ -104,6 +104,7 @@ export type StoreSettings = {
   pickupAddress: string;
   instagram: string;
   deliveryMessage: string;
+  tickerMessages: string[];
 };
 
 export type ProductDraft = Omit<Product, 'id' | 'createdAt'> & {

@@ -159,6 +159,7 @@ export async function loadCloudSettings(): Promise<StoreSettings | null> {
     pickupAddress: data.pickup_address ?? '',
     instagram: data.instagram ?? '',
     deliveryMessage: data.delivery_message,
+    tickerMessages: Array.isArray(data.ticker_messages) ? data.ticker_messages : [],
   };
 }
 
@@ -342,6 +343,7 @@ export async function saveCloudSettings(settings: StoreSettings): Promise<void> 
     pickup_address: settings.pickupAddress,
     instagram: settings.instagram,
     delivery_message: settings.deliveryMessage,
+    ticker_messages: settings.tickerMessages,
   });
 
   if (error) throw error;

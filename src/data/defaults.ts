@@ -43,4 +43,5 @@ export const defaultSettings: StoreSettings = {
   pickupAddress: 'Endereço de retirada a combinar',
   instagram: '',
   deliveryMessage: 'Entrega grátis em Rosário do Catete',
+  tickerMessages: [],
 };

@@ -124,6 +124,12 @@ export default function AdminDashboardScreen() {
               onPress={() => router.push('/admin/analytics' as Href)}
             />
             <ActionCard
+              icon="megaphone-outline"
+              title="Faixa de avisos"
+              description="Editar promoções, clima e comunicados do início"
+              onPress={() => router.push('/admin/notices' as Href)}
+            />
+            <ActionCard
               icon="receipt-outline"
               title="Pedidos"
               description="Confirmar pagamento e atualizar andamento"

@@ -66,6 +66,7 @@ create table public.store_settings (
   pickup_address text not null default '',
   instagram text not null default '',
   delivery_message text not null,
+  ticker_messages text[] not null default '{}',
   updated_at timestamptz not null default now()
 );
 

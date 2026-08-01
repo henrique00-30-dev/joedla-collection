@@ -23,7 +23,10 @@ export default function AdminSettingsScreen() {
   const [form, setForm] = useState<StoreSettings>(settings);
   const [saving, setSaving] = useState(false);
 
-  function update(field: keyof StoreSettings, value: string) {
+  function update(
+    field: Exclude<keyof StoreSettings, 'tickerMessages'>,
+    value: string,
+  ) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 

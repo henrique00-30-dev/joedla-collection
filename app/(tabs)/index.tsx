@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
+import { AnnouncementTicker } from '@/src/components/announcement-ticker';
 import { CategoryTile } from '@/src/components/category-tile';
 import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
@@ -69,7 +69,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator>
         <AppHeader />
 
-        <View style={styles.horizontalPadding}>
+        <View style={[styles.horizontalPadding, styles.searchArea]}>
           <SearchBar value={query} onChangeText={setQuery} />
         </View>
 
@@ -83,12 +83,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.horizontalPadding}>
-              <View style={styles.deliveryCard}>
-                <Ionicons name="location" size={22} color={colors.primary} />
-                <Text style={styles.deliveryText}>{settings.deliveryMessage}</Text>
-              </View>
-            </View>
+            <AnnouncementTicker messages={settings.tickerMessages} />
 
             <View style={styles.horizontalPadding}>
               <View style={styles.hero}>
@@ -161,23 +156,8 @@ const styles = StyleSheet.create({
   horizontalPadding: {
     paddingHorizontal: spacing.lg,
   },
-  deliveryCard: {
-    minHeight: 52,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.medium,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceWarm,
-  },
-  deliveryText: {
-    flexShrink: 1,
-    color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'center',
+  searchArea: {
+    paddingTop: spacing.md,
   },
   hero: {
     height: 222,
