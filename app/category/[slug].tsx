@@ -1,8 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
-import { ProductCard } from '@/src/components/product-card';
+import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { useStore } from '@/src/context/store-context';
 import { colors, spacing } from '@/src/theme';
@@ -19,11 +19,7 @@ export default function CategoryScreen() {
       <AppHeader compact title={category?.name ?? 'Categoria'} showBack />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <Text style={styles.count}>{filtered.length} produto(s)</Text>
-        <View style={styles.grid}>
-          {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </View>
+        <ProductGrid products={filtered} />
         {!filtered.length ? (
           <Text style={styles.empty}>Ainda não há produtos nesta categoria.</Text>
         ) : null}
@@ -41,12 +37,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     color: colors.textMuted,
     fontSize: 13,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    gap: spacing.md,
   },
   empty: {
     paddingVertical: 80,

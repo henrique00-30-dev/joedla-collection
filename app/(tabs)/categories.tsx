@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
-import { ProductCard } from '@/src/components/product-card';
+import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
 import { useStore } from '@/src/context/store-context';
@@ -62,11 +62,7 @@ export default function CategoriesScreen() {
           <Text style={styles.count}>{filtered.length} itens</Text>
         </View>
 
-        <View style={styles.grid}>
-          {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </View>
+        <ProductGrid products={filtered} />
 
         {!filtered.length ? (
           <View style={styles.empty}>
@@ -111,13 +107,13 @@ const styles = StyleSheet.create({
   },
   filters: {
     paddingVertical: spacing.lg,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   chip: {
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: colors.primarySoft,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -149,12 +145,6 @@ const styles = StyleSheet.create({
   count: {
     color: colors.textMuted,
     fontSize: 12,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    gap: spacing.md,
   },
   empty: {
     minHeight: 320,

@@ -10,9 +10,11 @@ import { formatCurrency } from '@/src/utils/format';
 
 type ProductCardProps = {
   product: Product;
+  cardWidth: number;
+  imageAspectRatio: number;
 };
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, cardWidth, imageAspectRatio }: ProductCardProps) {
   const { favorites, toggleFavorite } = useStore();
   const favorite = favorites.includes(product.id);
   const outOfStock = product.availability === 'ready' && product.stock <= 0;
@@ -24,12 +26,20 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={() =>
         router.push({ pathname: '/product/[id]', params: { id: product.id } })
       }
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.card,
+        { width: cardWidth, maxWidth: cardWidth },
+        pressed && styles.pressed,
+      ]}>
       <View>
-        <ProductImage uri={product.imageUrls[0]} style={styles.image} />
+        <ProductImage
+          uri={product.imageUrls[0]}
+          style={[styles.image, { aspectRatio: imageAspectRatio }]}
+        />
         <Pressable
           accessibilityLabel={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
           hitSlop={10}
@@ -71,10 +81,6 @@ export function ProductCard({ product }: ProductCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    flexBasis: '48%',
-    flexGrow: 1,
-    minWidth: 150,
-    maxWidth: '49%',
     overflow: 'hidden',
     borderRadius: radii.medium,
     borderWidth: 1,
@@ -88,14 +94,13 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    aspectRatio: 0.86,
   },
   heart: {
     position: 'absolute',
     right: spacing.sm,
     top: spacing.sm,
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -125,7 +130,7 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   content: {
-    minHeight: 76,
+    minHeight: 82,
     padding: spacing.md,
     gap: spacing.xs,
   },

@@ -101,7 +101,11 @@ export function QuantityStepper({
         accessibilityLabel="Diminuir quantidade"
         disabled={value <= 1}
         onPress={() => onChange(value - 1)}
-        style={styles.stepperButton}>
+        style={({ pressed }) => [
+          styles.stepperButton,
+          pressed && value > 1 && styles.stepperButtonPressed,
+          value <= 1 && styles.stepperButtonDisabled,
+        ]}>
         <Ionicons
           name="remove"
           size={18}
@@ -113,7 +117,11 @@ export function QuantityStepper({
         accessibilityLabel="Aumentar quantidade"
         disabled={value >= maximum}
         onPress={() => onChange(value + 1)}
-        style={styles.stepperButton}>
+        style={({ pressed }) => [
+          styles.stepperButton,
+          pressed && value < maximum && styles.stepperButtonPressed,
+          value >= maximum && styles.stepperButtonDisabled,
+        ]}>
         <Ionicons
           name="add"
           size={18}
@@ -253,26 +261,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   stepper: {
-    height: 38,
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.small,
+    borderWidth: 2,
+    borderColor: colors.primarySoft,
+    borderRadius: radii.medium,
     overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
   stepperButton: {
-    width: 38,
-    height: 38,
+    width: 46,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  stepperButtonPressed: {
+    backgroundColor: colors.surfaceWarm,
+  },
+  stepperButtonDisabled: {
+    opacity: 0.45,
+  },
   stepperValue: {
-    minWidth: 30,
+    minWidth: 40,
+    height: 46,
+    lineHeight: 46,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.primarySoft,
     color: colors.text,
     textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   statusBadge: {
     alignSelf: 'flex-start',

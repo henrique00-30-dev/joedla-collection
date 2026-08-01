@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
-import { ProductCard } from '@/src/components/product-card';
+import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { EmptyState } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
@@ -25,11 +25,7 @@ export default function FavoritesScreen() {
         />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
-          <View style={styles.grid}>
-            {favoriteProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </View>
+          <ProductGrid products={favoriteProducts} />
         </ScrollView>
       )}
     </Screen>
@@ -40,11 +36,5 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    gap: spacing.md,
   },
 });

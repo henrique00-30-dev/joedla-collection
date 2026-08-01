@@ -14,7 +14,7 @@ import {
 
 import { AppHeader } from '@/src/components/app-header';
 import { CategoryTile } from '@/src/components/category-tile';
-import { ProductCard } from '@/src/components/product-card';
+import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
 import { SectionHeader } from '@/src/components/section-header';
@@ -76,11 +76,7 @@ export default function HomeScreen() {
         {query.trim() ? (
           <View style={styles.section}>
             <SectionHeader title={`Resultados (${searchResults.length})`} />
-            <View style={styles.grid}>
-              {searchResults.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </View>
+            <ProductGrid products={searchResults} />
             {!searchResults.length ? (
               <Text style={styles.noResults}>Nenhum produto encontrado.</Text>
             ) : null}
@@ -146,11 +142,9 @@ export default function HomeScreen() {
                 actionLabel="Ver todos"
                 onAction={() => router.push('/(tabs)/categories')}
               />
-              <View style={styles.grid}>
-                {(featured.length ? featured : visibleProducts.slice(0, 6)).map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </View>
+              <ProductGrid
+                products={featured.length ? featured : visibleProducts.slice(0, 8)}
+              />
               {loading ? <Text style={styles.loadingText}>Atualizando produtos...</Text> : null}
             </View>
           </>
@@ -238,13 +232,6 @@ const styles = StyleSheet.create({
   categories: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-    gap: spacing.md,
-  },
-  grid: {
-    paddingTop: spacing.md,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
     gap: spacing.md,
   },
   noResults: {

@@ -267,8 +267,14 @@ function OptionGroup({
         {options.map((option) => (
           <Pressable
             key={option}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selected === option }}
             onPress={() => onSelect(option)}
-            style={[styles.option, selected === option && styles.optionSelected]}>
+            style={({ pressed }) => [
+              styles.option,
+              selected === option && styles.optionSelected,
+              pressed && styles.optionPressed,
+            ]}>
             <Text
               style={[
                 styles.optionText,
@@ -382,33 +388,36 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
   },
   options: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   option: {
-    minWidth: 48,
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.small,
+    minWidth: 58,
+    minHeight: 50,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 2,
+    borderColor: colors.primarySoft,
+    borderRadius: radii.medium,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
   optionSelected: {
-    borderColor: colors.primary,
+    borderColor: colors.primaryDark,
     backgroundColor: colors.primary,
+  },
+  optionPressed: {
+    opacity: 0.72,
   },
   optionText: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
   },
   optionTextSelected: {
     color: colors.white,
