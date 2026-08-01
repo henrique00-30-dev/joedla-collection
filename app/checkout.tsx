@@ -63,6 +63,8 @@ export default function CheckoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [storeNotificationOpened, setStoreNotificationOpened] = useState(false);
+  const [openingWhatsApp, setOpeningWhatsApp] = useState(false);
 
   function updateCustomer(field: keyof CustomerDetails, value: string) {
     setCustomer((current) => ({ ...current, [field]: value }));
@@ -116,15 +118,27 @@ export default function CheckoutScreen() {
   }
 
   async function handleWhatsApp(order: Order) {
-    const opened = await openStoreWhatsApp(
-      settings,
-      buildOrderMessage(order, settings),
-    );
-    if (!opened) {
+    setOpeningWhatsApp(true);
+    try {
+      const opened = await openStoreWhatsApp(
+        settings,
+        buildOrderMessage(order, settings),
+      );
+      if (opened) {
+        setStoreNotificationOpened(true);
+        return;
+      }
       Alert.alert(
         'WhatsApp não configurado',
-        'O pedido foi salvo. Cadastre o número da loja no painel.',
+        'O pedido foi salvo, mas o número da loja precisa ser cadastrado no painel.',
       );
+    } catch {
+      Alert.alert(
+        'Não foi possível abrir o WhatsApp',
+        'Tente novamente pelo botão para avisar a loja sobre o pedido.',
+      );
+    } finally {
+      setOpeningWhatsApp(false);
     }
   }
 
@@ -150,10 +164,28 @@ export default function CheckoutScreen() {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark" size={44} color={colors.white} />
           </View>
-          <Text style={styles.successTitle}>Pedido criado com sucesso!</Text>
+          <Text style={styles.successTitle}>Pedido salvo!</Text>
           <Text style={styles.successSubtitle}>
-            Envie o resumo pelo WhatsApp para a loja confirmar disponibilidade e pagamento.
+            Falta avisar a loja pelo WhatsApp para que o pedido seja confirmado ou cancelado.
           </Text>
+
+          <View style={styles.notificationNotice}>
+            <Ionicons
+              name={storeNotificationOpened ? 'checkmark-circle' : 'warning-outline'}
+              size={24}
+              color={storeNotificationOpened ? colors.success : colors.warning}
+            />
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[
+                styles.notificationNoticeText,
+                storeNotificationOpened && styles.notificationNoticeTextSuccess,
+              ]}>
+              {storeNotificationOpened
+                ? 'WhatsApp aberto. Envie a mensagem pronta para avisar a loja.'
+                : 'Etapa obrigatória: abra o WhatsApp e envie a mensagem pronta para a loja.'}
+            </Text>
+          </View>
 
           <View style={styles.codeCard}>
             <Text style={styles.codeLabel}>Número do pedido</Text>
@@ -234,16 +266,22 @@ export default function CheckoutScreen() {
           <View style={styles.successActions}>
             <Button
               icon="logo-whatsapp"
+              loading={openingWhatsApp}
               onPress={() => handleWhatsApp(completedOrder)}>
-              Enviar pedido pelo WhatsApp
+              {storeNotificationOpened
+                ? 'Abrir WhatsApp novamente'
+                : 'Avisar a loja no WhatsApp'}
             </Button>
             <Button
               variant="secondary"
+              disabled={!storeNotificationOpened}
               onPress={() => {
                 setCompletedOrder(null);
                 router.replace('/');
               }}>
-              Voltar para a loja
+              {storeNotificationOpened
+                ? 'Voltar para a loja'
+                : 'Avise a loja para continuar'}
             </Button>
           </View>
         </ScrollView>
@@ -482,6 +520,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.success,
+  },
+  notificationNotice: {
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.warningSoft,
+  },
+  notificationNoticeText: {
+    flex: 1,
+    color: colors.warning,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+  notificationNoticeTextSuccess: {
+    color: colors.success,
   },
   successTitle: {
     color: colors.text,

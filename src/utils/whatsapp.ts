@@ -5,7 +5,12 @@ import { formatCurrency, normalizeWhatsApp } from '@/src/utils/format';
 
 export function buildOrderMessage(order: Order, settings: StoreSettings): string {
   const lines = [
-    `Olá! Quero confirmar meu pedido ${order.publicCode} na ${settings.storeName}.`,
+    '🚨 NOVO PEDIDO RECEBIDO',
+    `Pedido: ${order.publicCode}`,
+    `Loja: ${settings.storeName}`,
+    '',
+    'Acesse a área administrativa para confirmar ou cancelar o pedido:',
+    'https://www.joedla-collection.com.br/admin/orders',
     '',
     ...order.items.map((item) => {
       const variants = [
@@ -35,6 +40,8 @@ export function buildOrderMessage(order: Order, settings: StoreSettings): string
     '',
     `Cliente: ${order.customer.name}`,
     `WhatsApp: ${order.customer.whatsapp}`,
+    '',
+    'Este pedido está aguardando confirmação da loja.',
   ];
 
   if (order.deliveryMethod === 'delivery') {

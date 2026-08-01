@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
@@ -15,6 +16,8 @@ export default function OrderSuccessScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { customerOrders, settings } = useStore();
   const order = customerOrders.find((item) => item.id === id);
+  const [storeNotificationOpened, setStoreNotificationOpened] = useState(false);
+  const [openingWhatsApp, setOpeningWhatsApp] = useState(false);
 
   if (!order) {
     return (
@@ -34,15 +37,27 @@ export default function OrderSuccessScreen() {
   const currentOrder = order;
 
   async function handleWhatsApp() {
-    const opened = await openStoreWhatsApp(
-      settings,
-      buildOrderMessage(currentOrder, settings),
-    );
-    if (!opened) {
+    setOpeningWhatsApp(true);
+    try {
+      const opened = await openStoreWhatsApp(
+        settings,
+        buildOrderMessage(currentOrder, settings),
+      );
+      if (opened) {
+        setStoreNotificationOpened(true);
+        return;
+      }
       Alert.alert(
         'WhatsApp não configurado',
         'O pedido foi salvo. A administradora precisa cadastrar o número da loja no painel.',
       );
+    } catch {
+      Alert.alert(
+        'Não foi possível abrir o WhatsApp',
+        'Tente novamente pelo botão para avisar a loja sobre o pedido.',
+      );
+    } finally {
+      setOpeningWhatsApp(false);
     }
   }
 
@@ -65,10 +80,28 @@ export default function OrderSuccessScreen() {
         <View style={styles.successIcon}>
           <Ionicons name="checkmark" size={44} color={colors.white} />
         </View>
-        <Text style={styles.title}>Pedido criado com sucesso!</Text>
+        <Text style={styles.title}>Pedido salvo!</Text>
         <Text style={styles.subtitle}>
-          Envie o resumo pelo WhatsApp para a loja confirmar disponibilidade e pagamento.
+          Falta avisar a loja pelo WhatsApp para que o pedido seja confirmado ou cancelado.
         </Text>
+
+        <View style={styles.notificationNotice}>
+          <Ionicons
+            name={storeNotificationOpened ? 'checkmark-circle' : 'warning-outline'}
+            size={24}
+            color={storeNotificationOpened ? colors.success : colors.warning}
+          />
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[
+              styles.notificationNoticeText,
+              storeNotificationOpened && styles.notificationNoticeTextSuccess,
+            ]}>
+            {storeNotificationOpened
+              ? 'WhatsApp aberto. Envie a mensagem pronta para avisar a loja.'
+              : 'Etapa obrigatória: abra o WhatsApp e envie a mensagem pronta para a loja.'}
+          </Text>
+        </View>
 
         <View style={styles.codeCard}>
           <Text style={styles.codeLabel}>Número do pedido</Text>
@@ -141,11 +174,18 @@ export default function OrderSuccessScreen() {
           )}
         </View>
 
-        <Button icon="logo-whatsapp" onPress={handleWhatsApp}>
-          Enviar pedido pelo WhatsApp
+        <Button icon="logo-whatsapp" loading={openingWhatsApp} onPress={handleWhatsApp}>
+          {storeNotificationOpened
+            ? 'Abrir WhatsApp novamente'
+            : 'Avisar a loja no WhatsApp'}
         </Button>
-        <Button variant="secondary" onPress={() => router.replace('/')}>
-          Voltar para a loja
+        <Button
+          variant="secondary"
+          disabled={!storeNotificationOpened}
+          onPress={() => router.replace('/')}>
+          {storeNotificationOpened
+            ? 'Voltar para a loja'
+            : 'Avise a loja para continuar'}
         </Button>
       </ScrollView>
     </Screen>
@@ -182,6 +222,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',
+  },
+  notificationNotice: {
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.warningSoft,
+  },
+  notificationNoticeText: {
+    flex: 1,
+    color: colors.warning,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+  notificationNoticeTextSuccess: {
+    color: colors.success,
   },
   codeCard: {
     padding: spacing.lg,
