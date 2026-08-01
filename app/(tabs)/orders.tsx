@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+﻿import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
@@ -18,15 +18,15 @@ export default function OrdersScreen() {
         <EmptyState
           icon="receipt-outline"
           title="Nenhum pedido ainda"
-          message="Seus pedidos aparecerão aqui depois da finalização."
-          actionLabel="Começar a comprar"
-          onAction={() => router.push('/(tabs)/index')}
+          message="Seus pedidos aparecerÃ£o aqui depois da finalizaÃ§Ã£o."
+          actionLabel="ComeÃ§ar a comprar"
+          onAction={() => router.push('/')}
         />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.info}>
             <Text style={styles.infoText}>
-              A confirmação final e os detalhes da entrega são enviados pelo WhatsApp.
+              A confirmaÃ§Ã£o final e os detalhes da entrega sÃ£o enviados pelo WhatsApp.
             </Text>
           </View>
           {customerOrders.map((order) => (
@@ -45,7 +45,7 @@ export default function OrdersScreen() {
               <View style={styles.row}>
                 <Text style={styles.delivery}>
                   {order.deliveryMethod === 'delivery'
-                    ? 'Entrega grátis'
+                    ? 'Entrega grÃ¡tis'
                     : order.deliveryMethod === 'pickup'
                       ? 'Retirada'
                       : 'Entrega a combinar'}
@@ -122,3 +122,4 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
+
