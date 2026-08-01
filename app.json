@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Joedla Collection",
+    "slug": "joedla-collection",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/joedla-app-icon.png",
+    "scheme": "joedlacollection",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.joedlacollection.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "A Joedla Collection usa suas fotos apenas para cadastrar imagens dos produtos."
+      }
+    },
+    "android": {
+      "package": "com.joedlacollection.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFDF9",
+        "foregroundImage": "./assets/images/joedla-adaptive-foreground.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/joedla-app-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A Joedla Collection usa suas fotos apenas para cadastrar imagens dos produtos."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/joedla-splash.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFDF9",
+          "dark": {
+            "backgroundColor": "#FFFDF9"
+          }
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
