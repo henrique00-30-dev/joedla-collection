@@ -51,7 +51,7 @@ export default function AdminAnalyticsScreen() {
   return (
     <AdminGuard>
       <Screen>
-        <AppHeader compact title="Desempenho da loja" showBack />
+        <AppHeader compact title="Desempenho da loja" showBack showStoreHome />
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={
@@ -61,7 +61,7 @@ export default function AdminAnalyticsScreen() {
               tintColor={colors.primary}
             />
           }
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator>
           <Text style={styles.helpText}>
             Acessos são contados por navegador, de forma anônima, uma vez por dia.
           </Text>

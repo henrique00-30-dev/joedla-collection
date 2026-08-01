@@ -17,7 +17,7 @@ export default function CategoryScreen() {
   return (
     <Screen>
       <AppHeader compact title={category?.name ?? 'Categoria'} showBack />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <Text style={styles.count}>{filtered.length} produto(s)</Text>
         <View style={styles.grid}>
           {filtered.map((product) => (

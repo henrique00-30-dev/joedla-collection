@@ -171,6 +171,7 @@ export default function ProductFormScreen() {
           compact
           title={existing ? 'Editar produto' : 'Cadastrar produto'}
           showBack
+          showStoreHome
         />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -178,7 +179,7 @@ export default function ProductFormScreen() {
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator>
             <Text style={styles.sectionTitle}>Fotos</Text>
             <Text style={styles.categoryHint}>
               Adicione quantas fotos precisar. A primeira será a capa e as demais aparecerão na galeria do produto.
@@ -186,7 +187,7 @@ export default function ProductFormScreen() {
             <ScrollView
               horizontal
               contentContainerStyle={styles.images}
-              showsHorizontalScrollIndicator={false}>
+              showsHorizontalScrollIndicator>
               {images.map((uri, index) => (
                 <View key={`${uri}-${index}`} style={styles.imageWrap}>
                   <ProductImage uri={uri} style={styles.image} />

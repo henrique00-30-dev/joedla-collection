@@ -24,7 +24,7 @@ export default function FavoritesScreen() {
           onAction={() => router.replace('/(tabs)/categories')}
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
           <View style={styles.grid}>
             {favoriteProducts.map((product) => (
               <ProductCard key={product.id} product={product} />

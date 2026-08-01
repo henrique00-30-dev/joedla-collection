@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
 import { ProductImage } from '@/src/components/product-image';
@@ -20,12 +20,14 @@ export default function ProductDetailsScreen() {
   const [selectedColor, setSelectedColor] = useState<string>();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [actionMessage, setActionMessage] = useState('');
 
   useEffect(() => {
     setSelectedSize(product?.sizes.length === 1 ? product.sizes[0] : undefined);
     setSelectedColor(product?.colors.length === 1 ? product.colors[0] : undefined);
     setQuantity(1);
     setSelectedImageIndex(0);
+    setActionMessage('');
   }, [product]);
 
   useEffect(() => {
@@ -60,13 +62,13 @@ export default function ProductDetailsScreen() {
   const isCustomOrder =
     currentProduct.availability === 'custom' || outOfStock;
 
-  function handleAddToCart() {
+  function handleProductAction(destination: 'cart' | 'checkout') {
     if (currentProduct.sizes.length && !selectedSize) {
-      Alert.alert('Escolha o tamanho', 'Selecione um tamanho antes de continuar.');
+      setActionMessage('Escolha um tamanho antes de continuar.');
       return;
     }
     if (currentProduct.colors.length && !selectedColor) {
-      Alert.alert('Escolha a cor', 'Selecione uma cor antes de continuar.');
+      setActionMessage('Escolha uma cor antes de continuar.');
       return;
     }
 
@@ -77,15 +79,14 @@ export default function ProductDetailsScreen() {
       selectedColor,
       outOfStock ? 'custom' : undefined,
     );
-    Alert.alert(
-      isCustomOrder ? 'Encomenda adicionada' : 'Produto adicionado',
+    if (destination === 'checkout') {
+      router.push('/checkout');
+      return;
+    }
+    setActionMessage(
       isCustomOrder
-        ? 'O item foi colocado no carrinho como encomenda.'
-        : 'O item foi colocado no carrinho.',
-      [
-      { text: 'Continuar comprando' },
-      { text: 'Ver carrinho', onPress: () => router.push('/(tabs)/cart') },
-      ],
+        ? 'Encomenda adicionada ao carrinho.'
+        : 'Produto adicionado ao carrinho.',
     );
   }
 
@@ -98,9 +99,10 @@ export default function ProductDetailsScreen() {
         rightAction={{
           icon: favorite ? 'heart' : 'heart-outline',
           onPress: () => toggleFavorite(product.id),
+          label: favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
         }}
       />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <ProductImage uri={selectedImage} style={styles.image} />
         {imageUrls.length > 1 ? (
           <View style={styles.gallery}>
@@ -113,7 +115,7 @@ export default function ProductDetailsScreen() {
             <ScrollView
               horizontal
               contentContainerStyle={styles.thumbnails}
-              showsHorizontalScrollIndicator={false}>
+              showsHorizontalScrollIndicator>
               {imageUrls.map((uri, index) => (
                 <Pressable
                   key={`${uri}-${index}`}
@@ -157,7 +159,10 @@ export default function ProductDetailsScreen() {
               label="Tamanho"
               options={product.sizes}
               selected={selectedSize}
-              onSelect={setSelectedSize}
+              onSelect={(value) => {
+                setSelectedSize(value);
+                setActionMessage('');
+              }}
             />
           ) : null}
 
@@ -166,7 +171,10 @@ export default function ProductDetailsScreen() {
               label="Cor"
               options={product.colors}
               selected={selectedColor}
-              onSelect={setSelectedColor}
+              onSelect={(value) => {
+                setSelectedColor(value);
+                setActionMessage('');
+              }}
             />
           ) : null}
 
@@ -207,13 +215,35 @@ export default function ProductDetailsScreen() {
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <View>
+        <View style={styles.footerTotalRow}>
           <Text style={styles.footerLabel}>Valor</Text>
           <Text style={styles.footerPrice}>{formatCurrency(product.price * quantity)}</Text>
         </View>
-        <Button onPress={handleAddToCart} style={styles.addButton}>
-          {isCustomOrder ? 'Encomendar' : 'Adicionar ao carrinho'}
-        </Button>
+        {actionMessage ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[
+              styles.actionMessage,
+              actionMessage.includes('adicionad') && styles.actionMessageSuccess,
+            ]}>
+            {actionMessage}
+          </Text>
+        ) : null}
+        <View style={styles.footerActions}>
+          <Button
+            variant="secondary"
+            icon="bag-add-outline"
+            onPress={() => handleProductAction('cart')}
+            style={styles.actionButton}>
+            {isCustomOrder ? 'Encomendar' : 'Adicionar ao carrinho'}
+          </Button>
+          <Button
+            icon="flash-outline"
+            onPress={() => handleProductAction('checkout')}
+            style={styles.actionButton}>
+            Comprar agora
+          </Button>
+        </View>
       </View>
     </Screen>
   );
@@ -416,16 +446,18 @@ const styles = StyleSheet.create({
     color: colors.warning,
   },
   footer: {
-    minHeight: 84,
+    minHeight: 132,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  footerTotalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
   },
   footerLabel: {
     color: colors.textMuted,
@@ -436,7 +468,22 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: '900',
   },
-  addButton: {
-    minWidth: 205,
+  actionMessage: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  actionMessageSuccess: {
+    color: colors.success,
+  },
+  footerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
   },
 });

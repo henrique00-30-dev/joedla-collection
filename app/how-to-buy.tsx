@@ -32,7 +32,7 @@ export default function HowToBuyScreen() {
   return (
     <Screen>
       <AppHeader compact title="Como comprar" showBack />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <Text style={styles.intro}>
           Comprar na Joedla Collection é simples e não exige cadastro.
         </Text>

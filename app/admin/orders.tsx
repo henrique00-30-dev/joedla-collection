@@ -54,7 +54,7 @@ export default function AdminOrdersScreen() {
   return (
     <AdminGuard>
       <Screen>
-        <AppHeader compact title="Pedidos" showBack />
+        <AppHeader compact title="Pedidos" showBack showStoreHome />
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={
@@ -64,11 +64,11 @@ export default function AdminOrdersScreen() {
               tintColor={colors.primary}
             />
           }
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator>
           <ScrollView
             horizontal
             contentContainerStyle={styles.filters}
-            showsHorizontalScrollIndicator={false}>
+            showsHorizontalScrollIndicator>
             {filters.map((item) => (
               <Pressable
                 key={item.value}

@@ -35,13 +35,13 @@ export default function CategoriesScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator>
         <SearchBar value={query} onChangeText={setQuery} />
 
         <ScrollView
           horizontal
           contentContainerStyle={styles.filters}
-          showsHorizontalScrollIndicator={false}>
+          showsHorizontalScrollIndicator>
           <FilterChip active={filter === 'all'} label="Todos" onPress={() => setFilter('all')} />
           {categories.map((category) => (
             <FilterChip

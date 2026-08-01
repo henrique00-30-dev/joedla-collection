@@ -146,7 +146,7 @@ export default function CheckoutScreen() {
         <AppHeader compact title="Pedido realizado" />
         <ScrollView
           contentContainerStyle={styles.successContent}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator>
           <View style={styles.successIcon}>
             <Ionicons name="checkmark" size={44} color={colors.white} />
           </View>
@@ -260,7 +260,7 @@ export default function CheckoutScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator>
           <SectionTitle number="1" title="Seus dados" />
           <View style={styles.card}>
             <Field

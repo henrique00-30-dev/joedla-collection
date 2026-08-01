@@ -24,7 +24,7 @@ export default function MenuScreen() {
   return (
     <Screen>
       <AppHeader compact title="Menu" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <View style={styles.brandCard}>
           <Image
             source={require('@/assets/images/joedla-logo.png')}

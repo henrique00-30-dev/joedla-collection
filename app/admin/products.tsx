@@ -88,7 +88,7 @@ export default function AdminProductsScreen() {
   return (
     <AdminGuard>
       <Screen>
-        <AppHeader compact title="Produtos e estoque" showBack />
+        <AppHeader compact title="Produtos e estoque" showBack showStoreHome />
         <View style={styles.search}>
           <SearchBar
             value={query}
@@ -96,7 +96,7 @@ export default function AdminProductsScreen() {
             placeholder="Pesquisar produto"
           />
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
           <View style={styles.summary}>
             <Text style={styles.summaryValue}>{filtered.length}</Text>
             <Text style={styles.summaryLabel}>produto(s) ativo(s)</Text>

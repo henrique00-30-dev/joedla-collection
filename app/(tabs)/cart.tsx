@@ -33,7 +33,7 @@ export default function CartScreen() {
         <>
           <ScrollView
             contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator>
             <View style={styles.delivery}>
               <Ionicons name="gift-outline" size={21} color={colors.success} />
               <View style={styles.deliveryText}>

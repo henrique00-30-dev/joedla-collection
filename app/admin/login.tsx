@@ -46,14 +46,14 @@ export default function AdminLoginScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <AppHeader compact title="Área administrativa" showBack />
+      <AppHeader compact title="Área administrativa" showBack showStoreHome />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator>
           <Image
             source={require('@/assets/images/joedla-logo.png')}
             contentFit="contain"

@@ -66,7 +66,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator>
         <AppHeader />
 
         <View style={styles.horizontalPadding}>
@@ -124,7 +124,7 @@ export default function HomeScreen() {
               <ScrollView
                 horizontal
                 contentContainerStyle={styles.categories}
-                showsHorizontalScrollIndicator={false}>
+                showsHorizontalScrollIndicator>
                 {categories.map((category) => (
                   <CategoryTile
                     key={category.slug}

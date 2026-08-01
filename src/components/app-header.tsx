@@ -10,9 +10,11 @@ type AppHeaderProps = {
   compact?: boolean;
   title?: string;
   showBack?: boolean;
+  showStoreHome?: boolean;
   rightAction?: {
     icon: keyof typeof Ionicons.glyphMap;
     onPress: () => void;
+    label?: string;
   };
 };
 
@@ -20,19 +22,33 @@ export function AppHeader({
   compact = false,
   title,
   showBack = false,
+  showStoreHome = false,
   rightAction,
 }: AppHeaderProps) {
   const { cartCount } = useStore();
 
+  function handleBack() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  }
+
   if (compact || title) {
     return (
       <View style={styles.compactHeader}>
-        <View style={styles.side}>
+        <View
+          style={[
+            styles.side,
+            showStoreHome && styles.sideWithStore,
+            showStoreHome && rightAction && styles.sideWithTwoActions,
+          ]}>
           {showBack ? (
             <Pressable
               accessibilityLabel="Voltar"
               hitSlop={12}
-              onPress={() => router.back()}
+              onPress={handleBack}
               style={styles.iconButton}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </Pressable>
@@ -41,10 +57,26 @@ export function AppHeader({
         <Text numberOfLines={1} style={styles.title}>
           {title}
         </Text>
-        <View style={[styles.side, styles.sideRight]}>
+        <View
+          style={[
+            styles.side,
+            styles.sideRight,
+            showStoreHome && styles.sideWithStore,
+            showStoreHome && rightAction && styles.sideWithTwoActions,
+          ]}>
+          {showStoreHome ? (
+            <Pressable
+              accessibilityLabel="Voltar para a loja"
+              hitSlop={10}
+              onPress={() => router.replace('/')}
+              style={styles.storeButton}>
+              <Ionicons name="home-outline" size={18} color={colors.primary} />
+              <Text style={styles.storeButtonText}>Loja</Text>
+            </Pressable>
+          ) : null}
           {rightAction ? (
             <Pressable
-              accessibilityLabel="Ação"
+              accessibilityLabel={rightAction.label ?? 'Ação'}
               hitSlop={12}
               onPress={rightAction.onPress}
               style={styles.iconButton}>
@@ -58,16 +90,13 @@ export function AppHeader({
 
   return (
     <View style={styles.mainHeader}>
-      <View style={styles.logoSpacer} />
+      <View style={styles.headerSideSpacer} />
       <Image
         source={require('@/assets/images/joedla-logo.png')}
         contentFit="contain"
         style={styles.logo}
       />
       <View style={styles.actions}>
-        <Pressable accessibilityLabel="Notificações" hitSlop={10} style={styles.iconButton}>
-          <Ionicons name="notifications-outline" size={24} color={colors.text} />
-        </Pressable>
         <Pressable
           accessibilityLabel="Abrir carrinho"
           hitSlop={10}
@@ -93,15 +122,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoSpacer: {
-    width: 80,
+  headerSideSpacer: {
+    width: 42,
   },
   logo: {
     width: 150,
     height: 86,
   },
   actions: {
-    width: 80,
+    width: 42,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing.sm,
@@ -144,7 +173,34 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   sideRight: {
+    flexDirection: 'row',
     alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+  },
+  sideWithTwoActions: {
+    width: 100,
+  },
+  sideWithStore: {
+    width: 68,
+  },
+  storeButton: {
+    minWidth: 58,
+    height: 38,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+  },
+  storeButtonText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '800',
   },
   title: {
     flex: 1,

@@ -38,7 +38,7 @@ export default function AdminOrderDetailsScreen() {
     return (
       <AdminGuard>
         <Screen>
-          <AppHeader compact title="Pedido" showBack />
+          <AppHeader compact title="Pedido" showBack showStoreHome />
           <EmptyState
             icon="alert-circle-outline"
             title="Pedido não encontrado"
@@ -80,8 +80,8 @@ export default function AdminOrderDetailsScreen() {
   return (
     <AdminGuard>
       <Screen edges={['top', 'left', 'right', 'bottom']}>
-        <AppHeader compact title={order.publicCode} showBack />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AppHeader compact title={order.publicCode} showBack showStoreHome />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
           <View style={styles.statusCard}>
             <View>
               <Text style={styles.date}>{formatDate(order.createdAt)}</Text>

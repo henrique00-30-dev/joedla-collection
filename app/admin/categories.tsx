@@ -145,8 +145,8 @@ export default function AdminCategoriesScreen() {
   return (
     <AdminGuard>
       <Screen>
-        <AppHeader compact title="Categorias" showBack />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AppHeader compact title="Categorias" showBack showStoreHome />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>
               {editing ? 'Renomear categoria' : 'Criar nova categoria'}

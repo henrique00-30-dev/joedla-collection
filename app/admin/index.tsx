@@ -61,9 +61,10 @@ export default function AdminDashboardScreen() {
         <AppHeader
           compact
           title="Painel da loja"
-          rightAction={{ icon: 'log-out-outline', onPress: handleLogout }}
+          showStoreHome
+          rightAction={{ icon: 'log-out-outline', onPress: handleLogout, label: 'Sair' }}
         />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
           <View style={styles.welcome}>
             <View>
               <Text style={styles.eyebrow}>JOEDLA COLLECTION</Text>

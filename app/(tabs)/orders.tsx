@@ -26,7 +26,7 @@ export default function OrdersScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator
         >
           <View style={styles.info}>
             <Text style={styles.infoText}>

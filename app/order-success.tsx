@@ -61,7 +61,7 @@ export default function OrderSuccessScreen() {
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader compact title="Pedido realizado" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <View style={styles.successIcon}>
           <Ionicons name="checkmark" size={44} color={colors.white} />
         </View>

@@ -46,14 +46,14 @@ export default function AdminSettingsScreen() {
   return (
     <AdminGuard>
       <Screen edges={['top', 'left', 'right', 'bottom']}>
-        <AppHeader compact title="Configurações da loja" showBack />
+        <AppHeader compact title="Configurações da loja" showBack showStoreHome />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.flex}>
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator>
             <View style={styles.notice}>
               <Ionicons name="information-circle-outline" size={22} color={colors.info} />
               <Text style={styles.noticeText}>
