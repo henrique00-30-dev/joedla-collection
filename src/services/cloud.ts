@@ -2,6 +2,8 @@ import * as Crypto from 'expo-crypto';
 
 import { supabase } from '@/src/lib/supabase';
 import {
+  Category,
+  CategoryDraft,
   Order,
   OrderStatus,
   Product,
@@ -33,6 +35,28 @@ function mapProduct(row: Record<string, any>): Product {
     active: row.active ?? true,
     createdAt: row.created_at,
   };
+}
+
+function mapCategory(row: Record<string, any>): Category {
+  return {
+    slug: row.slug,
+    name: row.name,
+    imageUrl: row.image_url ?? '',
+    active: row.active ?? true,
+    sortOrder: row.sort_order ?? 0,
+  };
+}
+
+function categorySlug(name: string): string {
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+
+  return normalized || `categoria-${Crypto.randomUUID().slice(0, 8)}`;
 }
 
 function productToRow(product: Product) {
@@ -101,6 +125,19 @@ export async function loadCloudCatalog(): Promise<Product[]> {
 
   if (error) throw error;
   return (data ?? []).map(mapProduct);
+}
+
+export async function loadCloudCategories(): Promise<Category[]> {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('categories')
+    .select('*')
+    .eq('active', true)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map(mapCategory);
 }
 
 export async function loadCloudSettings(): Promise<StoreSettings | null> {
@@ -205,7 +242,60 @@ export async function loadCloudAdminOrders(): Promise<Order[]> {
 export async function saveCloudProduct(product: Product): Promise<void> {
   const client = requireClient();
   const { error } = await client.from('products').upsert(productToRow(product));
+  if (error?.code === '23505') {
+    throw new Error('Já existe um produto ativo com esse nome. Edite o produto existente.');
+  }
   if (error) throw error;
+}
+
+export async function saveCloudCategory(
+  draft: CategoryDraft,
+  sortOrder: number,
+): Promise<Category> {
+  const client = requireClient();
+  const slug = draft.slug ?? categorySlug(draft.name);
+  const row = {
+    slug,
+    name: draft.name.trim(),
+    image_url: draft.imageUrl,
+    active: true,
+    sort_order: sortOrder,
+  };
+
+  const query = draft.slug
+    ? client.from('categories').update(row).eq('slug', draft.slug)
+    : client.from('categories').insert(row);
+  const { data, error } = await query.select('*').single();
+
+  if (error?.code === '23505') {
+    throw new Error('Já existe uma categoria com esse nome.');
+  }
+  if (error) throw error;
+  return mapCategory(data);
+}
+
+export async function archiveCloudCategory(slug: string): Promise<void> {
+  const client = requireClient();
+  const { count, error: productsError } = await client
+    .from('products')
+    .select('id', { count: 'exact', head: true })
+    .eq('category', slug)
+    .eq('active', true);
+
+  if (productsError) throw productsError;
+  if ((count ?? 0) > 0) {
+    throw new Error('Mova ou exclua os produtos ativos desta categoria antes de apagá-la.');
+  }
+
+  const { data, error } = await client
+    .from('categories')
+    .update({ active: false })
+    .eq('slug', slug)
+    .select('slug')
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Categoria não encontrada ou sem permissão para excluir.');
 }
 
 export async function archiveCloudProduct(productId: string): Promise<void> {

@@ -18,12 +18,11 @@ import { ProductCard } from '@/src/components/product-card';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
 import { SectionHeader } from '@/src/components/section-header';
-import { categories } from '@/src/data/demo';
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 
 export default function HomeScreen() {
-  const { products, settings, loading, refreshStore } = useStore();
+  const { products, categories, settings, loading, refreshStore } = useStore();
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 

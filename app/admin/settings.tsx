@@ -14,18 +14,12 @@ import { AdminGuard } from '@/src/components/admin-guard';
 import { AppHeader } from '@/src/components/app-header';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
-import { defaultSettings } from '@/src/data/demo';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
 import { StoreSettings } from '@/src/types';
 
 export default function AdminSettingsScreen() {
-  const {
-    settings,
-    updateSettings,
-    cloudEnabled,
-    resetDemo,
-  } = useStore();
+  const { settings, updateSettings } = useStore();
   const [form, setForm] = useState<StoreSettings>(settings);
   const [saving, setSaving] = useState(false);
 
@@ -47,25 +41,6 @@ export default function AdminSettingsScreen() {
     } finally {
       setSaving(false);
     }
-  }
-
-  function confirmReset() {
-    Alert.alert(
-      'Restaurar demonstração',
-      'Produtos, carrinho, pedidos e configurações locais voltarão ao estado inicial.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Restaurar',
-          style: 'destructive',
-          onPress: async () => {
-            await resetDemo();
-            setForm(defaultSettings);
-            Alert.alert('Demonstração restaurada');
-          },
-        },
-      ],
-    );
   }
 
   return (
@@ -146,17 +121,6 @@ export default function AdminSettingsScreen() {
               Salvar configurações
             </Button>
 
-            {!cloudEnabled ? (
-              <View style={styles.dangerZone}>
-                <Text style={styles.dangerTitle}>Modo demonstração</Text>
-                <Text style={styles.dangerText}>
-                  Restaure os dados de exemplo caso queira começar os testes novamente.
-                </Text>
-                <Button variant="danger" onPress={confirmReset}>
-                  Restaurar dados de teste
-                </Button>
-              </View>
-            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </Screen>
@@ -199,24 +163,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.medium,
     gap: spacing.lg,
     backgroundColor: colors.surface,
-  },
-  dangerZone: {
-    marginTop: spacing.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.dangerSoft,
-    borderRadius: radii.medium,
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-  },
-  dangerTitle: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  dangerText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
   },
 });

@@ -5,7 +5,6 @@ import { AppHeader } from '@/src/components/app-header';
 import { ProductCard } from '@/src/components/product-card';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
-import { categories } from '@/src/data/demo';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
 import { CategorySlug } from '@/src/types';
@@ -13,7 +12,7 @@ import { CategorySlug } from '@/src/types';
 type Filter = 'all' | CategorySlug;
 
 export default function CategoriesScreen() {
-  const { products } = useStore();
+  const { products, categories } = useStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
 

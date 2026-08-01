@@ -8,6 +8,7 @@ import { ProductImage } from '@/src/components/product-image';
 import { Screen } from '@/src/components/screen';
 import { Button, EmptyState, QuantityStepper } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
+import { recordProductView } from '@/src/services/analytics';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 import { formatCurrency } from '@/src/utils/format';
 
@@ -18,12 +19,18 @@ export default function ProductDetailsScreen() {
   const [selectedSize, setSelectedSize] = useState<string>();
   const [selectedColor, setSelectedColor] = useState<string>();
   const [quantity, setQuantity] = useState(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
     setSelectedSize(product?.sizes.length === 1 ? product.sizes[0] : undefined);
     setSelectedColor(product?.colors.length === 1 ? product.colors[0] : undefined);
     setQuantity(1);
+    setSelectedImageIndex(0);
   }, [product]);
+
+  useEffect(() => {
+    if (product?.id) void recordProductView(product.id);
+  }, [product?.id]);
 
   const favorite = useMemo(
     () => (product ? favorites.includes(product.id) : false),
@@ -46,6 +53,8 @@ export default function ProductDetailsScreen() {
   }
 
   const currentProduct = product;
+  const imageUrls = currentProduct.imageUrls.length ? currentProduct.imageUrls : [''];
+  const selectedImage = imageUrls[selectedImageIndex] ?? imageUrls[0];
   const outOfStock =
     currentProduct.availability === 'ready' && currentProduct.stock <= 0;
   const isCustomOrder =
@@ -92,7 +101,34 @@ export default function ProductDetailsScreen() {
         }}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ProductImage uri={product.imageUrls[0]} style={styles.image} />
+        <ProductImage uri={selectedImage} style={styles.image} />
+        {imageUrls.length > 1 ? (
+          <View style={styles.gallery}>
+            <View style={styles.galleryHeader}>
+              <Text style={styles.galleryTitle}>Fotos do produto</Text>
+              <Text style={styles.galleryCount}>
+                {selectedImageIndex + 1} de {imageUrls.length}
+              </Text>
+            </View>
+            <ScrollView
+              horizontal
+              contentContainerStyle={styles.thumbnails}
+              showsHorizontalScrollIndicator={false}>
+              {imageUrls.map((uri, index) => (
+                <Pressable
+                  key={`${uri}-${index}`}
+                  accessibilityLabel={`Ver foto ${index + 1} de ${imageUrls.length}`}
+                  onPress={() => setSelectedImageIndex(index)}
+                  style={[
+                    styles.thumbnailButton,
+                    selectedImageIndex === index && styles.thumbnailButtonActive,
+                  ]}>
+                  <ProductImage uri={uri} style={styles.thumbnail} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
         <View style={styles.details}>
           <View
             style={[
@@ -224,6 +260,47 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     aspectRatio: 1,
+  },
+  gallery: {
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  galleryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  galleryTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  galleryCount: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  thumbnails: {
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  thumbnailButton: {
+    width: 68,
+    height: 68,
+    padding: 2,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: radii.small,
+  },
+  thumbnailButtonActive: {
+    borderColor: colors.primary,
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radii.small,
   },
   details: {
     padding: spacing.lg,

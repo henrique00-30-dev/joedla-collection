@@ -4,14 +4,13 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/src/components/app-header';
 import { ProductCard } from '@/src/components/product-card';
 import { Screen } from '@/src/components/screen';
-import { categories } from '@/src/data/demo';
 import { useStore } from '@/src/context/store-context';
 import { colors, spacing } from '@/src/theme';
 import { CategorySlug } from '@/src/types';
 
 export default function CategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: CategorySlug }>();
-  const { products } = useStore();
+  const { products, categories } = useStore();
   const category = categories.find((item) => item.slug === slug);
   const filtered = products.filter((product) => product.active && product.category === slug);
 

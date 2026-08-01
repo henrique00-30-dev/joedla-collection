@@ -1,4 +1,4 @@
-export type CategorySlug = 'fitness' | 'casual' | 'bolsas' | 'infantil';
+export type CategorySlug = string;
 
 export type Availability = 'ready' | 'custom';
 
@@ -20,6 +20,14 @@ export type Product = {
 
 export type Category = {
   slug: CategorySlug;
+  name: string;
+  imageUrl: string;
+  active: boolean;
+  sortOrder: number;
+};
+
+export type CategoryDraft = {
+  slug?: CategorySlug;
   name: string;
   imageUrl: string;
 };
@@ -106,4 +114,20 @@ export type CheckoutDraft = {
   customer: CustomerDetails;
   deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentMethod;
+};
+
+export type AnalyticsProductMetric = {
+  productId: string;
+  name: string;
+  count: number;
+};
+
+export type StoreAnalytics = {
+  periodDays: number;
+  uniqueVisitors: number;
+  totalVisits: number;
+  productViews: number;
+  orders: number;
+  topViewed: AnalyticsProductMetric[];
+  topPurchased: AnalyticsProductMetric[];
 };

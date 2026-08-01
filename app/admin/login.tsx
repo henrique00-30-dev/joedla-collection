@@ -15,14 +15,13 @@ import {
 import { AppHeader } from '@/src/components/app-header';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
-import { DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD } from '@/src/data/demo';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
 
 export default function AdminLoginScreen() {
   const { loginAdmin, adminLoading, isAdmin, cloudEnabled } = useStore();
-  const [email, setEmail] = useState(cloudEnabled ? '' : DEMO_ADMIN_EMAIL);
-  const [password, setPassword] = useState(cloudEnabled ? '' : DEMO_ADMIN_PASSWORD);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (isAdmin) router.replace('/admin');
@@ -66,12 +65,12 @@ export default function AdminLoginScreen() {
           </Text>
 
           {!cloudEnabled ? (
-            <View style={styles.demoCard}>
-              <Ionicons name="flask-outline" size={22} color={colors.warning} />
-              <View style={styles.demoText}>
-                <Text style={styles.demoTitle}>Modo demonstração</Text>
-                <Text style={styles.demoDescription}>
-                  Os dados de teste já estão preenchidos. Depois, a conexão online substituirá este acesso.
+            <View style={styles.connectionCard}>
+              <Ionicons name="cloud-offline-outline" size={22} color={colors.danger} />
+              <View style={styles.connectionText}>
+                <Text style={styles.connectionTitle}>Conexão online indisponível</Text>
+                <Text style={styles.connectionDescription}>
+                  O painel permanece bloqueado até a conexão segura com o banco ser restaurada.
                 </Text>
               </View>
             </View>
@@ -96,18 +95,10 @@ export default function AdminLoginScreen() {
               secureTextEntry
               value={password}
             />
-            <Button loading={adminLoading} onPress={handleLogin}>
+            <Button disabled={!cloudEnabled} loading={adminLoading} onPress={handleLogin}>
               Entrar no painel
             </Button>
           </View>
-
-          {!cloudEnabled ? (
-            <View style={styles.credentials}>
-              <Text style={styles.credentialsTitle}>Acesso de teste</Text>
-              <Text style={styles.credentialsText}>E-mail: {DEMO_ADMIN_EMAIL}</Text>
-              <Text style={styles.credentialsText}>Senha: {DEMO_ADMIN_PASSWORD}</Text>
-            </View>
-          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -144,24 +135,24 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  demoCard: {
+  connectionCard: {
     marginTop: spacing.xl,
     padding: spacing.lg,
     borderRadius: radii.medium,
     flexDirection: 'row',
     gap: spacing.md,
-    backgroundColor: colors.warningSoft,
+    backgroundColor: colors.dangerSoft,
   },
-  demoText: {
+  connectionText: {
     flex: 1,
     gap: 4,
   },
-  demoTitle: {
-    color: colors.warning,
+  connectionTitle: {
+    color: colors.danger,
     fontSize: 13,
     fontWeight: '900',
   },
-  demoDescription: {
+  connectionDescription: {
     color: colors.textMuted,
     fontSize: 11,
     lineHeight: 16,
@@ -169,24 +160,5 @@ const styles = StyleSheet.create({
   form: {
     marginTop: spacing.xl,
     gap: spacing.lg,
-  },
-  credentials: {
-    marginTop: spacing.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    gap: 4,
-    backgroundColor: colors.surface,
-  },
-  credentialsTitle: {
-    marginBottom: 3,
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  credentialsText: {
-    color: colors.textMuted,
-    fontSize: 11,
   },
 });

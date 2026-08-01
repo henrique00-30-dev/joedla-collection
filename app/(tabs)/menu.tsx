@@ -32,14 +32,14 @@ export default function MenuScreen() {
             style={styles.logo}
           />
           <Text style={styles.delivery}>{settings.deliveryMessage}</Text>
-          <View style={[styles.mode, cloudEnabled ? styles.modeCloud : styles.modeDemo]}>
+          <View style={[styles.mode, cloudEnabled ? styles.modeCloud : styles.modeOffline]}>
             <Ionicons
-              name={cloudEnabled ? 'cloud-done-outline' : 'flask-outline'}
+              name={cloudEnabled ? 'cloud-done-outline' : 'cloud-offline-outline'}
               size={15}
-              color={cloudEnabled ? colors.success : colors.warning}
+              color={cloudEnabled ? colors.success : colors.danger}
             />
-            <Text style={[styles.modeText, { color: cloudEnabled ? colors.success : colors.warning }]}>
-              {cloudEnabled ? 'Loja online' : 'Modo demonstração'}
+            <Text style={[styles.modeText, { color: cloudEnabled ? colors.success : colors.danger }]}>
+              {cloudEnabled ? 'Loja online' : 'Conexão indisponível'}
             </Text>
           </View>
         </View>
@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
   modeCloud: {
     backgroundColor: colors.successSoft,
   },
-  modeDemo: {
-    backgroundColor: colors.warningSoft,
+  modeOffline: {
+    backgroundColor: colors.dangerSoft,
   },
   modeText: {
     fontSize: 11,

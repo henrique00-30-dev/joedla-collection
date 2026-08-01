@@ -23,7 +23,7 @@ import { colors, radii, spacing } from '@/src/theme';
 import { formatCurrency } from '@/src/utils/format';
 
 export default function AdminProductsScreen() {
-  const { products, archiveProduct } = useStore();
+  const { products, categories, archiveProduct } = useStore();
   const [query, setQuery] = useState('');
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
@@ -110,6 +110,11 @@ export default function AdminProductsScreen() {
                 </Text>
                 <Text style={styles.price}>{formatCurrency(product.price)}</Text>
                 <View style={styles.tags}>
+                  <View style={[styles.tag, styles.tagCategory]}>
+                    <Text style={styles.tagText}>
+                      {categories.find((item) => item.slug === product.category)?.name ?? product.category}
+                    </Text>
+                  </View>
                   <View style={styles.tag}>
                     <Text style={styles.tagText}>
                       {product.availability === 'ready'
@@ -244,6 +249,9 @@ const styles = StyleSheet.create({
   },
   tagFeatured: {
     backgroundColor: colors.warningSoft,
+  },
+  tagCategory: {
+    backgroundColor: colors.infoSoft,
   },
   tagText: {
     color: colors.textMuted,

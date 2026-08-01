@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Href, router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -69,14 +69,14 @@ export default function AdminDashboardScreen() {
               <Text style={styles.eyebrow}>JOEDLA COLLECTION</Text>
               <Text style={styles.title}>Visão geral</Text>
             </View>
-            <View style={[styles.mode, cloudEnabled ? styles.modeCloud : styles.modeDemo]}>
+            <View style={[styles.mode, cloudEnabled ? styles.modeCloud : styles.modeOffline]}>
               <Ionicons
-                name={cloudEnabled ? 'cloud-done-outline' : 'flask-outline'}
+                name={cloudEnabled ? 'cloud-done-outline' : 'cloud-offline-outline'}
                 size={15}
-                color={cloudEnabled ? colors.success : colors.warning}
+                color={cloudEnabled ? colors.success : colors.danger}
               />
-              <Text style={{ color: cloudEnabled ? colors.success : colors.warning, fontSize: 10, fontWeight: '900' }}>
-                {cloudEnabled ? 'ONLINE' : 'DEMO'}
+              <Text style={{ color: cloudEnabled ? colors.success : colors.danger, fontSize: 10, fontWeight: '900' }}>
+                {cloudEnabled ? 'ONLINE' : 'SEM CONEXÃO'}
               </Text>
             </View>
           </View>
@@ -109,6 +109,18 @@ export default function AdminDashboardScreen() {
               title="Produtos e estoque"
               description="Cadastrar, editar e controlar quantidades"
               onPress={() => router.push('/admin/products')}
+            />
+            <ActionCard
+              icon="grid-outline"
+              title="Categorias"
+              description="Criar, renomear e excluir abas do catálogo"
+              onPress={() => router.push('/admin/categories' as Href)}
+            />
+            <ActionCard
+              icon="analytics-outline"
+              title="Desempenho"
+              description="Acessos e produtos mais vistos e comprados"
+              onPress={() => router.push('/admin/analytics' as Href)}
             />
             <ActionCard
               icon="receipt-outline"
@@ -267,8 +279,8 @@ const styles = StyleSheet.create({
   modeCloud: {
     backgroundColor: colors.successSoft,
   },
-  modeDemo: {
-    backgroundColor: colors.warningSoft,
+  modeOffline: {
+    backgroundColor: colors.dangerSoft,
   },
   metrics: {
     marginTop: spacing.lg,

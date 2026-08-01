@@ -1,4 +1,4 @@
-﻿import { router } from 'expo-router';
+import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
@@ -14,21 +14,26 @@ export default function OrdersScreen() {
   return (
     <Screen>
       <AppHeader compact title="Meus pedidos" />
+
       {!customerOrders.length ? (
         <EmptyState
           icon="receipt-outline"
           title="Nenhum pedido ainda"
-          message="Seus pedidos aparecerÃ£o aqui depois da finalizaÃ§Ã£o."
-          actionLabel="ComeÃ§ar a comprar"
+          message="Seus pedidos aparecerão aqui depois da finalização."
+          actionLabel="Começar a comprar"
           onAction={() => router.push('/')}
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.info}>
             <Text style={styles.infoText}>
-              A confirmaÃ§Ã£o final e os detalhes da entrega sÃ£o enviados pelo WhatsApp.
+              A confirmação final e os detalhes da entrega são enviados pelo WhatsApp.
             </Text>
           </View>
+
           {customerOrders.map((order) => (
             <View key={order.id} style={styles.card}>
               <View style={styles.row}>
@@ -36,21 +41,30 @@ export default function OrdersScreen() {
                   <Text style={styles.code}>{order.publicCode}</Text>
                   <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
                 </View>
+
                 <StatusBadge status={order.status} />
               </View>
+
               <View style={styles.divider} />
+
               <Text style={styles.items}>
-                {order.items.map((item) => `${item.quantity}x ${item.productName}`).join(', ')}
+                {order.items
+                  .map((item) => `${item.quantity}x ${item.productName}`)
+                  .join(', ')}
               </Text>
+
               <View style={styles.row}>
                 <Text style={styles.delivery}>
                   {order.deliveryMethod === 'delivery'
-                    ? 'Entrega grÃ¡tis'
+                    ? 'Entrega grátis'
                     : order.deliveryMethod === 'pickup'
                       ? 'Retirada'
                       : 'Entrega a combinar'}
                 </Text>
-                <Text style={styles.total}>{formatCurrency(order.total)}</Text>
+
+                <Text style={styles.total}>
+                  {formatCurrency(order.total)}
+                </Text>
               </View>
             </View>
           ))}
@@ -122,4 +136,3 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
-

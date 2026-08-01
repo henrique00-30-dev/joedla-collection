@@ -19,19 +19,18 @@ import { AppHeader } from '@/src/components/app-header';
 import { ProductImage } from '@/src/components/product-image';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
-import { categories } from '@/src/data/demo';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
 import { Availability, CategorySlug, ProductDraft } from '@/src/types';
 
 export default function ProductFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { products, saveProduct, uploadProductImage } = useStore();
+  const { products, categories, saveProduct, uploadProductImage } = useStore();
   const existing = products.find((product) => product.id === id);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<CategorySlug>('fitness');
+  const [category, setCategory] = useState<CategorySlug | null>(null);
   const [price, setPrice] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [sizes, setSizes] = useState('');
@@ -110,6 +109,10 @@ export default function ProductFormScreen() {
       Alert.alert('Preço inválido', 'Informe um preço maior que zero.');
       return;
     }
+    if (!category) {
+      Alert.alert('Categoria obrigatória', 'Escolha em qual categoria o produto deve aparecer.');
+      return;
+    }
 
     const splitValues = (value: string) =>
       value
@@ -143,7 +146,11 @@ export default function ProductFormScreen() {
       // Sai da tela imediatamente depois do primeiro salvamento concluído.
       // O bloqueio permanece ativo até a tela ser desmontada.
       router.replace('/admin/products');
-      Alert.alert('Produto salvo', 'As informações foram atualizadas.');
+      const categoryName = categories.find((item) => item.slug === category)?.name;
+      Alert.alert(
+        'Produto salvo',
+        `O produto foi salvo em ${categoryName ?? 'sua categoria'}.`,
+      );
     } catch (error) {
       Alert.alert(
         'Não foi possível salvar',
@@ -173,6 +180,9 @@ export default function ProductFormScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionTitle}>Fotos</Text>
+            <Text style={styles.categoryHint}>
+              Adicione quantas fotos precisar. A primeira será a capa e as demais aparecerão na galeria do produto.
+            </Text>
             <ScrollView
               horizontal
               contentContainerStyle={styles.images}
@@ -232,6 +242,9 @@ export default function ProductFormScreen() {
             </View>
 
             <Text style={styles.sectionTitle}>Categoria</Text>
+            <Text style={styles.categoryHint}>
+              Escolha uma categoria antes de salvar. O produto aparecerá somente nela e, se for destaque, também na página inicial.
+            </Text>
             <View style={styles.chips}>
               {categories.map((item) => (
                 <ChoiceChip
@@ -345,6 +358,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '900',
+  },
+  categoryHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   images: {
     paddingVertical: spacing.sm,

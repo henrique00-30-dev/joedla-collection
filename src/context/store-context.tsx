@@ -1,23 +1,21 @@
 import * as Crypto from 'expo-crypto';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
-import {
-  DEMO_ADMIN_EMAIL,
-  DEMO_ADMIN_PASSWORD,
-  defaultSettings,
-  demoProducts,
-} from '@/src/data/demo';
+import { defaultCategories, defaultSettings } from '@/src/data/defaults';
 import { isCloudConfigured } from '@/src/lib/supabase';
 import { getStoredJson, setStoredJson } from '@/src/lib/storage';
 import {
   archiveCloudProduct,
+  archiveCloudCategory,
   createCloudOrder,
   loadCloudAdminOrders,
   loadCloudCatalog,
+  loadCloudCategories,
   loadCloudSettings,
   productFromDraft,
   restoreCloudAdminSession,
   saveCloudProduct,
+  saveCloudCategory,
   saveCloudSettings,
   signInCloudAdmin,
   signOutCloudAdmin,
@@ -26,6 +24,8 @@ import {
 } from '@/src/services/cloud';
 import {
   Availability,
+  Category,
+  CategoryDraft,
   CartItem,
   CheckoutDraft,
   Order,
@@ -35,18 +35,20 @@ import {
   StoreSettings,
 } from '@/src/types';
 import { orderCodeFromUuid } from '@/src/utils/format';
+import { recordSiteVisit } from '@/src/services/analytics';
 
 const STORAGE_KEYS = {
   products: 'joedla.products.v1',
+  categories: 'joedla.categories.v1',
   settings: 'joedla.settings.v1',
   cart: 'joedla.cart.v1',
   customerOrders: 'joedla.customer-orders.v1',
-  adminOrders: 'joedla.admin-orders.v1',
   favorites: 'joedla.favorites.v1',
 };
 
 type StoreContextValue = {
   products: Product[];
+  categories: Category[];
   settings: StoreSettings;
   cart: CartItem[];
   customerOrders: Order[];
@@ -76,16 +78,18 @@ type StoreContextValue = {
   refreshAdminOrders: () => Promise<void>;
   saveProduct: (draft: ProductDraft) => Promise<Product>;
   archiveProduct: (productId: string) => Promise<void>;
+  saveCategory: (draft: CategoryDraft) => Promise<Category>;
+  archiveCategory: (slug: string) => Promise<void>;
   changeOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateSettings: (settings: StoreSettings) => Promise<void>;
   uploadProductImage: (uri: string, mimeType?: string) => Promise<string>;
-  resetDemo: () => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: PropsWithChildren) {
-  const [products, setProducts] = useState<Product[]>(demoProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
@@ -102,6 +106,10 @@ export function StoreProvider({ children }: PropsWithChildren) {
     // A inicialização da persistência deve acontecer apenas uma vez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (cloudEnabled) void recordSiteVisit();
+  }, [cloudEnabled]);
 
   useEffect(() => {
     if (!loading) void setStoredJson(STORAGE_KEYS.cart, cart);
@@ -127,23 +135,25 @@ export function StoreProvider({ children }: PropsWithChildren) {
       setCart(storedCart);
       setCustomerOrders(storedOrders);
       setFavorites(storedFavorites);
-      try {
-        await refreshStore();
-      } catch {
-        const [storedProducts, storedSettings] = await Promise.all([
-          getStoredJson<Product[]>(STORAGE_KEYS.products, demoProducts),
-          getStoredJson<StoreSettings>(STORAGE_KEYS.settings, defaultSettings),
-        ]);
-        setProducts(storedProducts);
-        setSettings(storedSettings);
-      }
-
       if (cloudEnabled) {
         try {
+          await refreshStore();
           setIsAdmin(await restoreCloudAdminSession());
         } catch {
+          const [storedProducts, storedCategories, storedSettings] = await Promise.all([
+            getStoredJson<Product[]>(STORAGE_KEYS.products, []),
+            getStoredJson<Category[]>(STORAGE_KEYS.categories, defaultCategories),
+            getStoredJson<StoreSettings>(STORAGE_KEYS.settings, defaultSettings),
+          ]);
+          setProducts(storedProducts);
+          setCategories(storedCategories);
+          setSettings(storedSettings);
           setIsAdmin(false);
         }
+      } else {
+        setProducts([]);
+        setCategories(defaultCategories);
+        setIsAdmin(false);
       }
     } finally {
       setLoading(false);
@@ -151,22 +161,25 @@ export function StoreProvider({ children }: PropsWithChildren) {
   }
 
   async function refreshStore() {
-    if (cloudEnabled) {
-      const [cloudProducts, cloudSettings] = await Promise.all([
-        loadCloudCatalog(),
-        loadCloudSettings(),
-      ]);
-      setProducts(cloudProducts);
-      if (cloudSettings) setSettings(cloudSettings);
-      return;
+    if (!cloudEnabled) {
+      throw new Error('A conexão online da loja não foi configurada.');
     }
 
-    const [storedProducts, storedSettings] = await Promise.all([
-      getStoredJson<Product[]>(STORAGE_KEYS.products, demoProducts),
-      getStoredJson<StoreSettings>(STORAGE_KEYS.settings, defaultSettings),
+    const [cloudProducts, cloudCategories, cloudSettings] = await Promise.all([
+      loadCloudCatalog(),
+      loadCloudCategories(),
+      loadCloudSettings(),
     ]);
-    setProducts(storedProducts);
-    setSettings(storedSettings);
+    setProducts(cloudProducts);
+    setCategories(cloudCategories);
+    await Promise.all([
+      setStoredJson(STORAGE_KEYS.products, cloudProducts),
+      setStoredJson(STORAGE_KEYS.categories, cloudCategories),
+    ]);
+    if (cloudSettings) {
+      setSettings(cloudSettings);
+      await setStoredJson(STORAGE_KEYS.settings, cloudSettings);
+    }
   }
 
   function addToCart(
@@ -248,6 +261,9 @@ export function StoreProvider({ children }: PropsWithChildren) {
 
   async function createOrder(draft: CheckoutDraft): Promise<Order> {
     if (!cart.length) throw new Error('Seu carrinho está vazio.');
+    if (!cloudEnabled) {
+      throw new Error('A loja está sem conexão com o banco online. Tente novamente depois.');
+    }
 
     const id = Crypto.randomUUID();
     const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
@@ -277,25 +293,12 @@ export function StoreProvider({ children }: PropsWithChildren) {
       createdAt: new Date().toISOString(),
     };
 
-    if (cloudEnabled) await createCloudOrder(order);
+    await createCloudOrder(order);
 
     setCustomerOrders((current) => [order, ...current]);
     setCart([]);
 
-    if (cloudEnabled) {
-      setAdminOrders((current) => [order, ...current]);
-    } else {
-      const storedAdminOrders = await getStoredJson<Order[]>(
-        STORAGE_KEYS.adminOrders,
-        customerOrders,
-      );
-      const nextAdminOrders = [
-        order,
-        ...storedAdminOrders.filter((item) => item.id !== order.id),
-      ];
-      setAdminOrders(nextAdminOrders);
-      await setStoredJson(STORAGE_KEYS.adminOrders, nextAdminOrders);
-    }
+    setAdminOrders((current) => [order, ...current]);
 
     return order;
   }
@@ -303,14 +306,10 @@ export function StoreProvider({ children }: PropsWithChildren) {
   async function loginAdmin(email: string, password: string) {
     setAdminLoading(true);
     try {
-      if (cloudEnabled) {
-        await signInCloudAdmin(email.trim(), password);
-      } else if (
-        email.trim().toLowerCase() !== DEMO_ADMIN_EMAIL ||
-        password !== DEMO_ADMIN_PASSWORD
-      ) {
-        throw new Error('E-mail ou senha de demonstração incorretos.');
+      if (!cloudEnabled) {
+        throw new Error('A área administrativa online não está configurada.');
       }
+      await signInCloudAdmin(email.trim(), password);
       setIsAdmin(true);
       await refreshAdminOrders();
     } finally {
@@ -326,53 +325,69 @@ export function StoreProvider({ children }: PropsWithChildren) {
   async function refreshAdminOrders() {
     setAdminLoading(true);
     try {
-      if (cloudEnabled) {
-        setAdminOrders(await loadCloudAdminOrders());
-      } else {
-        setAdminOrders(
-          await getStoredJson<Order[]>(STORAGE_KEYS.adminOrders, customerOrders),
-        );
-      }
+      if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
+      setAdminOrders(await loadCloudAdminOrders());
     } finally {
       setAdminLoading(false);
     }
   }
 
   async function saveProduct(draft: ProductDraft): Promise<Product> {
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
     const existing = draft.id ? products.find((item) => item.id === draft.id) : null;
     const product = existing
       ? { ...existing, ...draft, id: existing.id, createdAt: existing.createdAt }
       : productFromDraft(draft);
 
-    if (cloudEnabled) await saveCloudProduct(product);
+    await saveCloudProduct(product);
 
     const nextProducts = existing
       ? products.map((item) => (item.id === product.id ? product : item))
       : [product, ...products];
     setProducts(nextProducts);
+    await setStoredJson(STORAGE_KEYS.products, nextProducts);
 
-    if (!cloudEnabled) await setStoredJson(STORAGE_KEYS.products, nextProducts);
     return product;
   }
 
   async function archiveProduct(productId: string) {
-    if (cloudEnabled) {
-      await archiveCloudProduct(productId);
-      setProducts((current) => current.filter((item) => item.id !== productId));
-      return;
-    }
-
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
+    await archiveCloudProduct(productId);
     const nextProducts = products.filter((item) => item.id !== productId);
     setProducts(nextProducts);
     await setStoredJson(STORAGE_KEYS.products, nextProducts);
   }
 
+  async function saveCategory(draft: CategoryDraft): Promise<Category> {
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
+    const existing = draft.slug
+      ? categories.find((item) => item.slug === draft.slug)
+      : undefined;
+    const nextSortOrder = existing?.sortOrder
+      ?? Math.max(0, ...categories.map((item) => item.sortOrder)) + 10;
+    const category = await saveCloudCategory(draft, nextSortOrder);
+    const nextCategories = (
+      existing
+        ? categories.map((item) => (item.slug === category.slug ? category : item))
+        : [...categories, category]
+    ).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+    setCategories(nextCategories);
+    await setStoredJson(STORAGE_KEYS.categories, nextCategories);
+    return category;
+  }
+
+  async function archiveCategory(slug: string) {
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
+    await archiveCloudCategory(slug);
+    const nextCategories = categories.filter((item) => item.slug !== slug);
+    setCategories(nextCategories);
+    await setStoredJson(STORAGE_KEYS.categories, nextCategories);
+  }
+
   async function changeOrderStatus(orderId: string, status: OrderStatus) {
-    const previousOrder = adminOrders.find((order) => order.id === orderId);
-    if (cloudEnabled) {
-      await updateCloudOrderStatus(orderId, status);
-      await refreshStore();
-    }
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
+    await updateCloudOrderStatus(orderId, status);
+    await refreshStore();
 
     const update = (orders: Order[]) =>
       orders.map((order) => (order.id === orderId ? { ...order, status } : order));
@@ -381,71 +396,18 @@ export function StoreProvider({ children }: PropsWithChildren) {
     setAdminOrders(nextAdminOrders);
     setCustomerOrders((current) => update(current));
 
-    if (!cloudEnabled) {
-      const reservedStatuses: OrderStatus[] = [
-        'confirmed',
-        'preparing',
-        'ready',
-        'out_for_delivery',
-        'completed',
-      ];
-      const wasReserved = previousOrder
-        ? reservedStatuses.includes(previousOrder.status)
-        : false;
-      const willBeReserved = reservedStatuses.includes(status);
-
-      if (previousOrder && wasReserved !== willBeReserved) {
-        const direction = willBeReserved ? -1 : 1;
-        const nextProducts = products.map((product) => {
-          const orderedQuantity = previousOrder.items
-            .filter(
-              (item) =>
-                item.productId === product.id &&
-                item.availability === 'ready',
-            )
-            .reduce((sum, item) => sum + item.quantity, 0);
-
-          return orderedQuantity
-            ? {
-                ...product,
-                stock: Math.max(0, product.stock + direction * orderedQuantity),
-              }
-            : product;
-        });
-        setProducts(nextProducts);
-        await setStoredJson(STORAGE_KEYS.products, nextProducts);
-      }
-      await setStoredJson(STORAGE_KEYS.adminOrders, nextAdminOrders);
-    }
   }
 
   async function updateSettings(nextSettings: StoreSettings) {
-    if (cloudEnabled) await saveCloudSettings(nextSettings);
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
+    await saveCloudSettings(nextSettings);
     setSettings(nextSettings);
-    if (!cloudEnabled) await setStoredJson(STORAGE_KEYS.settings, nextSettings);
+    await setStoredJson(STORAGE_KEYS.settings, nextSettings);
   }
 
   async function uploadProductImage(uri: string, mimeType?: string): Promise<string> {
-    if (!cloudEnabled) return uri;
+    if (!cloudEnabled) throw new Error('A área administrativa online não está configurada.');
     return uploadCloudProductImage(uri, mimeType);
-  }
-
-  async function resetDemo() {
-    if (cloudEnabled) return;
-    setProducts(demoProducts);
-    setSettings(defaultSettings);
-    setCart([]);
-    setCustomerOrders([]);
-    setAdminOrders([]);
-    setFavorites([]);
-    await Promise.all([
-      setStoredJson(STORAGE_KEYS.products, demoProducts),
-      setStoredJson(STORAGE_KEYS.settings, defaultSettings),
-      setStoredJson(STORAGE_KEYS.cart, []),
-      setStoredJson(STORAGE_KEYS.customerOrders, []),
-      setStoredJson(STORAGE_KEYS.adminOrders, []),
-      setStoredJson(STORAGE_KEYS.favorites, []),
-    ]);
   }
 
   const cartCount = useMemo(
@@ -459,6 +421,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
 
   const value: StoreContextValue = {
     products,
+    categories,
     settings,
     cart,
     customerOrders,
@@ -482,10 +445,11 @@ export function StoreProvider({ children }: PropsWithChildren) {
     refreshAdminOrders,
     saveProduct,
     archiveProduct,
+    saveCategory,
+    archiveCategory,
     changeOrderStatus,
     updateSettings,
     uploadProductImage,
-    resetDemo,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

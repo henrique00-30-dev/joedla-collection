@@ -1,4 +1,4 @@
-﻿import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -22,9 +22,9 @@ export default function OrderSuccessScreen() {
         <AppHeader compact title="Pedido" />
         <EmptyState
           icon="alert-circle-outline"
-          title="Pedido nÃ£o encontrado"
+          title="Pedido não encontrado"
           message="Volte para a loja e tente novamente."
-          actionLabel="Ir para o inÃ­cio"
+          actionLabel="Ir para o início"
           onAction={() => router.replace('/')}
         />
       </Screen>
@@ -40,8 +40,8 @@ export default function OrderSuccessScreen() {
     );
     if (!opened) {
       Alert.alert(
-        'WhatsApp nÃ£o configurado',
-        'O pedido foi salvo. A administradora precisa cadastrar o nÃºmero da loja no painel.',
+        'WhatsApp não configurado',
+        'O pedido foi salvo. A administradora precisa cadastrar o número da loja no painel.',
       );
     }
   }
@@ -49,7 +49,7 @@ export default function OrderSuccessScreen() {
   async function copyPix() {
     if (!settings.pixKey) {
       Alert.alert(
-        'Chave Pix ainda nÃ£o cadastrada',
+        'Chave Pix ainda não cadastrada',
         'Solicite a chave diretamente pelo WhatsApp.',
       );
       return;
@@ -71,7 +71,7 @@ export default function OrderSuccessScreen() {
         </Text>
 
         <View style={styles.codeCard}>
-          <Text style={styles.codeLabel}>NÃºmero do pedido</Text>
+          <Text style={styles.codeLabel}>Número do pedido</Text>
           <Text style={styles.code}>{order.publicCode}</Text>
         </View>
 
@@ -109,7 +109,7 @@ export default function OrderSuccessScreen() {
               {order.paymentMethod === 'pix'
                 ? 'Pagamento por Pix'
                 : order.paymentMethod === 'card_link'
-                  ? 'Pagamento por cartÃ£o'
+                  ? 'Pagamento por cartão'
                   : 'Pagamento a combinar'}
             </Text>
           </View>
@@ -118,8 +118,8 @@ export default function OrderSuccessScreen() {
             <>
               <Text style={styles.paymentText}>
                 {settings.pixKey
-                  ? 'Copie a chave abaixo. A loja confirmarÃ¡ o pagamento manualmente.'
-                  : 'PeÃ§a a chave Pix pelo WhatsApp. A loja confirmarÃ¡ o pagamento manualmente.'}
+                  ? 'Copie a chave abaixo. A loja confirmará o pagamento manualmente.'
+                  : 'Peça a chave Pix pelo WhatsApp. A loja confirmará o pagamento manualmente.'}
               </Text>
               {settings.pixKey ? (
                 <View style={styles.pixBox}>
@@ -135,7 +135,7 @@ export default function OrderSuccessScreen() {
           ) : (
             <Text style={styles.paymentText}>
               {order.paymentMethod === 'card_link'
-                ? 'A loja enviarÃ¡ um link seguro de pagamento pelo WhatsApp.'
+                ? 'A loja enviará um link seguro de pagamento pelo WhatsApp.'
                 : 'Converse com a loja para definir a forma de pagamento.'}
             </Text>
           )}
@@ -276,4 +276,3 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
 });
-
