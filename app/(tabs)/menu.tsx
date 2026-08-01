@@ -60,13 +60,6 @@ export default function MenuScreen() {
             label="Falar com a loja"
             onPress={handleWhatsApp}
           />
-          {isAdmin ? (
-            <MenuItem
-              icon="megaphone-outline"
-              label="Promoções, clima e comunicados"
-              onPress={() => router.push('/admin/notices')}
-            />
-          ) : null}
           <MenuItem
             icon="shield-checkmark-outline"
             label={isAdmin ? 'Abrir painel administrativo' : 'Área administrativa'}

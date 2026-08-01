@@ -125,8 +125,8 @@ export default function AdminDashboardScreen() {
             />
             <ActionCard
               icon="megaphone-outline"
-              title="Faixa de avisos"
-              description="Editar promoções, clima e comunicados do início"
+              title="Promoções, clima e comunicados"
+              description="Editar a faixa de avisos exibida no início"
               onPress={() => router.push('/admin/notices' as Href)}
             />
             <ActionCard
