@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 import { keyValueStorage } from '@/src/lib/storage';
 
@@ -16,7 +17,7 @@ export const supabase = isCloudConfigured
         storage: keyValueStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: Platform.OS === 'web',
       },
     })
   : null;

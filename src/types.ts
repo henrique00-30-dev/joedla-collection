@@ -1,6 +1,7 @@
 export type CategorySlug = string;
 
 export type Availability = 'ready' | 'custom';
+export type PhotoQuality = 'recommended' | 'acceptable' | 'reduced';
 
 export type Product = {
   id: string;
@@ -15,6 +16,8 @@ export type Product = {
   stock: number;
   featured: boolean;
   active: boolean;
+  photoQuality: PhotoQuality;
+  photoProvisional: boolean;
   createdAt: string;
 };
 
@@ -105,6 +108,13 @@ export type StoreSettings = {
   instagram: string;
   deliveryMessage: string;
   tickerMessages: string[];
+  bannerTitle: string;
+  bannerSubtitle: string;
+  bannerButtonLabel: string;
+  bannerImageUrl: string;
+  bannerLink: string;
+  bannerStartAt: string;
+  bannerEndAt: string;
 };
 
 export type ProductDraft = Omit<Product, 'id' | 'createdAt'> & {

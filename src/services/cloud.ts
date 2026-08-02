@@ -33,6 +33,8 @@ function mapProduct(row: Record<string, any>): Product {
     stock: row.stock ?? 0,
     featured: row.featured ?? false,
     active: row.active ?? true,
+    photoQuality: row.photo_quality ?? 'acceptable',
+    photoProvisional: row.photo_provisional ?? false,
     createdAt: row.created_at,
   };
 }
@@ -73,6 +75,8 @@ function productToRow(product: Product) {
     stock: product.stock,
     featured: product.featured,
     active: product.active,
+    photo_quality: product.photoQuality,
+    photo_provisional: product.photoProvisional,
     created_at: product.createdAt,
   };
 }
@@ -160,11 +164,21 @@ export async function loadCloudSettings(): Promise<StoreSettings | null> {
     instagram: data.instagram ?? '',
     deliveryMessage: data.delivery_message,
     tickerMessages: Array.isArray(data.ticker_messages) ? data.ticker_messages : [],
+    bannerTitle: data.banner_title ?? 'Elegância para todos os momentos',
+    bannerSubtitle: data.banner_subtitle ?? 'Novidades selecionadas para renovar seu estilo com leveza.',
+    bannerButtonLabel: data.banner_button_label ?? 'Conhecer coleção',
+    bannerImageUrl: data.banner_image_url ?? '',
+    bannerLink: data.banner_link ?? '/(tabs)/categories',
+    bannerStartAt: data.banner_start_at ?? '',
+    bannerEndAt: data.banner_end_at ?? '',
   };
 }
 
 export async function createCloudOrder(order: Order): Promise<void> {
   const client = requireClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
   const { error } = await client.from('orders').insert({
     id: order.id,
     public_code: order.publicCode,
@@ -184,9 +198,27 @@ export async function createCloudOrder(order: Order): Promise<void> {
     status: order.status,
     items: order.items,
     created_at: order.createdAt,
+    customer_id: user?.id ?? null,
   });
 
   if (error) throw error;
+}
+
+export async function loadCloudCustomerOrders(): Promise<Order[]> {
+  const client = requireClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await client
+    .from('orders')
+    .select('*')
+    .eq('customer_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(mapOrder);
 }
 
 export async function signInCloudAdmin(email: string, password: string): Promise<void> {
@@ -344,6 +376,13 @@ export async function saveCloudSettings(settings: StoreSettings): Promise<void> 
     instagram: settings.instagram,
     delivery_message: settings.deliveryMessage,
     ticker_messages: settings.tickerMessages,
+    banner_title: settings.bannerTitle,
+    banner_subtitle: settings.bannerSubtitle,
+    banner_button_label: settings.bannerButtonLabel,
+    banner_image_url: settings.bannerImageUrl,
+    banner_link: settings.bannerLink,
+    banner_start_at: settings.bannerStartAt || null,
+    banner_end_at: settings.bannerEndAt || null,
   });
 
   if (error) throw error;

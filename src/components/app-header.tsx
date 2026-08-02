@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { useStore } from '@/src/context/store-context';
-import { colors, radii, spacing } from '@/src/theme';
+import { colors, fonts, radii, spacing } from '@/src/theme';
 
 type AppHeaderProps = {
   compact?: boolean;
@@ -18,6 +18,8 @@ type AppHeaderProps = {
   };
 };
 
+const DESKTOP_BREAKPOINT = 900;
+
 export function AppHeader({
   compact = false,
   title,
@@ -25,7 +27,9 @@ export function AppHeader({
   showStoreHome = false,
   rightAction,
 }: AppHeaderProps) {
-  const { cartCount } = useStore();
+  const { cartCount, categories } = useStore();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= DESKTOP_BREAKPOINT;
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -49,7 +53,7 @@ export function AppHeader({
               accessibilityLabel="Voltar"
               hitSlop={12}
               onPress={handleBack}
-              style={styles.iconButton}>
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </Pressable>
           ) : null}
@@ -69,7 +73,7 @@ export function AppHeader({
               accessibilityLabel="Voltar para a loja"
               hitSlop={10}
               onPress={() => router.replace('/')}
-              style={styles.storeButton}>
+              style={({ pressed }) => [styles.storeButton, pressed && styles.pressed]}>
               <Ionicons name="home-outline" size={18} color={colors.primary} />
               <Text style={styles.storeButtonText}>Loja</Text>
             </Pressable>
@@ -79,7 +83,7 @@ export function AppHeader({
               accessibilityLabel={rightAction.label ?? 'Ação'}
               hitSlop={12}
               onPress={rightAction.onPress}
-              style={styles.iconButton}>
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
               <Ionicons name={rightAction.icon} size={23} color={colors.text} />
             </Pressable>
           ) : null}
@@ -88,64 +92,214 @@ export function AppHeader({
     );
   }
 
-  return (
-    <View style={styles.mainHeader}>
-      <View style={styles.headerSideSpacer} />
-      <Image
-        source={require('@/assets/images/joedla-logo.png')}
-        contentFit="contain"
-        style={styles.logo}
-      />
-      <View style={styles.actions}>
+  if (!isDesktop) {
+    return (
+      <View style={styles.mobileHeader}>
         <Pressable
-          accessibilityLabel="Abrir carrinho"
-          hitSlop={10}
-          onPress={() => router.push('/(tabs)/cart')}
-          style={styles.iconButton}>
-          <Ionicons name="bag-handle-outline" size={25} color={colors.text} />
-          {cartCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
-            </View>
-          ) : null}
+          accessibilityLabel="Abrir menu"
+          onPress={() => router.push('/(tabs)/menu')}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+          <Ionicons name="menu-outline" size={25} color={colors.text} />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Ir para o início"
+          onPress={() => router.replace('/')}
+          style={styles.mobileBrand}>
+          <Image
+            source={require('@/assets/images/joedla-logo.png')}
+            contentFit="contain"
+            style={styles.mobileLogo}
+          />
+          <View>
+            <Text style={styles.mobileBrandName}>JOEDLA</Text>
+            <Text style={styles.mobileBrandCollection}>COLLECTION</Text>
+          </View>
+        </Pressable>
+        <CartButton cartCount={cartCount} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.desktopHeader}>
+      <View style={styles.desktopPrimaryRow}>
+        <Pressable onPress={() => router.replace('/')} style={styles.desktopBrand}>
+          <Image
+            source={require('@/assets/images/joedla-logo.png')}
+            contentFit="contain"
+            style={styles.desktopLogo}
+          />
+          <View>
+            <Text style={styles.desktopBrandName}>JOEDLA</Text>
+            <Text style={styles.desktopBrandCollection}>COLLECTION • MODA E ACESSÓRIOS</Text>
+          </View>
+        </Pressable>
+        <View style={styles.desktopActions}>
+          <HeaderAction
+            icon="heart-outline"
+            label="Favoritos"
+            onPress={() => router.push('/favorites')}
+          />
+          <CartButton cartCount={cartCount} withLabel />
+        </View>
+      </View>
+      <View style={styles.desktopNav}>
+        <Pressable onPress={() => router.replace('/')} style={styles.navItem}>
+          <Text style={styles.navText}>Início</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/(tabs)/categories')} style={styles.navItem}>
+          <Text style={styles.navText}>Todas as categorias</Text>
+        </Pressable>
+        {categories.slice(0, width >= 1200 ? 5 : 3).map((category) => (
+          <Pressable
+            key={category.slug}
+            onPress={() =>
+              router.push({ pathname: '/category/[slug]', params: { slug: category.slug } })
+            }
+            style={styles.navItem}>
+            <Text numberOfLines={1} style={styles.navText}>
+              {category.name}
+            </Text>
+          </Pressable>
+        ))}
+        <Pressable onPress={() => router.push('/how-to-buy')} style={styles.navItem}>
+          <Text style={styles.navText}>Como comprar</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
+function HeaderAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
+      <Ionicons name={icon} size={21} color={colors.primaryDark} />
+      <Text style={styles.headerActionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function CartButton({ cartCount, withLabel = false }: { cartCount: number; withLabel?: boolean }) {
+  return (
+    <Pressable
+      accessibilityLabel="Abrir carrinho"
+      onPress={() => router.push('/(tabs)/cart')}
+      style={({ pressed }) => [withLabel ? styles.headerAction : styles.iconButton, pressed && styles.pressed]}>
+      <View>
+        <Ionicons name="bag-handle-outline" size={withLabel ? 21 : 25} color={colors.primaryDark} />
+        {cartCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+          </View>
+        ) : null}
+      </View>
+      {withLabel ? <Text style={styles.headerActionText}>Carrinho</Text> : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  mainHeader: {
-    minHeight: 92,
+  mobileHeader: {
+    minHeight: 76,
     paddingHorizontal: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+  },
+  mobileBrand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  mobileLogo: { width: 48, height: 48 },
+  mobileBrandName: {
+    fontFamily: fonts.display,
+    color: colors.primaryDark,
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 1.6,
+  },
+  mobileBrandCollection: {
+    marginTop: -2,
+    color: colors.textMuted,
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 3,
+  },
+  desktopHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  desktopPrimaryRow: {
+    width: '100%',
+    maxWidth: 1200,
+    minHeight: 104,
+    paddingHorizontal: spacing.xl,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerSideSpacer: {
-    width: 42,
+  desktopBrand: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  desktopLogo: { width: 82, height: 82 },
+  desktopBrandName: {
+    fontFamily: fonts.display,
+    color: colors.primaryDark,
+    fontSize: 29,
+    fontWeight: '800',
+    letterSpacing: 3,
   },
-  logo: {
-    width: 150,
-    height: 86,
+  desktopBrandCollection: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 7,
   },
-  actions: {
-    width: 42,
+  desktopActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerAction: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: spacing.sm,
   },
+  headerActionText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  desktopNav: {
+    width: '100%',
+    maxWidth: 1200,
+    minHeight: 52,
+    paddingHorizontal: spacing.xl,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xl,
+  },
+  navItem: { minHeight: 52, justifyContent: 'center' },
+  navText: { color: colors.text, fontSize: 13, fontWeight: '700' },
   iconButton: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressed: { opacity: 0.62 },
   badge: {
     position: 'absolute',
-    right: -1,
-    top: -3,
+    right: -9,
+    top: -8,
     minWidth: 18,
     height: 18,
     paddingHorizontal: 4,
@@ -154,36 +308,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.primary,
   },
-  badgeText: {
-    color: colors.white,
-    fontSize: 10,
-    fontWeight: '800',
-  },
+  badgeText: { color: colors.white, fontSize: 10, fontWeight: '800' },
   compactHeader: {
-    minHeight: 58,
+    minHeight: 62,
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
-  side: {
-    width: 52,
-    alignItems: 'flex-start',
-  },
-  sideRight: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    gap: spacing.xs,
-  },
-  sideWithTwoActions: {
-    width: 100,
-  },
-  sideWithStore: {
-    width: 68,
-  },
+  side: { width: 52, alignItems: 'flex-start' },
+  sideRight: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', gap: spacing.xs },
+  sideWithTwoActions: { width: 100 },
+  sideWithStore: { width: 68 },
   storeButton: {
     minWidth: 58,
     height: 38,
@@ -197,16 +335,6 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: colors.surface,
   },
-  storeButtonText: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  storeButtonText: { color: colors.primary, fontSize: 11, fontWeight: '800' },
+  title: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 18, fontWeight: '700' },
 });

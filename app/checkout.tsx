@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -65,6 +65,7 @@ export default function CheckoutScreen() {
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [storeNotificationOpened, setStoreNotificationOpened] = useState(false);
   const [openingWhatsApp, setOpeningWhatsApp] = useState(false);
+  const submittingRef = useRef(false);
 
   function updateCustomer(field: keyof CustomerDetails, value: string) {
     setCustomer((current) => ({ ...current, [field]: value }));
@@ -96,6 +97,7 @@ export default function CheckoutScreen() {
   }
 
   async function handleSubmit() {
+    if (submittingRef.current) return;
     if (!cart.length) {
       Alert.alert('Carrinho vazio', 'Adicione produtos antes de finalizar.');
       router.replace('/(tabs)/cart');
@@ -103,6 +105,7 @@ export default function CheckoutScreen() {
     }
     if (!validate()) return;
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const order = await createOrder({ customer, deliveryMethod, paymentMethod });
@@ -113,6 +116,7 @@ export default function CheckoutScreen() {
         error instanceof Error ? error.message : 'Tente novamente.',
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

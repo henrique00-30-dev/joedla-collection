@@ -20,7 +20,7 @@ type TickerItem = {
   accent: string;
 };
 
-const WEATHER_ACCENTS = ['#2196F3', '#00A86B', '#9B51E0', '#F2994A', '#EB5757'];
+const WEATHER_ACCENTS = ['#A87338'];
 
 function weatherItem(weather: StoreWeather, index: number): TickerItem {
   return {
@@ -48,7 +48,7 @@ function buildTickerItems(messages: string[], weather: StoreWeather[]) {
       kind: important ? ('important' as const) : ('message' as const),
       label: important ? 'IMPORTANTE' : 'AVISO',
       text,
-      accent: important ? '#FF3030' : '#FFD400',
+      accent: important ? '#8F2438' : '#B98545',
     }));
   });
 
@@ -200,8 +200,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopWidth: 2,
     borderBottomWidth: 2,
-    borderColor: '#FFD400',
-    backgroundColor: '#101319',
+    borderColor: '#B98545',
+    backgroundColor: '#2B1B12',
   },
   liveBadge: {
     zIndex: 2,
@@ -212,14 +212,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRightWidth: 1,
-    borderRightColor: '#414753',
-    backgroundColor: '#1B2029',
+    borderRightColor: '#6D4A2D',
+    backgroundColor: '#1D130E',
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#D4A15F',
   },
   liveText: {
     color: colors.white,
@@ -253,9 +253,9 @@ const styles = StyleSheet.create({
   importantItem: {
     marginVertical: 3,
     borderWidth: 1,
-    borderColor: '#FF3030',
+    borderColor: '#A9344B',
     borderRadius: 7,
-    backgroundColor: '#3B151A',
+    backgroundColor: '#4A1823',
   },
   label: {
     minHeight: 24,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.45,
   },
   messageLabelText: {
-    color: '#101319',
+    color: colors.white,
   },
   itemText: {
     flexShrink: 0,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   importantText: {
-    color: '#FF6B6B',
+    color: '#FFDCE3',
     fontSize: 14,
     fontWeight: '900',
   },
@@ -289,6 +289,6 @@ const styles = StyleSheet.create({
     width: 2,
     height: 20,
     marginHorizontal: 42,
-    backgroundColor: '#4B5361',
+    backgroundColor: '#6D4A2D',
   },
 });

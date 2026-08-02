@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProductImage } from '@/src/components/product-image';
@@ -17,6 +18,7 @@ type ProductCardProps = {
 export function ProductCard({ product, cardWidth, imageAspectRatio }: ProductCardProps) {
   const { favorites, toggleFavorite } = useStore();
   const favorite = favorites.includes(product.id);
+  const [hovered, setHovered] = useState(false);
   const outOfStock = product.availability === 'ready' && product.stock <= 0;
   const availabilityLabel = outOfStock
     ? 'Em falta'
@@ -27,6 +29,8 @@ export function ProductCard({ product, cardWidth, imageAspectRatio }: ProductCar
   return (
     <Pressable
       accessibilityRole="button"
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       onPress={() =>
         router.push({ pathname: '/product/[id]', params: { id: product.id } })
       }
@@ -37,7 +41,8 @@ export function ProductCard({ product, cardWidth, imageAspectRatio }: ProductCar
       ]}>
       <View>
         <ProductImage
-          uri={product.imageUrls[0]}
+          uri={hovered && product.imageUrls[1] ? product.imageUrls[1] : product.imageUrls[0]}
+          contentFit={product.photoProvisional || product.photoQuality === 'reduced' ? 'contain' : 'cover'}
           style={[styles.image, { aspectRatio: imageAspectRatio }]}
         />
         <Pressable
