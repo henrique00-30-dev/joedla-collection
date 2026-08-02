@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
 import { ProductImage } from '@/src/components/product-image';
@@ -13,6 +13,8 @@ import { colors, fonts, radii, spacing } from '@/src/theme';
 import { formatCurrency } from '@/src/utils/format';
 
 export default function ProductDetailsScreen() {
+  const { width } = useWindowDimensions();
+  const desktop = width >= 900;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { products, favorites, toggleFavorite, addToCart } = useStore();
   const product = products.find((item) => item.id === id);
@@ -103,35 +105,42 @@ export default function ProductDetailsScreen() {
         }}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
-        <ProductImage uri={selectedImage} style={styles.image} />
-        {imageUrls.length > 1 ? (
-          <View style={styles.gallery}>
-            <View style={styles.galleryHeader}>
-              <Text style={styles.galleryTitle}>Fotos do produto</Text>
-              <Text style={styles.galleryCount}>
-                {selectedImageIndex + 1} de {imageUrls.length}
-              </Text>
-            </View>
-            <ScrollView
-              horizontal
-              contentContainerStyle={styles.thumbnails}
-              showsHorizontalScrollIndicator>
-              {imageUrls.map((uri, index) => (
-                <Pressable
-                  key={`${uri}-${index}`}
-                  accessibilityLabel={`Ver foto ${index + 1} de ${imageUrls.length}`}
-                  onPress={() => setSelectedImageIndex(index)}
-                  style={[
-                    styles.thumbnailButton,
-                    selectedImageIndex === index && styles.thumbnailButtonActive,
-                  ]}>
-                  <ProductImage uri={uri} style={styles.thumbnail} />
-                </Pressable>
-              ))}
-            </ScrollView>
+        <View style={[styles.productLayout, desktop && styles.productLayoutDesktop]}>
+          <View style={[styles.galleryColumn, desktop && styles.galleryColumnDesktop]}>
+            <ProductImage
+              uri={selectedImage}
+              contentFit={currentProduct.photoProvisional || currentProduct.photoQuality === 'reduced' ? 'contain' : 'cover'}
+              style={styles.image}
+            />
+            {imageUrls.length > 1 ? (
+              <View style={styles.gallery}>
+                <View style={styles.galleryHeader}>
+                  <Text style={styles.galleryTitle}>Fotos do produto</Text>
+                  <Text style={styles.galleryCount}>
+                    {selectedImageIndex + 1} de {imageUrls.length}
+                  </Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  contentContainerStyle={styles.thumbnails}
+                  showsHorizontalScrollIndicator>
+                  {imageUrls.map((uri, index) => (
+                    <Pressable
+                      key={`${uri}-${index}`}
+                      accessibilityLabel={`Ver foto ${index + 1} de ${imageUrls.length}`}
+                      onPress={() => setSelectedImageIndex(index)}
+                      style={[
+                        styles.thumbnailButton,
+                        selectedImageIndex === index && styles.thumbnailButtonActive,
+                      ]}>
+                      <ProductImage uri={uri} style={styles.thumbnail} />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-        <View style={styles.details}>
+          <View style={[styles.details, desktop && styles.detailsDesktop]}>
           <View
             style={[
               styles.availability,
@@ -212,9 +221,15 @@ export default function ProductDetailsScreen() {
                 : 'Entrega grátis em Rosário do Catete'}
             </Text>
           </View>
+          <View style={styles.purchaseNotes}>
+            <PurchaseNote icon="resize-outline" title="Tamanhos e medidas" text="Confirme as medidas com a loja se tiver dúvida." />
+            <PurchaseNote icon="shirt-outline" title="Cuidados com a peça" text="Siga as orientações da etiqueta para conservar o produto." />
+            <PurchaseNote icon="swap-horizontal-outline" title="Trocas e encomendas" text="Condições combinadas diretamente com nosso atendimento." />
+          </View>
+          </View>
         </View>
       </ScrollView>
-      <View style={styles.footer}>
+      <View style={[styles.footer, desktop && styles.footerDesktop]}>
         <View style={styles.footerTotalRow}>
           <Text style={styles.footerLabel}>Valor</Text>
           <Text style={styles.footerPrice}>{formatCurrency(product.price * quantity)}</Text>
@@ -246,6 +261,26 @@ export default function ProductDetailsScreen() {
         </View>
       </View>
     </Screen>
+  );
+}
+
+function PurchaseNote({
+  icon,
+  title,
+  text,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.purchaseNote}>
+      <Ionicons name={icon} size={19} color={colors.primary} />
+      <View style={styles.purchaseNoteCopy}>
+        <Text style={styles.purchaseNoteTitle}>{title}</Text>
+        <Text style={styles.purchaseNoteText}>{text}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -293,9 +328,29 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xl,
   },
+  productLayout: {
+    width: '100%',
+  },
+  productLayoutDesktop: {
+    maxWidth: 1180,
+    padding: spacing.xxl,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 54,
+  },
+  galleryColumn: {
+    backgroundColor: colors.surface,
+  },
+  galleryColumnDesktop: {
+    width: '55%',
+    overflow: 'hidden',
+    borderRadius: radii.large,
+  },
   image: {
     width: '100%',
     aspectRatio: 1,
+    backgroundColor: colors.surfaceWarm,
   },
   gallery: {
     paddingTop: spacing.md,
@@ -340,6 +395,10 @@ const styles = StyleSheet.create({
   },
   details: {
     padding: spacing.lg,
+  },
+  detailsDesktop: {
+    flex: 1,
+    padding: 0,
   },
   availability: {
     alignSelf: 'flex-start',
@@ -444,6 +503,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.successSoft,
   },
   infoText: {
+    flex: 1,
     color: colors.success,
     fontSize: 13,
     fontWeight: '700',
@@ -462,6 +522,16 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     gap: spacing.sm,
     backgroundColor: colors.surface,
+  },
+  footerDesktop: {
+    width: '100%',
+    maxWidth: 1180,
+    minHeight: 112,
+    paddingHorizontal: spacing.xxl,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.large,
   },
   footerTotalRow: {
     flexDirection: 'row',
@@ -495,4 +565,21 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: spacing.sm,
   },
+  purchaseNotes: {
+    marginTop: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  purchaseNote: {
+    minHeight: 70,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  purchaseNoteCopy: { flex: 1 },
+  purchaseNoteTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  purchaseNoteText: { marginTop: 3, color: colors.textMuted, fontSize: 11, lineHeight: 17 },
 });

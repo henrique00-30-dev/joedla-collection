@@ -129,6 +129,11 @@ export default function AdminProductsScreen() {
                       <Text style={styles.tagText}>Destaque</Text>
                     </View>
                   ) : null}
+                  {product.photoProvisional ? (
+                    <View style={[styles.tag, styles.tagPhoto]}>
+                      <Text style={styles.tagText}>Trocar foto depois</Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
               <View style={styles.actions}>
@@ -252,6 +257,9 @@ const styles = StyleSheet.create({
   },
   tagCategory: {
     backgroundColor: colors.infoSoft,
+  },
+  tagPhoto: {
+    backgroundColor: colors.dangerSoft,
   },
   tagText: {
     color: colors.textMuted,

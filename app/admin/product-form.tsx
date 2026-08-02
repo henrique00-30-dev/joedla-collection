@@ -21,7 +21,7 @@ import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
-import { Availability, CategorySlug, ProductDraft } from '@/src/types';
+import { Availability, CategorySlug, PhotoQuality, ProductDraft } from '@/src/types';
 
 export default function ProductFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -38,6 +38,8 @@ export default function ProductFormScreen() {
   const [availability, setAvailability] = useState<Availability>('ready');
   const [stock, setStock] = useState('1');
   const [featured, setFeatured] = useState(false);
+  const [photoQuality, setPhotoQuality] = useState<PhotoQuality>('acceptable');
+  const [photoProvisional, setPhotoProvisional] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const savingRef = useRef(false);
@@ -54,6 +56,8 @@ export default function ProductFormScreen() {
     setAvailability(existing.availability);
     setStock(String(existing.stock));
     setFeatured(existing.featured);
+    setPhotoQuality(existing.photoQuality);
+    setPhotoProvisional(existing.photoProvisional);
   }, [existing]);
 
   async function pickImage() {
@@ -78,11 +82,28 @@ export default function ProductFormScreen() {
     setUploading(true);
     try {
       const asset = result.assets[0];
+      const shortestSide = Math.min(asset.width ?? 0, asset.height ?? 0);
+      const detectedQuality: PhotoQuality =
+        shortestSide >= 1200 ? 'recommended' : shortestSide >= 700 ? 'acceptable' : 'reduced';
       const imageUrl = await uploadProductImage(
         asset.uri,
         asset.mimeType ?? 'image/jpeg',
       );
       setImages((current) => [...current, imageUrl]);
+      setPhotoQuality((current) =>
+        current === 'reduced' || detectedQuality === 'reduced'
+          ? 'reduced'
+          : current === 'acceptable' || detectedQuality === 'acceptable'
+            ? 'acceptable'
+            : 'recommended',
+      );
+      if (detectedQuality === 'reduced') {
+        Alert.alert(
+          'Foto com resolução reduzida',
+          'Ela foi adicionada e pode ser usada normalmente. Recomendamos substituir por uma foto melhor quando o produto chegar.',
+          [{ text: 'Usar mesmo assim' }],
+        );
+      }
     } catch (error) {
       Alert.alert(
         'Não foi possível salvar a foto',
@@ -133,6 +154,8 @@ export default function ProductFormScreen() {
       stock: availability === 'ready' ? parsedStock : 0,
       featured,
       active: true,
+      photoQuality,
+      photoProvisional,
     };
 
     savingRef.current = true;
@@ -217,6 +240,33 @@ export default function ProductFormScreen() {
                 )}
               </Pressable>
             </ScrollView>
+
+            <View style={styles.photoNotice}>
+              <Ionicons name="information-circle-outline" size={21} color={colors.info} />
+              <Text style={styles.photoNoticeText}>
+                Fotos de fornecedor são permitidas. O aviso de qualidade orienta, mas nunca impede o cadastro.
+              </Text>
+            </View>
+            <Text style={styles.categoryHint}>Qualidade atual das fotos</Text>
+            <View style={styles.chips}>
+              <ChoiceChip active={photoQuality === 'recommended'} label="Recomendada" onPress={() => setPhotoQuality('recommended')} />
+              <ChoiceChip active={photoQuality === 'acceptable'} label="Aceitável" onPress={() => setPhotoQuality('acceptable')} />
+              <ChoiceChip active={photoQuality === 'reduced'} label="Reduzida" onPress={() => setPhotoQuality('reduced')} />
+            </View>
+            <View style={styles.card}>
+              <View style={styles.switchRow}>
+                <View style={styles.switchText}>
+                  <Text style={styles.switchTitle}>Foto provisória do fornecedor</Text>
+                  <Text style={styles.switchDescription}>Lembrar de substituir quando houver uma foto própria</Text>
+                </View>
+                <Switch
+                  value={photoProvisional}
+                  onValueChange={setPhotoProvisional}
+                  trackColor={{ false: colors.border, true: colors.warningSoft }}
+                  thumbColor={photoProvisional ? colors.warning : colors.white}
+                />
+              </View>
+            </View>
 
             <Text style={styles.sectionTitle}>Informações</Text>
             <View style={styles.card}>
@@ -365,6 +415,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  photoNotice: {
+    padding: spacing.md,
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.infoSoft,
+  },
+  photoNoticeText: { flex: 1, color: colors.info, fontSize: 11, lineHeight: 17 },
   images: {
     paddingVertical: spacing.sm,
     gap: spacing.md,

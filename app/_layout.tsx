@@ -27,6 +27,8 @@ export default function RootLayout() {
             <Stack.Screen name="order-success" options={{ gestureEnabled: false }} />
             <Stack.Screen name="favorites" />
             <Stack.Screen name="how-to-buy" />
+            <Stack.Screen name="privacy" />
+            <Stack.Screen name="account" />
             <Stack.Screen name="admin/login" />
             <Stack.Screen name="admin/index" />
             <Stack.Screen name="admin/products" />
@@ -37,6 +39,7 @@ export default function RootLayout() {
             <Stack.Screen name="admin/orders" />
             <Stack.Screen name="admin/order/[id]" />
             <Stack.Screen name="admin/settings" />
+            <Stack.Screen name="admin/appearance" />
           </Stack>
         </StoreProvider>
       </SafeAreaProvider>

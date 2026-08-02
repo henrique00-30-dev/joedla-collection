@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useWindowDimensions } from 'react-native';
 
 import { useStore } from '@/src/context/store-context';
 import { colors } from '@/src/theme';
 
 export default function TabLayout() {
   const { cartCount } = useStore();
+  const { width } = useWindowDimensions();
+  const showMobileTabs = width < 900;
 
   return (
     <Tabs
@@ -20,6 +23,7 @@ export default function TabLayout() {
           marginTop: 2,
         },
         tabBarStyle: {
+          display: showMobileTabs ? 'flex' : 'none',
           height: 70,
           paddingTop: 8,
           paddingBottom: 9,

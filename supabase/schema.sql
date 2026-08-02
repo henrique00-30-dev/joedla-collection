@@ -42,6 +42,9 @@ create table public.products (
   stock integer not null default 0 check (stock >= 0),
   featured boolean not null default false,
   active boolean not null default true,
+  photo_quality text not null default 'acceptable'
+    check (photo_quality in ('recommended', 'acceptable', 'reduced')),
+  photo_provisional boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -67,11 +70,24 @@ create table public.store_settings (
   instagram text not null default '',
   delivery_message text not null,
   ticker_messages text[] not null default '{}',
-  updated_at timestamptz not null default now()
+  banner_title text not null default 'Elegância para todos os momentos',
+  banner_subtitle text not null default 'Novidades selecionadas para renovar seu estilo com leveza.',
+  banner_button_label text not null default 'Conhecer coleção',
+  banner_image_url text not null default 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1400&q=85',
+  banner_link text not null default '/(tabs)/categories',
+  banner_start_at date,
+  banner_end_at date,
+  updated_at timestamptz not null default now(),
+  check (banner_start_at is null or banner_end_at is null or banner_start_at <= banner_end_at)
 );
+
+create index products_provisional_photo_idx
+  on public.products (created_at desc)
+  where active and photo_provisional;
 
 create table public.orders (
   id uuid primary key,
+  customer_id uuid references auth.users (id) on delete set null,
   public_code text not null unique check (char_length(public_code) between 5 and 20),
   lookup_token uuid not null unique,
   customer_name text not null check (char_length(customer_name) between 3 and 120),
@@ -116,6 +132,10 @@ create index orders_created_idx
 create index orders_pending_created_idx
   on public.orders (created_at desc)
   where status = 'pending';
+
+create index orders_customer_created_idx
+  on public.orders (customer_id, created_at desc)
+  where customer_id is not null;
 
 create table public.analytics_events (
   id uuid primary key default gen_random_uuid(),
@@ -515,13 +535,17 @@ with check (
   status = 'pending'
   and delivery_fee = 0
   and total = subtotal
+  and (customer_id is null or customer_id = (select auth.uid()))
 );
 
-create policy "admins can read orders"
+create policy "authenticated can read permitted orders"
 on public.orders
 for select
 to authenticated
-using ((select private.is_admin()));
+using (
+  customer_id = (select auth.uid())
+  or (select private.is_admin())
+);
 
 create policy "admins can update orders"
 on public.orders

@@ -8,9 +8,10 @@ import { colors } from '@/src/theme';
 type ProductImageProps = {
   uri?: string;
   style?: StyleProp<ImageStyle>;
+  contentFit?: 'cover' | 'contain';
 };
 
-export function ProductImage({ uri, style }: ProductImageProps) {
+export function ProductImage({ uri, style, contentFit = 'cover' }: ProductImageProps) {
   const [failed, setFailed] = useState(false);
 
   if (!uri || failed) {
@@ -24,7 +25,7 @@ export function ProductImage({ uri, style }: ProductImageProps) {
   return (
     <Image
       source={{ uri }}
-      contentFit="cover"
+      contentFit={contentFit}
       onError={() => setFailed(true)}
       transition={180}
       style={[styles.image, style]}

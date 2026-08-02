@@ -136,8 +136,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    width: '100%',
+    maxWidth: 900,
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+    alignSelf: 'center',
     gap: spacing.md,
   },
   notice: {

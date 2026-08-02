@@ -1,13 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -18,13 +21,26 @@ import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
 import { SectionHeader } from '@/src/components/section-header';
+import { StoreFooter } from '@/src/components/store-footer';
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 
 export default function HomeScreen() {
   const { products, categories, settings, loading, refreshStore } = useStore();
+  const { width } = useWindowDimensions();
+  const desktop = width >= 900;
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      window.location.hostname.startsWith('painel.')
+    ) {
+      router.replace('/admin/login');
+    }
+  }, []);
 
   const visibleProducts = useMemo(
     () => products.filter((product) => product.active),
@@ -43,6 +59,12 @@ export default function HomeScreen() {
         product.description.toLocaleLowerCase('pt-BR').includes(normalized),
     );
   }, [query, visibleProducts]);
+  const bannerActive = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (settings.bannerStartAt && today < settings.bannerStartAt) return false;
+    if (settings.bannerEndAt && today > settings.bannerEndAt) return false;
+    return true;
+  }, [settings.bannerEndAt, settings.bannerStartAt]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -63,18 +85,19 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        stickyHeaderIndices={desktop ? [0] : undefined}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator>
         <AppHeader />
 
-        <View style={[styles.horizontalPadding, styles.searchArea]}>
+        <View style={[styles.pageWidth, styles.horizontalPadding, styles.searchArea]}>
           <SearchBar value={query} onChangeText={setQuery} />
         </View>
 
         {query.trim() ? (
-          <View style={styles.section}>
+          <View style={[styles.pageWidth, styles.section]}>
             <SectionHeader title={`Resultados (${searchResults.length})`} />
             <ProductGrid products={searchResults} />
             {!searchResults.length ? (
@@ -85,28 +108,39 @@ export default function HomeScreen() {
           <>
             <AnnouncementTicker messages={settings.tickerMessages} />
 
-            <View style={styles.horizontalPadding}>
-              <View style={styles.hero}>
+            {bannerActive ? <View style={[styles.pageWidth, styles.horizontalPadding]}>
+              <View style={[styles.hero, desktop && styles.heroDesktop]}>
                 <View style={styles.heroText}>
-                  <Text style={styles.heroEyebrow}>JOEDLA COLLECTION</Text>
-                  <Text style={styles.heroTitle}>Novidades{'\n'}da semana</Text>
+                  <Text style={styles.heroEyebrow}>CURADORIA JOEDLA</Text>
+                  <Text style={[styles.heroTitle, desktop && styles.heroTitleDesktop]}>
+                    {settings.bannerTitle}
+                  </Text>
+                  <Text style={[styles.heroSubtitle, !desktop && styles.heroSubtitleMobile]}>
+                    {settings.bannerSubtitle}
+                  </Text>
                   <Pressable
-                    onPress={() => router.push('/(tabs)/categories')}
+                    onPress={() => router.push(settings.bannerLink as never)}
                     style={styles.heroButton}>
-                    <Text style={styles.heroButtonText}>Ver produtos</Text>
+                    <Text style={styles.heroButtonText}>{settings.bannerButtonLabel}</Text>
                   </Pressable>
                 </View>
                 <Image
                   source={{
-                    uri: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=700&q=85',
+                    uri: settings.bannerImageUrl,
                   }}
                   contentFit="cover"
                   style={styles.heroImage}
                 />
               </View>
+            </View> : null}
+
+            <View style={[styles.pageWidth, styles.benefits]}>
+              <Benefit icon="shield-checkmark-outline" title="Compra segura" text="Atendimento direto com a loja" />
+              <Benefit icon="sparkles-outline" title="Seleção especial" text="Peças escolhidas com cuidado" />
+              <Benefit icon="logo-whatsapp" title="Suporte próximo" text="Dúvidas respondidas no WhatsApp" />
             </View>
 
-            <View style={styles.section}>
+            <View style={[styles.pageWidth, styles.section]}>
               <SectionHeader
                 title="Categorias"
                 actionLabel="Ver todas"
@@ -131,7 +165,7 @@ export default function HomeScreen() {
               </ScrollView>
             </View>
 
-            <View style={styles.section}>
+            <View style={[styles.pageWidth, styles.section]}>
               <SectionHeader
                 title="Destaques"
                 actionLabel="Ver todos"
@@ -142,10 +176,33 @@ export default function HomeScreen() {
               />
               {loading ? <Text style={styles.loadingText}>Atualizando produtos...</Text> : null}
             </View>
+            <StoreFooter />
           </>
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function Benefit({
+  icon,
+  title,
+  text,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.benefit}>
+      <View style={styles.benefitIcon}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
+      </View>
+      <View style={styles.benefitCopy}>
+        <Text style={styles.benefitTitle}>{title}</Text>
+        <Text style={styles.benefitText}>{text}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -156,16 +213,25 @@ const styles = StyleSheet.create({
   horizontalPadding: {
     paddingHorizontal: spacing.lg,
   },
+  pageWidth: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+  },
   searchArea: {
     paddingTop: spacing.md,
   },
   hero: {
-    height: 222,
+    minHeight: 244,
     marginTop: spacing.lg,
     overflow: 'hidden',
     borderRadius: radii.large,
     flexDirection: 'row',
     backgroundColor: '#F2E4D2',
+  },
+  heroDesktop: {
+    minHeight: 390,
+    borderRadius: 28,
   },
   heroText: {
     zIndex: 2,
@@ -187,6 +253,20 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     fontWeight: '700',
   },
+  heroTitleDesktop: {
+    fontSize: 48,
+    lineHeight: 52,
+  },
+  heroSubtitle: {
+    maxWidth: 430,
+    marginTop: spacing.md,
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  heroSubtitleMobile: {
+    display: 'none',
+  },
   heroButton: {
     alignSelf: 'flex-start',
     marginTop: spacing.lg,
@@ -205,6 +285,36 @@ const styles = StyleSheet.create({
     height: '100%',
     marginLeft: '-6%',
   },
+  benefits: {
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  benefit: {
+    minWidth: 240,
+    flex: 1,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  benefitIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceWarm,
+  },
+  benefitCopy: { flex: 1 },
+  benefitTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  benefitText: { marginTop: 2, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   section: {
     marginTop: spacing.xl,
     paddingHorizontal: spacing.lg,

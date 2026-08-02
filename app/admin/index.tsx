@@ -106,6 +106,12 @@ export default function AdminDashboardScreen() {
           <Text style={styles.sectionTitle}>Gerenciar</Text>
           <View style={styles.actions}>
             <ActionCard
+              icon="color-palette-outline"
+              title="Destaques e banner"
+              description="Editar imagem e conteúdo principal da loja"
+              onPress={() => router.push('/admin/appearance' as Href)}
+            />
+            <ActionCard
               icon="shirt-outline"
               title="Produtos e estoque"
               description="Cadastrar, editar e controlar quantidades"
@@ -254,8 +260,11 @@ function ActionCard({
 
 const styles = StyleSheet.create({
   content: {
+    width: '100%',
+    maxWidth: 1180,
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+    alignSelf: 'center',
   },
   welcome: {
     flexDirection: 'row',
@@ -339,9 +348,14 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: spacing.md,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   actionCard: {
+    minWidth: 300,
+    flexBasis: '31%',
+    flexGrow: 1,
     minHeight: 78,
     padding: spacing.md,
     borderWidth: 1,
