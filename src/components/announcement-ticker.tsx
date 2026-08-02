@@ -14,7 +14,7 @@ import { colors, spacing } from '@/src/theme';
 
 type TickerItem = {
   key: string;
-  kind: 'message' | 'weather';
+  kind: 'message' | 'important' | 'weather';
   label: string;
   text: string;
   accent: string;
@@ -36,23 +36,33 @@ function buildTickerItems(messages: string[], weather: StoreWeather[]) {
   const weatherItems = weather.map(weatherItem);
   if (!messages.length) return weatherItems;
 
-  const items: TickerItem[] = [];
-  messages.forEach((message, index) => {
-    items.push({
-      key: `message-${index}`,
-      kind: 'message',
-      label: 'AVISO',
-      text: message,
-      accent: '#FFD400',
-    });
-    if (weatherItems.length) {
-      const item = weatherItems[index % weatherItems.length];
-      items.push({ ...item, key: `weather-${index}-${item.key}` });
-    }
+  const weightedMessages = messages.flatMap((rawMessage, index) => {
+    const trimmed = rawMessage.trim();
+    const important = trimmed.startsWith('(') && trimmed.endsWith(')');
+    const text = important ? trimmed.slice(1, -1).trim() : trimmed;
+    if (!text) return [];
+
+    const repetitions = important ? 3 : 1;
+    return Array.from({ length: repetitions }, (_, repetition) => ({
+      key: `message-${index}-${repetition}`,
+      kind: important ? ('important' as const) : ('message' as const),
+      label: important ? 'IMPORTANTE' : 'AVISO',
+      text,
+      accent: important ? '#FF3030' : '#FFD400',
+    }));
   });
 
-  if (weatherItems.length > messages.length) {
-    items.push(...weatherItems.slice(messages.length));
+  if (!weightedMessages.length) return weatherItems;
+
+  const items: TickerItem[] = [];
+  const pairCount = Math.max(weightedMessages.length, weatherItems.length || 1);
+  for (let index = 0; index < pairCount; index += 1) {
+    const message = weightedMessages[index % weightedMessages.length];
+    items.push({ ...message, key: `${message.key}-pair-${index}` });
+    if (weatherItems.length) {
+      const forecast = weatherItems[index % weatherItems.length];
+      items.push({ ...forecast, key: `${forecast.key}-pair-${index}` });
+    }
   }
   return items;
 }
@@ -67,13 +77,21 @@ function TickerSequence({
   return (
     <View onLayout={onLayout} style={styles.sequence}>
       {items.map((item) => (
-        <View key={item.key} style={styles.item}>
+        <View
+          key={item.key}
+          style={[styles.item, item.kind === 'important' && styles.importantItem]}>
           <View style={[styles.label, { backgroundColor: item.accent }]}>
-            <Text style={[styles.labelText, item.kind === 'message' && styles.messageLabelText]}>
+            <Text
+              style={[
+                styles.labelText,
+                item.kind === 'message' && styles.messageLabelText,
+              ]}>
               {item.label}
             </Text>
           </View>
-          <Text numberOfLines={1} style={styles.itemText}>
+          <Text
+            numberOfLines={1}
+            style={[styles.itemText, item.kind === 'important' && styles.importantText]}>
             {item.text}
           </Text>
           <View style={styles.separator} />
@@ -160,7 +178,7 @@ export function AnnouncementTicker({ messages }: { messages?: string[] }) {
     <View accessibilityLabel="Avisos e clima em tempo real" style={styles.container}>
       <View style={styles.liveBadge}>
         <View style={styles.liveDot} />
-        <Text style={styles.liveText}>AO VIVO</Text>
+        <Text style={styles.liveText}>INFORMAÇÃO</Text>
       </View>
       <View style={styles.marquee}>
         <Animated.View
@@ -187,7 +205,7 @@ const styles = StyleSheet.create({
   },
   liveBadge: {
     zIndex: 2,
-    width: 82,
+    width: 112,
     paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
@@ -232,6 +250,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  importantItem: {
+    marginVertical: 3,
+    borderWidth: 1,
+    borderColor: '#FF3030',
+    borderRadius: 7,
+    backgroundColor: '#3B151A',
+  },
   label: {
     minHeight: 24,
     paddingHorizontal: spacing.sm,
@@ -254,6 +279,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.2,
+  },
+  importantText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    fontWeight: '900',
   },
   separator: {
     width: 2,

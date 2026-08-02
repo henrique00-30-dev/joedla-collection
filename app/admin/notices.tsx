@@ -87,12 +87,12 @@ export default function AdminNoticesScreen() {
                 label="Mensagens da faixa"
                 value={value}
                 onChangeText={setValue}
-                placeholder="Exemplo: Promoção de bolsas até sábado ! Novidades disponíveis na loja"
+                placeholder="Promoção de bolsas até sábado ! (Último dia da promoção)"
                 multiline
                 style={styles.messageField}
               />
               <Text style={styles.helper}>
-                Separe cada mensagem usando !. {previewMessages.length}/{MAX_MESSAGES} cadastradas.
+                Separe cada mensagem usando !. Para dar destaque maior, coloque toda a mensagem entre parênteses: (Mensagem importante). Os parênteses não aparecerão na faixa. {previewMessages.length}/{MAX_MESSAGES} cadastradas.
               </Text>
             </View>
 
