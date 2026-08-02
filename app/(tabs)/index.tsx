@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useRootNavigationState } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -28,20 +28,22 @@ import { colors, fonts, radii, spacing } from '@/src/theme';
 export default function HomeScreen() {
   const { products, categories, settings, loading, refreshStore } = useStore();
   const { width } = useWindowDimensions();
+  const rootNavigationState = useRootNavigationState();
   const desktop = width >= 900;
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined' &&
-      window.location.hostname.startsWith('painel.')
-    ) {
-      router.replace('/admin/login');
-    }
-  }, []);
+useEffect(() => {
+  if (!rootNavigationState?.key) return;
 
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.location.hostname.startsWith('painel.')
+  ) {
+    router.replace('/admin/login');
+  }
+}, [rootNavigationState?.key]);  
   const visibleProducts = useMemo(
     () => products.filter((product) => product.active),
     [products],
