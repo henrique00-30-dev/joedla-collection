@@ -4,8 +4,8 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Pressable,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,8 +14,8 @@ import {
   View,
 } from 'react-native';
 
-import { AppHeader } from '@/src/components/app-header';
 import { AnnouncementTicker } from '@/src/components/announcement-ticker';
+import { AppHeader } from '@/src/components/app-header';
 import { CategoryTile } from '@/src/components/category-tile';
 import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
