@@ -2,11 +2,12 @@ import * as Crypto from 'expo-crypto';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
 import { defaultCategories, defaultSettings } from '@/src/data/defaults';
-import { isCloudConfigured } from '@/src/lib/supabase';
 import { getStoredJson, setStoredJson } from '@/src/lib/storage';
+import { isCloudConfigured } from '@/src/lib/supabase';
+import { recordSiteVisit } from '@/src/services/analytics';
 import {
-  archiveCloudProduct,
   archiveCloudCategory,
+  archiveCloudProduct,
   createCloudOrder,
   loadCloudAdminOrders,
   loadCloudCatalog,
@@ -14,8 +15,8 @@ import {
   loadCloudSettings,
   productFromDraft,
   restoreCloudAdminSession,
-  saveCloudProduct,
   saveCloudCategory,
+  saveCloudProduct,
   saveCloudSettings,
   signInCloudAdmin,
   signOutCloudAdmin,
@@ -24,9 +25,9 @@ import {
 } from '@/src/services/cloud';
 import {
   Availability,
+  CartItem,
   Category,
   CategoryDraft,
-  CartItem,
   CheckoutDraft,
   Order,
   OrderStatus,
@@ -35,7 +36,6 @@ import {
   StoreSettings,
 } from '@/src/types';
 import { orderCodeFromUuid } from '@/src/utils/format';
-import { recordSiteVisit } from '@/src/services/analytics';
 
 const STORAGE_KEYS = {
   products: 'joedla.products.v1',
@@ -190,6 +190,10 @@ export function StoreProvider({ children }: PropsWithChildren) {
     availabilityOverride?: Availability,
   ) {
     const effectiveAvailability = availabilityOverride ?? product.availability;
+    if (effectiveAvailability === 'ready' && product.stock <= 0) {
+      return;
+    }
+  
     const effectiveStock = effectiveAvailability === 'ready' ? product.stock : 99;
     const key = [
       product.id,
@@ -264,6 +268,53 @@ export function StoreProvider({ children }: PropsWithChildren) {
     if (!cloudEnabled) {
       throw new Error('A loja está sem conexão com o banco online. Tente novamente depois.');
     }
+    for (const item of cart) {
+  const currentProduct = products.find(
+    (product) => product.id === item.productId,
+  );
+
+  if (!currentProduct) {
+    throw new Error(
+      `"${item.productName}" não está mais disponível no catálogo.`,
+    );
+  }
+
+  if (!currentProduct.active) {
+    throw new Error(
+      `"${item.productName}" foi desativado e não pode ser comprado.`,
+    );
+  }
+
+  if (currentProduct.availability !== item.availability) {
+    throw new Error(
+      `A disponibilidade de "${item.productName}" mudou. Remova o item e adicione novamente.`,
+    );
+  }
+
+  if (
+    currentProduct.availability === 'ready' &&
+    currentProduct.stock <= 0
+  ) {
+    throw new Error(
+      `"${item.productName}" ficou sem estoque. Remova o item do carrinho para continuar.`,
+    );
+  }
+
+  if (
+    currentProduct.availability === 'ready' &&
+    item.quantity > currentProduct.stock
+  ) {
+    throw new Error(
+      `"${item.productName}" possui apenas ${currentProduct.stock} unidade(s) disponível(is).`,
+    );
+  }
+
+  if (item.unitPrice !== currentProduct.price) {
+    throw new Error(
+      `O preço de "${item.productName}" mudou. Remova o item e adicione novamente.`,
+    );
+  }
+}
 
     const id = Crypto.randomUUID();
     const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);

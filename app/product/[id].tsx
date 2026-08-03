@@ -62,9 +62,13 @@ export default function ProductDetailsScreen() {
   const outOfStock =
     currentProduct.availability === 'ready' && currentProduct.stock <= 0;
   const isCustomOrder =
-    currentProduct.availability === 'custom' || outOfStock;
+    currentProduct.availability === 'custom';
 
   function handleProductAction(destination: 'cart' | 'checkout') {
+    if (outOfStock) {
+      setActionMessage('Produto indisponivel no momento.'); 
+      return;
+    }
     if (currentProduct.sizes.length && !selectedSize) {
       setActionMessage('Escolha um tamanho antes de continuar.');
       return;
@@ -79,7 +83,7 @@ export default function ProductDetailsScreen() {
       quantity,
       selectedSize,
       selectedColor,
-      outOfStock ? 'custom' : undefined,
+      isCustomOrder ? 'custom' : undefined,
     );
     if (destination === 'checkout') {
       router.push('/checkout');
@@ -245,20 +249,44 @@ export default function ProductDetailsScreen() {
           </Text>
         ) : null}
         <View style={styles.footerActions}>
-          <Button
-            variant="secondary"
-            icon="bag-add-outline"
-            onPress={() => handleProductAction('cart')}
-            style={styles.actionButton}>
-            {isCustomOrder ? 'Encomendar' : 'Adicionar ao carrinho'}
-          </Button>
-          <Button
-            icon="flash-outline"
-            onPress={() => handleProductAction('checkout')}
-            style={styles.actionButton}>
-            Comprar agora
-          </Button>
-        </View>
+  {outOfStock ? (
+    <View style={styles.unavailableBox}>
+      <Ionicons
+        name="alert-circle-outline"
+        size={20}
+        color={colors.textMuted}
+      />
+
+      <Text style={styles.unavailableText}>
+        Produto indisponível
+      </Text>
+    </View>
+  ) : isCustomOrder ? (
+    <Button
+      icon="time-outline"
+      onPress={() => handleProductAction('cart')}
+      style={styles.actionButton}>
+      Encomendar
+    </Button>
+  ) : (
+    <>
+      <Button
+        variant="secondary"
+        icon="bag-add-outline"
+        onPress={() => handleProductAction('cart')}
+        style={styles.actionButton}>
+        Adicionar ao carrinho
+      </Button>
+
+      <Button
+        icon="flash-outline"
+        onPress={() => handleProductAction('checkout')}
+        style={styles.actionButton}>
+        Comprar agora
+      </Button>
+    </>
+  )}
+</View>
       </View>
     </Screen>
   );
@@ -565,6 +593,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: spacing.sm,
   },
+  unavailableBox: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: spacing.sm,
+  paddingVertical: spacing.md,
+  borderRadius: radii.medium,
+  backgroundColor: colors.surfaceWarm,
+},
+
+unavailableText: {
+  color: colors.textMuted,
+  fontSize: 15,
+  fontWeight: '800',
+  textAlign: 'center',
+},
   purchaseNotes: {
     marginTop: spacing.xl,
     borderTopWidth: 1,
