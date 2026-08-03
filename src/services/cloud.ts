@@ -164,6 +164,8 @@ export async function loadCloudSettings(): Promise<StoreSettings | null> {
     instagram: data.instagram ?? '',
     deliveryMessage: data.delivery_message,
     tickerMessages: Array.isArray(data.ticker_messages) ? data.ticker_messages : [],
+    banners: Array.isArray(data.banners) ? data.banners :
+    [],
     bannerTitle: data.banner_title ?? 'Elegância para todos os momentos',
     bannerSubtitle: data.banner_subtitle ?? 'Novidades selecionadas para renovar seu estilo com leveza.',
     bannerButtonLabel: data.banner_button_label ?? 'Conhecer coleção',
@@ -383,6 +385,7 @@ export async function saveCloudSettings(settings: StoreSettings): Promise<void> 
     banner_link: settings.bannerLink,
     banner_start_at: settings.bannerStartAt || null,
     banner_end_at: settings.bannerEndAt || null,
+    banners: settings.banners,
   });
 
   if (error) throw error;

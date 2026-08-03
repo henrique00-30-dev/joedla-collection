@@ -98,6 +98,18 @@ export type Order = {
   status: OrderStatus;
   createdAt: string;
 };
+export type Banner = {
+  id: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  buttonLabel: string;
+  link: string;
+  order: number;
+  active: boolean;
+  startAt: string;
+  endAt: string;
+};
 
 export type StoreSettings = {
   storeName: string;
@@ -108,6 +120,7 @@ export type StoreSettings = {
   instagram: string;
   deliveryMessage: string;
   tickerMessages: string[];
+  banners: Banner[];
   bannerTitle: string;
   bannerSubtitle: string;
   bannerButtonLabel: string;

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
-import { StoreSettings } from '@/src/types';
+import { Banner, StoreSettings } from '@/src/types';
 
 export default function AdminAppearanceScreen() {
   const { settings, updateSettings, uploadProductImage } = useStore();
@@ -18,9 +19,91 @@ export default function AdminAppearanceScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  function update(field: keyof StoreSettings, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
+  function update<K extends keyof StoreSettings>(
+  field: K,
+  value: StoreSettings[K],
+) {
+  setForm((current) => ({
+    ...current,
+    [field]: value,
+  }));
+}
+function createEmptyBanner(): Banner {
+  return {
+    id: Crypto.randomUUID(),
+    title: '',
+    subtitle: '',
+    imageUrl: '',
+    buttonLabel: '',
+    link: '',
+    startAt: '',
+    endAt: '',
+    order: form.banners.length,
+    active: true,
+  };
+}
+function addBanner() {
+  if (form.banners.length >= 4) {
+    Alert.alert(
+      'Limite de banners',
+      'Você pode manter no máximo 4 banners no carrossel.',
+    );
+    return;
   }
+
+  update('banners', [
+    ...form.banners,
+    createEmptyBanner(),
+  ]);
+}
+function removeBanner(bannerId: string) {
+  const remove = () => {
+    update(
+      'banners',
+      form.banners
+        .filter((banner) => banner.id !== bannerId)
+        .map((banner, index) => ({
+          ...banner,
+          order: index,
+        })),
+    );
+  };
+
+  if (Platform.OS === 'web') {
+    if (window.confirm('Tem certeza que deseja remover este banner?')) {
+      remove();
+    }
+    return;
+  }
+
+  Alert.alert(
+    'Remover banner',
+    'Tem certeza de que deseja remover este banner?',
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: remove,
+      },
+    ],
+  );
+}
+
+
+function updateBanner(
+  bannerId: string,
+  changes: Partial<Banner>,
+) {
+  setForm((current) => ({
+    ...current,
+    banners: current.banners.map((banner) =>
+      banner.id === bannerId
+        ? { ...banner, ...changes }
+        : banner,
+    ),
+  }));
+}
 
   async function chooseBanner() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -41,8 +124,52 @@ export default function AdminAppearanceScreen() {
       setUploading(false);
     }
   }
+async function chooseBannerImage(bannerId: string) {
+  const permission =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+  if (!permission.granted) {
+    Alert.alert(
+      'Permissão necessária',
+      'Autorize o acesso às fotos para escolher o banner.',
+    );
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 0.88,
+  });
+
+  if (result.canceled) return;
+
+  setUploading(true);
+
+  try {
+    const asset = result.assets[0];
+
+    const url = await uploadProductImage(
+      asset.uri,
+      asset.mimeType ?? 'image/jpeg',
+    );
+
+    updateBanner(bannerId, {
+      imageUrl: url,
+    });
+  } catch (error) {
+    Alert.alert(
+      'Não foi possível enviar',
+      error instanceof Error
+        ? error.message
+        : 'Tente novamente.',
+    );
+  } finally {
+    setUploading(false);
+  }
+}
 
   async function save() {
+    console.log('SALVAR CLICADO', form.banners);
     if (!form.bannerTitle.trim() || !form.bannerButtonLabel.trim() || !form.bannerImageUrl.trim()) {
       Alert.alert('Banner incompleto', 'Informe título, texto do botão e imagem.');
       return;
@@ -81,6 +208,97 @@ export default function AdminAppearanceScreen() {
             </View>
 
             <Text style={styles.sectionTitle}>Conteúdo do banner</Text>
+            <Button
+  icon="add-outline"
+  onPress={addBanner}
+  disabled={form.banners.length >= 4}>
+  Adicionar banner
+</Button>
+
+<Text style={{ marginTop: 8 }}>
+  {form.banners.length} de 4 banners cadastrados
+</Text>
+{form.banners.map((banner, index) => (
+  <View
+    key={banner.id}
+    style={{
+      marginTop: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radii.medium,
+      backgroundColor: colors.surface,
+      gap: 12,
+    }}>
+
+    <Text style={{ fontWeight: '800', fontSize: 16 }}>
+      Banner {index + 1}
+    </Text>
+
+    <Field
+      label="Título"
+      value={banner.title}
+      onChangeText={(value) =>
+        updateBanner(banner.id, { title: value })
+      }
+    />
+
+    <Field
+      label="Subtítulo"
+      value={banner.subtitle}
+      onChangeText={(value) =>
+        updateBanner(banner.id, { subtitle: value })
+      }
+    />
+
+    <Field
+      label="Texto do botão"
+      value={banner.buttonLabel}
+      onChangeText={(value) =>
+        updateBanner(banner.id, { buttonLabel: value })
+      }
+    />
+
+    <Field
+      label="Destino do botão"
+      value={banner.link}
+      onChangeText={(value) =>
+        updateBanner(banner.id, { link: value })
+      }
+    />
+
+    <Field
+      label="Início (AAAA-MM-DD), opcional"
+      value={banner.startAt}
+      onChangeText={(value) =>
+        updateBanner(banner.id, { startAt: value })
+      }
+    />
+
+    <Field
+      label="Fim (AAAA-MM-DD), opcional"
+      value={banner.endAt}
+      onChangeText={(value) =>
+        updateBanner(banner.id, { endAt: value })
+      }
+    />
+
+    <Button
+      variant="secondary"
+      icon="image-outline"
+      onPress={() => chooseBannerImage(banner.id)}
+      disabled={uploading}>
+      Trocar imagem
+    </Button>
+
+    <Button
+      variant="secondary"
+      icon="trash-outline"
+      onPress={() => removeBanner(banner.id)}>
+      Remover banner
+    </Button>
+  </View>
+))}
             <View style={styles.card}>
               <Field label="Título" value={form.bannerTitle} onChangeText={(value) => update('bannerTitle', value)} placeholder="Elegância para todos os momentos" />
               <Field label="Subtítulo curto" value={form.bannerSubtitle} onChangeText={(value) => update('bannerSubtitle', value)} multiline />

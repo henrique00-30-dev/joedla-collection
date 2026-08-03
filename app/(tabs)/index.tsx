@@ -33,6 +33,7 @@ export default function HomeScreen() {
 
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   useEffect(() => {
     if (
@@ -64,11 +65,18 @@ export default function HomeScreen() {
     return visibleProducts.filter(
       (product) =>
         product.name.toLocaleLowerCase('pt-BR').includes(normalized) ||
-        product.description.toLocaleLowerCase('pt-BR').includes(normalized),
+        product.description
+          .toLocaleLowerCase('pt-BR')
+          .includes(normalized),
     );
   }, [query, visibleProducts]);
 
-  const bannerActive = useMemo(() => {
+  /*
+   * Validação do banner antigo.
+   * Ele continuará servindo como fallback enquanto a migração
+   * para o novo carrossel não estiver totalmente concluída.
+   */
+  const legacyBannerActive = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
 
     if (settings.bannerStartAt && today < settings.bannerStartAt) {
@@ -81,6 +89,67 @@ export default function HomeScreen() {
 
     return true;
   }, [settings.bannerEndAt, settings.bannerStartAt]);
+
+  /*
+   * Filtra os novos banners cadastrados pelo administrador.
+   */
+  const activeBanners = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+
+    return settings.banners
+      .filter((banner) => banner.active)
+      .filter((banner) => !banner.startAt || today >= banner.startAt)
+      .filter((banner) => !banner.endAt || today <= banner.endAt)
+      .sort((first, second) => first.order - second.order)
+      .slice(0, 4);
+  }, [settings.banners]);
+
+  /*
+   * Nesta primeira etapa, mostra o primeiro banner válido.
+   * Depois de confirmar que tudo está funcionando,
+   * esse índice será usado pelo carrossel automático.
+   */
+  const currentBanner = 
+  activeBanners[currentBannerIndex] ??
+  activeBanners[0] ?? null;
+useEffect(() => {
+  if (activeBanners.length <= 1) {
+    setCurrentBannerIndex(0);
+    return;
+  }
+
+  const interval = setInterval(() => {
+    setCurrentBannerIndex((current) =>
+      current + 1 >= activeBanners.length ? 0 : current + 1,
+    );
+  }, 5000);
+
+  return () => clearInterval(interval);
+}, [activeBanners.length]);
+
+
+  const bannerTitle =
+    currentBanner?.title ?? settings.bannerTitle;
+
+  const bannerSubtitle =
+    currentBanner?.subtitle ?? settings.bannerSubtitle;
+
+  const bannerButtonLabel =
+    currentBanner?.buttonLabel ?? settings.bannerButtonLabel;
+
+  const bannerImageUrl =
+    currentBanner?.imageUrl ?? settings.bannerImageUrl;
+
+  const bannerLink =
+    currentBanner?.link ?? settings.bannerLink;
+
+  /*
+   * Exibe o banner quando:
+   * - existe algum banner novo ativo; ou
+   * - o banner antigo ainda está dentro do período configurado.
+   */
+  const shouldShowBanner =
+    Boolean(currentBanner) || legacyBannerActive;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -95,6 +164,25 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
+  }
+
+  function openBannerDestination() {
+    const destination = bannerLink.trim();
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      Platform.OS === 'web' &&
+      (destination.startsWith('http://') ||
+        destination.startsWith('https://'))
+    ) {
+      window.open(destination, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    router.push(destination as never);
   }
 
   return (
@@ -138,7 +226,7 @@ export default function HomeScreen() {
           <>
             <AnnouncementTicker messages={settings.tickerMessages} />
 
-            {bannerActive ? (
+            {shouldShowBanner ? (
               <View style={[styles.pageWidth, styles.horizontalPadding]}>
                 <View style={[styles.hero, desktop && styles.heroDesktop]}>
                   <View style={styles.heroText}>
@@ -151,7 +239,7 @@ export default function HomeScreen() {
                         styles.heroTitle,
                         desktop && styles.heroTitleDesktop,
                       ]}>
-                      {settings.bannerTitle}
+                      {bannerTitle}
                     </Text>
 
                     <Text
@@ -159,27 +247,40 @@ export default function HomeScreen() {
                         styles.heroSubtitle,
                         !desktop && styles.heroSubtitleMobile,
                       ]}>
-                      {settings.bannerSubtitle}
+                      {bannerSubtitle}
                     </Text>
 
-                    <Pressable
-                      onPress={() =>
-                        router.push(settings.bannerLink as never)
-                      }
-                      style={styles.heroButton}>
-                      <Text style={styles.heroButtonText}>
-                        {settings.bannerButtonLabel}
-                      </Text>
-                    </Pressable>
+                    {bannerButtonLabel.trim() && bannerLink.trim() ? (
+                      <Pressable
+                        onPress={openBannerDestination}
+                        style={({ pressed }) => [
+                          styles.heroButton,
+                          pressed && styles.heroButtonPressed,
+                        ]}>
+                        <Text style={styles.heroButtonText}>
+                          {bannerButtonLabel}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
 
-                  <Image
-                    source={{
-                      uri: settings.bannerImageUrl,
-                    }}
-                    contentFit="cover"
-                    style={styles.heroImage}
-                  />
+                  {bannerImageUrl.trim() ? (
+                    <Image
+                      source={{
+                        uri: bannerImageUrl,
+                      }}
+                      contentFit="cover"
+                      style={styles.heroImage}
+                    />
+                  ) : (
+                    <View style={styles.heroImageFallback}>
+                      <Ionicons
+                        name="images-outline"
+                        size={42}
+                        color={colors.textMuted}
+                      />
+                    </View>
+                  )}
                 </View>
               </View>
             ) : null}
@@ -371,6 +472,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
 
+  heroButtonPressed: {
+    opacity: 0.82,
+  },
+
   heroButtonText: {
     color: colors.white,
     fontSize: 12,
@@ -381,6 +486,15 @@ const styles = StyleSheet.create({
     width: '48%',
     height: '100%',
     marginLeft: '-6%',
+  },
+
+  heroImageFallback: {
+    width: '48%',
+    height: '100%',
+    marginLeft: '-6%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceWarm,
   },
 
   benefits: {

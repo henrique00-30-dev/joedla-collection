@@ -44,6 +44,7 @@ export const defaultSettings: StoreSettings = {
   instagram: '',
   deliveryMessage: 'Entrega grátis em Rosário do Catete',
   tickerMessages: [],
+  banners: [],
   bannerTitle: 'Elegância para todos os momentos',
   bannerSubtitle: 'Novidades selecionadas para renovar seu estilo com leveza.',
   bannerButtonLabel: 'Conhecer coleção',
