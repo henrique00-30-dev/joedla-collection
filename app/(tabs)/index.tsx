@@ -71,11 +71,6 @@ export default function HomeScreen() {
     );
   }, [query, visibleProducts]);
 
-  /*
-   * Validação do banner antigo.
-   * Ele continuará servindo como fallback enquanto a migração
-   * para o novo carrossel não estiver totalmente concluída.
-   */
   const legacyBannerActive = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -90,9 +85,6 @@ export default function HomeScreen() {
     return true;
   }, [settings.bannerEndAt, settings.bannerStartAt]);
 
-  /*
-   * Filtra os novos banners cadastrados pelo administrador.
-   */
   const activeBanners = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -104,52 +96,33 @@ export default function HomeScreen() {
       .slice(0, 4);
   }, [settings.banners]);
 
-  /*
-   * Nesta primeira etapa, mostra o primeiro banner válido.
-   * Depois de confirmar que tudo está funcionando,
-   * esse índice será usado pelo carrossel automático.
-   */
-  const currentBanner = 
-  activeBanners[currentBannerIndex] ??
-  activeBanners[0] ?? null;
-useEffect(() => {
-  if (activeBanners.length <= 1) {
-    setCurrentBannerIndex(0);
-    return;
-  }
+  const currentBanner =
+    activeBanners[currentBannerIndex] ?? activeBanners[0] ?? null;
 
-  const interval = setInterval(() => {
-    setCurrentBannerIndex((current) =>
-      current + 1 >= activeBanners.length ? 0 : current + 1,
-    );
-  }, 5000);
+  useEffect(() => {
+    if (activeBanners.length <= 1) {
+      setCurrentBannerIndex(0);
+      return;
+    }
 
-  return () => clearInterval(interval);
-}, [activeBanners.length]);
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((current) =>
+        current + 1 >= activeBanners.length ? 0 : current + 1,
+      );
+    }, 5000);
 
+    return () => clearInterval(interval);
+  }, [activeBanners.length]);
 
-  const bannerTitle =
-    currentBanner?.title ?? settings.bannerTitle;
-
-  const bannerSubtitle =
-    currentBanner?.subtitle ?? settings.bannerSubtitle;
-
+  const bannerTitle = currentBanner?.title ?? settings.bannerTitle;
+  const bannerSubtitle = currentBanner?.subtitle ?? settings.bannerSubtitle;
   const bannerButtonLabel =
     currentBanner?.buttonLabel ?? settings.bannerButtonLabel;
-
   const bannerImageUrl =
     currentBanner?.imageUrl ?? settings.bannerImageUrl;
+  const bannerLink = currentBanner?.link ?? settings.bannerLink;
 
-  const bannerLink =
-    currentBanner?.link ?? settings.bannerLink;
-
-  /*
-   * Exibe o banner quando:
-   * - existe algum banner novo ativo; ou
-   * - o banner antigo ainda está dentro do período configurado.
-   */
-  const shouldShowBanner =
-    Boolean(currentBanner) || legacyBannerActive;
+  const shouldShowBanner = Boolean(currentBanner) || legacyBannerActive;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -183,6 +156,26 @@ useEffect(() => {
     }
 
     router.push(destination as never);
+  }
+
+  function showPreviousBanner() {
+    if (activeBanners.length <= 1) {
+      return;
+    }
+
+    setCurrentBannerIndex((current) =>
+      current - 1 < 0 ? activeBanners.length - 1 : current - 1,
+    );
+  }
+
+  function showNextBanner() {
+    if (activeBanners.length <= 1) {
+      return;
+    }
+
+    setCurrentBannerIndex((current) =>
+      current + 1 >= activeBanners.length ? 0 : current + 1,
+    );
   }
 
   return (
@@ -266,9 +259,7 @@ useEffect(() => {
 
                   {bannerImageUrl.trim() ? (
                     <Image
-                      source={{
-                        uri: bannerImageUrl,
-                      }}
+                      source={{ uri: bannerImageUrl }}
                       contentFit="cover"
                       style={styles.heroImage}
                     />
@@ -281,52 +272,52 @@ useEffect(() => {
                       />
                     </View>
                   )}
-                  <Pressable
-                    style={styles.heroArrowLeft}
-  onPress={() =>
-    setCurrentBannerIndex(
-      (currentBannerIndex - 1 + activeBanners.length) %
-      activeBanners.length
-    )
-  }
->
-  <Ionicons
-    name="chevron-back"
-    size={28}
-    color="#6B4B3E"
-  />
-</Pressable>
 
-<Pressable
-  style={styles.heroArrowRight}
-  onPress={() =>
-    setCurrentBannerIndex(
-      (currentBannerIndex + 1) %
-      activeBanners.length
-    )
-  }
->
-  <Ionicons
-    name="chevron-forward"
-    size={28}
-    color="#6B4B3E"
-  />
-</Pressable>
+                  {desktop && activeBanners.length > 1 ? (
+                    <>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Mostrar banner anterior"
+                        onPress={showPreviousBanner}
+                        style={styles.heroArrowLeft}>
+                        <Ionicons
+                          name="chevron-back"
+                          size={28}
+                          color="#6B4B3E"
+                        />
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Mostrar próximo banner"
+                        onPress={showNextBanner}
+                        style={styles.heroArrowRight}>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={28}
+                          color="#6B4B3E"
+                        />
+                      </Pressable>
+                    </>
+                  ) : null}
+
                   {activeBanners.length > 1 ? (
-  <View style={styles.heroIndicators}>
-    {activeBanners.map((banner, index) => (
-      <Pressable
-        key={banner.id}
-        onPress={() => setCurrentBannerIndex(index)}
-        style={[
-          styles.heroIndicator,
-          index === currentBannerIndex &&
-            styles.heroIndicatorActive,
-        ]}
-      />
-    ))}
-  </View>
-) : null}
+                    <View style={styles.heroIndicators}>
+                      {activeBanners.map((banner, index) => (
+                        <Pressable
+                          key={banner.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Mostrar banner ${index + 1}`}
+                          onPress={() => setCurrentBannerIndex(index)}
+                          style={[
+                            styles.heroIndicator,
+                            index === currentBannerIndex &&
+                              styles.heroIndicatorActive,
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ) : null}
@@ -421,11 +412,7 @@ function Benefit({
   return (
     <View style={styles.benefit}>
       <View style={styles.benefitIcon}>
-        <Ionicons
-          name={icon}
-          size={20}
-          color={colors.primary}
-        />
+        <Ionicons name={icon} size={20} color={colors.primary} />
       </View>
 
       <View style={styles.benefitCopy}>
@@ -456,14 +443,14 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-  minHeight: 450,
-  marginTop: spacing.lg,
-  overflow: 'hidden',
-  borderRadius: radii.large,
-  flexDirection: 'row',
-  alignItems: 'stretch',
-  backgroundColor: '#F2E4D2',
-},
+    minHeight: 450,
+    marginTop: spacing.lg,
+    overflow: 'hidden',
+    borderRadius: radii.large,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: '#F2E4D2',
+  },
 
   heroDesktop: {
     minHeight: 450,
@@ -471,14 +458,13 @@ const styles = StyleSheet.create({
   },
 
   heroText: {
+    zIndex: 2,
     flex: 1,
-  zIndex: 2,
-  width: '45%',
-  paddingHorizontal: spacing.xl,
-  paddingVertical: spacing.xl,
-  justifyContent: 'center',
-  alignItems: 'flex-start',
-},
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
 
   heroEyebrow: {
     marginBottom: spacing.sm,
@@ -489,13 +475,13 @@ const styles = StyleSheet.create({
   },
 
   heroTitle: {
-  maxWidth: 560,
-  fontFamily: fonts.display,
-  color: colors.primaryDark,
-  fontSize: 46,
-  lineHeight: 52,
-  fontWeight: '700',
-},
+    maxWidth: 560,
+    fontFamily: fonts.display,
+    color: colors.primaryDark,
+    fontSize: 46,
+    lineHeight: 52,
+    fontWeight: '700',
+  },
 
   heroTitleDesktop: {
     fontSize: 48,
@@ -503,25 +489,25 @@ const styles = StyleSheet.create({
   },
 
   heroSubtitle: {
-  maxWidth: 520,
-  marginTop: spacing.md,
-  color: colors.textMuted,
-  fontSize: 18,
-  lineHeight: 28,
-},
+    maxWidth: 520,
+    marginTop: spacing.md,
+    color: colors.textMuted,
+    fontSize: 18,
+    lineHeight: 28,
+  },
 
   heroSubtitleMobile: {
     display: 'none',
   },
 
   heroButton: {
-  alignSelf: 'flex-start',
-  marginTop: spacing.lg,
-  paddingHorizontal: spacing.xl,
-  paddingVertical: 12,
-  borderRadius: radii.pill,
-  backgroundColor: colors.primary,
-},
+    alignSelf: 'flex-start',
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 12,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+  },
 
   heroButtonPressed: {
     opacity: 0.82,
@@ -529,75 +515,71 @@ const styles = StyleSheet.create({
 
   heroButtonText: {
     color: colors.white,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '800',
   },
 
   heroImage: {
     flex: 1,
-  width: '55%',
-  height: '100%',
-  minHeight: 450,
+    height: '100%',
+    minHeight: 450,
+  },
 
-},
-
-heroImageFallback: {
-  flex: 1,
-  minHeight: 450,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: colors.surfaceWarm,
-},
+  heroImageFallback: {
+    flex: 1,
+    minHeight: 450,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceWarm,
+  },
 
   heroIndicators: {
-  position: 'absolute',
-  left: 0,
-  right: 0,
-  bottom: spacing.md,
-  zIndex: 4,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: spacing.sm,
-},
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: spacing.md,
+    zIndex: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
 
-heroIndicator: {
-  width: 9,
-  height: 9,
-  borderRadius: 5,
-  borderWidth: 1,
-  borderColor: colors.primary,
-  backgroundColor: 'transparent',
-},
+  heroIndicator: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+  },
 
-heroIndicatorActive: {
-  width: 24,
-  backgroundColor: colors.primary,
-},
+  heroIndicatorActive: {
+    width: 24,
+    backgroundColor: colors.primary,
+  },
 
-// COLE AQUI 👇
+  heroArrowLeft: {
+    position: 'absolute',
+    left: 20,
+    top: '50%',
+    marginTop: -22,
+    zIndex: 20,
+    padding: 8,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+  },
 
-heroArrowLeft: {
-  position: 'absolute',
-  left: 20,
-  top: '50%',
-  marginTop: -22,
-  zIndex: 20,
-  backgroundColor: 'rgba(255,255,255,0.85)',
-  borderRadius: 24,
-  padding: 8,
-},
-
-heroArrowRight: {
-  position: 'absolute',
-  right: 20,
-  top: '50%',
-  marginTop: -22,
-  zIndex: 20,
-  backgroundColor: 'rgba(255,255,255,0.85)',
-  borderRadius: 24,
-  padding: 8,
-},
+  heroArrowRight: {
+    position: 'absolute',
+    right: 20,
+    top: '50%',
+    marginTop: -22,
+    zIndex: 20,
+    padding: 8,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+  },
 
   benefits: {
     marginTop: spacing.xl,
