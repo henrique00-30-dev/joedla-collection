@@ -42,7 +42,7 @@ export function ProductCard({ product, cardWidth, imageAspectRatio }: ProductCar
       <View>
         <ProductImage
           uri={hovered && product.imageUrls[1] ? product.imageUrls[1] : product.imageUrls[0]}
-          contentFit={product.photoProvisional || product.photoQuality === 'reduced' ? 'contain' : 'cover'}
+          contentFit='cover'
           style={[styles.image, { aspectRatio: imageAspectRatio }]}
         />
         <Pressable
