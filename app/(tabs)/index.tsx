@@ -281,6 +281,21 @@ useEffect(() => {
                       />
                     </View>
                   )}
+                  {activeBanners.length > 1 ? (
+  <View style={styles.heroIndicators}>
+    {activeBanners.map((banner, index) => (
+      <Pressable
+        key={banner.id}
+        onPress={() => setCurrentBannerIndex(index)}
+        style={[
+          styles.heroIndicator,
+          index === currentBannerIndex &&
+            styles.heroIndicatorActive,
+        ]}
+      />
+    ))}
+  </View>
+) : null}
                 </View>
               </View>
             ) : null}
@@ -410,25 +425,29 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-    minHeight: 244,
-    marginTop: spacing.lg,
-    overflow: 'hidden',
-    borderRadius: radii.large,
-    flexDirection: 'row',
-    backgroundColor: '#F2E4D2',
-  },
+  minHeight: 450,
+  marginTop: spacing.lg,
+  overflow: 'hidden',
+  borderRadius: radii.large,
+  flexDirection: 'row',
+  alignItems: 'stretch',
+  backgroundColor: '#F2E4D2',
+},
 
   heroDesktop: {
-    minHeight: 390,
+    minHeight: 450,
     borderRadius: 28,
   },
 
   heroText: {
-    zIndex: 2,
-    width: '58%',
-    padding: spacing.lg,
-    justifyContent: 'center',
-  },
+    flex: 1,
+  zIndex: 2,
+  width: '45%',
+  paddingHorizontal: spacing.xl,
+  paddingVertical: spacing.xl,
+  justifyContent: 'center',
+  alignItems: 'flex-start',
+},
 
   heroEyebrow: {
     marginBottom: spacing.sm,
@@ -439,12 +458,13 @@ const styles = StyleSheet.create({
   },
 
   heroTitle: {
-    fontFamily: fonts.display,
-    color: colors.primaryDark,
-    fontSize: 31,
-    lineHeight: 34,
-    fontWeight: '700',
-  },
+  maxWidth: 560,
+  fontFamily: fonts.display,
+  color: colors.primaryDark,
+  fontSize: 46,
+  lineHeight: 52,
+  fontWeight: '700',
+},
 
   heroTitleDesktop: {
     fontSize: 48,
@@ -452,25 +472,25 @@ const styles = StyleSheet.create({
   },
 
   heroSubtitle: {
-    maxWidth: 430,
-    marginTop: spacing.md,
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 23,
-  },
+  maxWidth: 520,
+  marginTop: spacing.md,
+  color: colors.textMuted,
+  fontSize: 18,
+  lineHeight: 28,
+},
 
   heroSubtitleMobile: {
     display: 'none',
   },
 
   heroButton: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primary,
-  },
+  alignSelf: 'flex-start',
+  marginTop: spacing.lg,
+  paddingHorizontal: spacing.xl,
+  paddingVertical: 12,
+  borderRadius: radii.pill,
+  backgroundColor: colors.primary,
+},
 
   heroButtonPressed: {
     opacity: 0.82,
@@ -483,19 +503,46 @@ const styles = StyleSheet.create({
   },
 
   heroImage: {
-    width: '48%',
-    height: '100%',
-    marginLeft: '-6%',
-  },
+    flex: 1,
+  width: '55%',
+  height: '100%',
+  minHeight: 450,
 
-  heroImageFallback: {
-    width: '48%',
-    height: '100%',
-    marginLeft: '-6%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceWarm,
-  },
+},
+
+heroImageFallback: {
+  flex: 1,
+  minHeight: 450,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.surfaceWarm,
+},
+
+  heroIndicators: {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: spacing.md,
+  zIndex: 4,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: spacing.sm,
+},
+
+heroIndicator: {
+  width: 9,
+  height: 9,
+  borderRadius: 5,
+  borderWidth: 1,
+  borderColor: colors.primary,
+  backgroundColor: 'transparent',
+},
+
+heroIndicatorActive: {
+  width: 24,
+  backgroundColor: colors.primary,
+},
 
   benefits: {
     marginTop: spacing.xl,
