@@ -281,6 +281,37 @@ useEffect(() => {
                       />
                     </View>
                   )}
+                  <Pressable
+                    style={styles.heroArrowLeft}
+  onPress={() =>
+    setCurrentBannerIndex(
+      (currentBannerIndex - 1 + activeBanners.length) %
+      activeBanners.length
+    )
+  }
+>
+  <Ionicons
+    name="chevron-back"
+    size={28}
+    color="#6B4B3E"
+  />
+</Pressable>
+
+<Pressable
+  style={styles.heroArrowRight}
+  onPress={() =>
+    setCurrentBannerIndex(
+      (currentBannerIndex + 1) %
+      activeBanners.length
+    )
+  }
+>
+  <Ionicons
+    name="chevron-forward"
+    size={28}
+    color="#6B4B3E"
+  />
+</Pressable>
                   {activeBanners.length > 1 ? (
   <View style={styles.heroIndicators}>
     {activeBanners.map((banner, index) => (
@@ -542,6 +573,30 @@ heroIndicator: {
 heroIndicatorActive: {
   width: 24,
   backgroundColor: colors.primary,
+},
+
+// COLE AQUI 👇
+
+heroArrowLeft: {
+  position: 'absolute',
+  left: 20,
+  top: '50%',
+  marginTop: -22,
+  zIndex: 20,
+  backgroundColor: 'rgba(255,255,255,0.85)',
+  borderRadius: 24,
+  padding: 8,
+},
+
+heroArrowRight: {
+  position: 'absolute',
+  right: 20,
+  top: '50%',
+  marginTop: -22,
+  zIndex: 20,
+  backgroundColor: 'rgba(255,255,255,0.85)',
+  borderRadius: 24,
+  padding: 8,
 },
 
   benefits: {
