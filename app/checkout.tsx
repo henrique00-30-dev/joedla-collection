@@ -11,12 +11,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
+import { StructuredField } from '@/src/components/structured-field';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
 import {
@@ -25,7 +27,13 @@ import {
   Order,
   PaymentMethod,
 } from '@/src/types';
-import { formatCurrency, onlyDigits } from '@/src/utils/format';
+import { formatCurrency } from '@/src/utils/format';
+import {
+  isValidBrazilPhone,
+  normalizeBrazilPhone,
+  normalizePlainText,
+  validatePlainText,
+} from '@/src/utils/fields';
 import { buildOrderMessage, openStoreWhatsApp } from '@/src/utils/whatsapp';
 
 const initialCustomer: CustomerDetails = {
@@ -37,24 +45,6 @@ const initialCustomer: CustomerDetails = {
   reference: '',
   notes: '',
 };
-
-function formatWhatsApp(value: string) {
-  let digits = onlyDigits(value);
-
-  if (digits.length > 11 && digits.startsWith('55')) {
-    digits = digits.slice(2);
-  }
-
-  digits = digits.slice(0, 11);
-  if (!digits) return '';
-  if (digits.length <= 2) return `(${digits}`;
-
-  const ddd = digits.slice(0, 2);
-  const number = digits.slice(2);
-  if (number.length <= 5) return `(${ddd}) ${number}`;
-
-  return `(${ddd}) ${number.slice(0, 5)}-${number.slice(5)}`;
-}
 
 export default function CheckoutScreen() {
   const { cart, cartSubtotal, createOrder, settings, refreshStore } = useStore();
@@ -69,6 +59,11 @@ export default function CheckoutScreen() {
   const submittingRef = useRef(false);
   const idempotencyKeyRef = useRef(Crypto.randomUUID());
   const refreshStoreRef = useRef(refreshStore);
+  const nameRef = useRef<TextInput>(null);
+  const whatsappRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const neighborhoodRef = useRef<TextInput>(null);
+  const addressRef = useRef<TextInput>(null);
   refreshStoreRef.current = refreshStore;
 
   useFocusEffect(useCallback(() => {
@@ -91,16 +86,29 @@ export default function CheckoutScreen() {
 
   function validate() {
     const nextErrors: Record<string, string> = {};
-    if (customer.name.trim().length < 3) nextErrors.name = 'Informe seu nome completo.';
-    if (onlyDigits(customer.whatsapp).length !== 11) {
+    const nameError = validatePlainText(customer.name, { minimum: 3, maximum: 120 });
+    if (nameError) nextErrors.name = nameError;
+    if (!isValidBrazilPhone(customer.whatsapp, true)) {
       nextErrors.whatsapp = 'Informe um celular com DDD e 11 números.';
     }
-    if (!customer.city.trim()) nextErrors.city = 'Informe sua cidade.';
+    const cityError = validatePlainText(customer.city, { minimum: 2, maximum: 80 });
+    if (cityError) nextErrors.city = cityError;
     if (deliveryMethod === 'delivery') {
-      if (!customer.neighborhood.trim()) nextErrors.neighborhood = 'Informe o bairro.';
-      if (!customer.address.trim()) nextErrors.address = 'Informe rua e número.';
+      const neighborhoodError = validatePlainText(customer.neighborhood, { minimum: 2, maximum: 100 });
+      const addressError = validatePlainText(customer.address, { minimum: 3, maximum: 180 });
+      if (neighborhoodError) nextErrors.neighborhood = neighborhoodError;
+      if (addressError) nextErrors.address = addressError;
     }
+    const referenceError = validatePlainText(customer.reference, { maximum: 160 });
+    const notesError = validatePlainText(customer.notes, { maximum: 500, multiline: true });
+    if (referenceError) nextErrors.reference = referenceError;
+    if (notesError) nextErrors.notes = notesError;
     setErrors(nextErrors);
+    if (nextErrors.name) nameRef.current?.focus();
+    else if (nextErrors.whatsapp) whatsappRef.current?.focus();
+    else if (nextErrors.city) cityRef.current?.focus();
+    else if (nextErrors.neighborhood) neighborhoodRef.current?.focus();
+    else if (nextErrors.address) addressRef.current?.focus();
     return !Object.keys(nextErrors).length;
   }
 
@@ -117,7 +125,15 @@ export default function CheckoutScreen() {
     setSubmitting(true);
     try {
       const order = await createOrder({
-        customer,
+        customer: {
+          name: normalizePlainText(customer.name),
+          whatsapp: normalizeBrazilPhone(customer.whatsapp),
+          city: normalizePlainText(customer.city),
+          neighborhood: normalizePlainText(customer.neighborhood),
+          address: normalizePlainText(customer.address),
+          reference: normalizePlainText(customer.reference),
+          notes: normalizePlainText(customer.notes, true),
+        },
         deliveryMethod,
         paymentMethod,
         idempotencyKey: idempotencyKeyRef.current,
@@ -319,24 +335,24 @@ export default function CheckoutScreen() {
           <SectionTitle number="1" title="Seus dados" />
           <View style={styles.card}>
             <Field
+              ref={nameRef}
               label="Nome completo"
               value={customer.name}
               onChangeText={(value) => updateCustomer('name', value)}
               placeholder="Digite seu nome"
               autoCapitalize="words"
               error={errors.name}
+              maxLength={120}
             />
-            <Field
+            <StructuredField
+              ref={whatsappRef}
+              kind="phone"
               label="WhatsApp"
               value={customer.whatsapp}
-              onChangeText={(value) =>
-                updateCustomer('whatsapp', formatWhatsApp(value))
-              }
+              onChangeText={(value) => updateCustomer('whatsapp', value)}
               placeholder="(79) 99999-9999"
-              keyboardType="phone-pad"
               autoComplete="tel"
               textContentType="telephoneNumber"
-              maxLength={15}
               error={errors.whatsapp}
             />
           </View>
@@ -368,6 +384,7 @@ export default function CheckoutScreen() {
 
           <View style={styles.card}>
             <Field
+              ref={cityRef}
               label="Cidade"
               value={customer.city}
               onChangeText={(value) => updateCustomer('city', value)}
@@ -375,24 +392,29 @@ export default function CheckoutScreen() {
               placeholder="Informe sua cidade"
               autoCapitalize="words"
               error={errors.city}
+              maxLength={80}
             />
             {deliveryMethod === 'delivery' ? (
               <>
                 <Field
+                  ref={neighborhoodRef}
                   label="Bairro"
                   value={customer.neighborhood}
                   onChangeText={(value) => updateCustomer('neighborhood', value)}
                   placeholder="Seu bairro"
                   autoCapitalize="words"
                   error={errors.neighborhood}
+                  maxLength={100}
                 />
                 <Field
+                  ref={addressRef}
                   label="Rua e número"
                   value={customer.address}
                   onChangeText={(value) => updateCustomer('address', value)}
                   placeholder="Rua, número e complemento"
                   autoCapitalize="sentences"
                   error={errors.address}
+                  maxLength={180}
                 />
                 <Field
                   label="Ponto de referência (opcional)"
@@ -400,6 +422,8 @@ export default function CheckoutScreen() {
                   onChangeText={(value) => updateCustomer('reference', value)}
                   placeholder="Próximo a..."
                   autoCapitalize="sentences"
+                  maxLength={160}
+                  error={errors.reference}
                 />
               </>
             ) : null}
@@ -438,6 +462,8 @@ export default function CheckoutScreen() {
               onChangeText={(value) => updateCustomer('notes', value)}
               placeholder="Ex.: tamanho, cor, prazo ou melhor horário"
               multiline
+              maxLength={500}
+              error={errors.notes}
             />
           </View>
 

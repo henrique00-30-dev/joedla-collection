@@ -12,6 +12,7 @@ import {
   ProductDraft,
   StoreSettings,
 } from '@/src/types';
+import { maskBrazilPhone } from '@/src/utils/fields';
 
 function requireClient() {
   if (!supabase) {
@@ -99,6 +100,10 @@ function mapOrder(row: Record<string, any>): Order {
     discountBasisPoints: item.discountBasisPoints === undefined
       ? undefined
       : Number(item.discountBasisPoints),
+    individualPromotionId: item.individualPromotionId ?? undefined,
+    individualUnitPrice: item.individualUnitPrice == null ? undefined : Number(item.individualUnitPrice),
+    campaignUnitPrice: item.campaignUnitPrice == null ? undefined : Number(item.campaignUnitPrice),
+    priceSource: item.priceSource ?? undefined,
     quantity: item.quantity,
     selectedSize: item.selectedSize ?? undefined,
     selectedColor: item.selectedColor ?? undefined,
@@ -112,7 +117,7 @@ function mapOrder(row: Record<string, any>): Order {
     lookupToken: row.lookup_token,
     customer: {
       name: row.customer_name,
-      whatsapp: row.customer_whatsapp,
+      whatsapp: maskBrazilPhone(row.customer_whatsapp),
       city: row.city,
       neighborhood: row.neighborhood ?? '',
       address: row.address ?? '',
@@ -199,13 +204,22 @@ export async function createTrustedCloudOrder(
     selectedSize: item.selectedSize ?? null,
     selectedColor: item.selectedColor ?? null,
   }));
-  const { data, error } = await client.rpc('create_trusted_order', {
+  let { data, error } = await client.rpc('create_trusted_order_v2', {
     request_id: draft.idempotencyKey,
     customer_payload: draft.customer,
     requested_delivery_method: draft.deliveryMethod,
     requested_payment_method: draft.paymentMethod,
     requested_items: requestedItems,
   });
+  if (error?.code === 'PGRST202' || /create_trusted_order_v2/i.test(error?.message ?? '')) {
+    ({ data, error } = await client.rpc('create_trusted_order', {
+      request_id: draft.idempotencyKey,
+      customer_payload: draft.customer,
+      requested_delivery_method: draft.deliveryMethod,
+      requested_payment_method: draft.paymentMethod,
+      requested_items: requestedItems,
+    }));
+  }
   if (error) throw error;
   if (!data || typeof data !== 'object') throw new Error('O banco não devolveu o pedido confirmado.');
   return mapOrder(data as Record<string, any>);

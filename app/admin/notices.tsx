@@ -17,6 +17,7 @@ import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
+import { normalizePlainText, validatePlainText } from '@/src/utils/fields';
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 220;
@@ -52,10 +53,15 @@ export default function AdminNoticesScreen() {
       );
       return;
     }
+    const invalidMessage = messages.find((message) => validatePlainText(message, { minimum: 1, maximum: MAX_MESSAGE_LENGTH }));
+    if (invalidMessage) {
+      Alert.alert('Mensagem inválida', validatePlainText(invalidMessage, { minimum: 1, maximum: MAX_MESSAGE_LENGTH }) ?? 'Revise a mensagem.');
+      return;
+    }
 
     setSaving(true);
     try {
-      await updateSettings({ ...settings, tickerMessages: messages });
+      await updateSettings({ ...settings, tickerMessages: messages.map((message) => normalizePlainText(message)) });
       Alert.alert('Faixa atualizada', 'As mensagens já aparecem no início da loja.');
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Tente novamente.');
@@ -90,6 +96,7 @@ export default function AdminNoticesScreen() {
                 placeholder="Promoção de bolsas até sábado ! (Último dia da promoção)"
                 multiline
                 style={styles.messageField}
+                maxLength={MAX_MESSAGES * (MAX_MESSAGE_LENGTH + 3)}
               />
               <Text style={styles.helper}>
                 Separe cada mensagem usando !. Para dar destaque maior, coloque toda a mensagem entre parênteses: (Mensagem importante). Os parênteses não aparecerão na faixa. {previewMessages.length}/{MAX_MESSAGES} cadastradas.

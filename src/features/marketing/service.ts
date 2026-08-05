@@ -20,6 +20,8 @@ import {
   MarketingCampaignUpdate,
   MarketingSettings,
   MarketingStorefront,
+  ProductPromotion,
+  ProductPromotionInput,
 } from './types';
 
 const campaignColumns = [
@@ -232,9 +234,12 @@ export async function changeMarketingCampaignStatus(
 export async function loadCatalogPriceResolutions(productIds: string[]) {
   if (!productIds.length) return [];
   const client = requireCloud();
-  const { data, error } = await client.rpc('resolve_catalog_prices', {
+  let { data, error } = await client.rpc('resolve_catalog_prices_v2', {
     product_ids: productIds,
   });
+  if (error && isMissingMarketingSchema(error)) {
+    ({ data, error } = await client.rpc('resolve_catalog_prices', { product_ids: productIds }));
+  }
   if (error) {
     if (isMissingMarketingSchema(error)) return [];
     throw error;
@@ -243,12 +248,83 @@ export async function loadCatalogPriceResolutions(productIds: string[]) {
     productId: row.product_id,
     originalPriceCents: Number(row.original_price_cents),
     finalPriceCents: Number(row.final_price_cents),
+    priceSource: row.price_source ?? (row.campaign_id ? 'campaign_product' : 'normal'),
+    individualPromotionId: row.individual_promotion_id ?? null,
+    individualPriceCents: row.individual_price_cents === null || row.individual_price_cents === undefined
+      ? null
+      : Number(row.individual_price_cents),
+    individualBadgeLabel: row.individual_badge_label ?? null,
+    individualBadgeTone: row.individual_badge_tone ?? null,
+    campaignPriceCents: row.campaign_price_cents === null || row.campaign_price_cents === undefined
+      ? null
+      : Number(row.campaign_price_cents),
     campaignId: row.campaign_id,
     campaignName: row.campaign_name,
     ruleType: row.rule_type,
     discountBasisPoints: row.discount_basis_points === null ? null : Number(row.discount_basis_points),
     usedSafetyTieBreak: Boolean(row.used_safety_tie_break),
   }));
+}
+
+export async function loadAdminProductPromotion(productId: string) {
+  const client = requireCloud();
+  const { data, error } = await client
+    .from('product_promotions')
+    .select('*')
+    .eq('product_id', productId)
+    .maybeSingle();
+  if (error) {
+    if (isMissingMarketingSchema(error)) return null;
+    throw error;
+  }
+  return data ? mapProductPromotion(data as Record<string, any>) : null;
+}
+
+export async function saveProductPromotion(
+  productId: string,
+  expectedVersion: number | null,
+  input: ProductPromotionInput,
+) {
+  const client = requireCloud();
+  const { data, error } = await client.rpc('admin_upsert_product_promotion', {
+    requested_product_id: productId,
+    expected_version: expectedVersion,
+    promotion_payload: {
+      enabled: input.enabled,
+      promotional_price_cents: input.promotionalPriceCents,
+      start_at: input.startAt,
+      end_at: input.endAt,
+      show_badge: input.showBadge,
+      badge_label: input.badgeLabel,
+      badge_tone: input.badgeTone,
+    },
+  });
+  if (error) {
+    if (error.message?.includes('outra sessao')) throw new MarketingConcurrencyError();
+    throw error;
+  }
+  if (!data || typeof data !== 'object') throw new Error('O banco não retornou a promoção individual.');
+  return mapProductPromotion(data as Record<string, any>);
+}
+
+export async function deleteDraftMarketingCampaign(campaignId: string) {
+  const client = requireCloud();
+  const { data, error } = await client.rpc('admin_delete_draft_campaign', {
+    requested_campaign_id: campaignId,
+  });
+  if (error) throw error;
+  const paths = Array.isArray(data) ? data.filter((path): path is string => typeof path === 'string') : [];
+  if (paths.length) {
+    const { error: storageError } = await client.storage.from('campaign-images').remove(paths);
+    if (storageError) {
+      await client.rpc('admin_record_campaign_cleanup_failure', {
+        deleted_campaign_id: campaignId,
+        storage_paths: paths,
+      });
+      return { removed: true, storageCleanupPending: true };
+    }
+  }
+  return { removed: true, storageCleanupPending: false };
 }
 
 export async function uploadMarketingCampaignImage(input: {
@@ -459,6 +535,23 @@ function mapSettings(row: Record<string, any>): MarketingSettings {
     pricingEnabled: Boolean(row.pricing_enabled),
     storeTimezone: MARKETING_TIMEZONE,
     maxImageBytes: Number(row.max_image_bytes),
+    version: Number(row.version),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapProductPromotion(row: Record<string, any>): ProductPromotion {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    enabled: Boolean(row.enabled),
+    promotionalPriceCents: Number(row.promotional_price_cents),
+    startAt: row.start_at,
+    endAt: row.end_at,
+    showBadge: Boolean(row.show_badge),
+    badgeLabel: row.badge_label,
+    badgeTone: row.badge_tone,
     version: Number(row.version),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

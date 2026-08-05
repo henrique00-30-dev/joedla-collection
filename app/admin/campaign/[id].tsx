@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -20,10 +21,12 @@ import { AppHeader } from '@/src/components/app-header';
 import { MarketingBanners } from '@/src/components/marketing-banners';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
+import { StructuredField } from '@/src/components/structured-field';
 import { useStore } from '@/src/context/store-context';
-import { emptyCampaignBundle, isoToLocalInput, maceioInputToIso } from '@/src/features/marketing/admin';
+import { emptyCampaignBundle } from '@/src/features/marketing/admin';
 import {
   changeMarketingCampaignStatus,
+  deleteDraftMarketingCampaign,
   loadAdminMarketingCampaign,
   loadCampaignChecklist,
   loadMarketingSettings,
@@ -42,6 +45,17 @@ import {
 } from '@/src/features/marketing/types';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import { formatCurrency } from '@/src/utils/format';
+import {
+  formatBrlInput,
+  isValidBrazilDate,
+  isValidTime,
+  isoToMaceioFields,
+  maceioDateTimeToIso,
+  parseBrlCents,
+  parsePercentageBasisPoints,
+  sanitizePercentageInput,
+  validatePlainText,
+} from '@/src/utils/fields';
 
 const positions: { value: CampaignPlacementPosition; label: string }[] = [
   { value: 'home_hero', label: 'Banner principal' },
@@ -55,14 +69,30 @@ export default function AdminCampaignEditorScreen() {
   const { products, categories, settings: storeSettings, refreshStore } = useStore();
   const { width } = useWindowDimensions();
   const [bundle, setBundle] = useState<MarketingCampaignBundle | null>(null);
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
+  const [startDateInput, setStartDateInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
+  const [startTimeInput, setStartTimeInput] = useState('00:00');
+  const [endTimeInput, setEndTimeInput] = useState('23:59');
+  const [showScheduleOptions, setShowScheduleOptions] = useState(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategory, setProductCategory] = useState('all');
+  const [showSelectedProducts, setShowSelectedProducts] = useState(false);
+  const [percentageInput, setPercentageInput] = useState('10');
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewDesktop, setPreviewDesktop] = useState(width >= 900);
   const [maxImageBytes, setMaxImageBytes] = useState(5_242_880);
   const [targetScope, setTargetScope] = useState<CampaignTargetType>('store');
+  const nameRef = useRef<TextInput>(null);
+  const startDateRef = useRef<TextInput>(null);
+  const endDateRef = useRef<TextInput>(null);
+  const percentageRef = useRef<TextInput>(null);
+  const badgeRef = useRef<TextInput>(null);
+  const manualPriceRefs = useRef<Record<string, TextInput | null>>({});
 
   useEffect(() => {
     void load();
@@ -82,8 +112,20 @@ export default function AdminCampaignEditorScreen() {
       const next = campaign.targets.length ? campaign : emptyCampaignBundle(campaign);
       setBundle(next);
       setTargetScope(next.targets[0]?.targetType ?? 'store');
-      setStartInput(isoToLocalInput(next.startAt));
-      setEndInput(isoToLocalInput(next.endAt));
+      const start = isoToMaceioFields(next.startAt);
+      const end = isoToMaceioFields(next.endAt);
+      setStartDateInput(start.date);
+      setEndDateInput(end.date);
+      setStartTimeInput(start.time || '00:00');
+      setEndTimeInput(end.time || '23:59');
+      setShowScheduleOptions(Boolean(
+        (start.time && start.time !== '00:00') || (end.time && end.time !== '23:59'),
+      ));
+      const percentageRule = next.priceRules.find((rule) => rule.ruleType === 'percentage');
+      setPercentageInput(percentageRule ? String((percentageRule.percentageBasisPoints ?? 0) / 100).replace('.', ',') : '10');
+      setPriceInputs(Object.fromEntries(next.priceRules
+        .filter((rule) => rule.ruleType === 'manual_price')
+        .map((rule) => [rule.id, rule.promotionalPriceCents ? formatBrlInput(rule.promotionalPriceCents) : ''])));
       if (marketingSettings) setMaxImageBytes(marketingSettings.maxImageBytes);
     } catch (error) {
       Alert.alert('Não foi possível abrir', errorMessage(error));
@@ -120,6 +162,10 @@ export default function AdminCampaignEditorScreen() {
   function toggleProduct(productId: string) {
     if (!bundle) return;
     const exists = bundle.targets.some((target) => target.productId === productId);
+    const newRule = !exists && bundle.priceRules[0]?.ruleType === 'manual_price'
+      ? newPriceRule(bundle.id, 'manual_price', productId)
+      : null;
+    if (newRule) setPriceInputs((current) => ({ ...current, [newRule.id]: '' }));
     update({
       targets: exists
         ? bundle.targets.filter((target) => target.productId !== productId)
@@ -127,7 +173,7 @@ export default function AdminCampaignEditorScreen() {
       priceRules: exists
         ? bundle.priceRules.filter((rule) => rule.productId !== productId)
         : bundle.priceRules[0]?.ruleType === 'manual_price'
-          ? [...bundle.priceRules, newPriceRule(bundle.id, 'manual_price', productId)]
+          ? [...bundle.priceRules, ...(newRule ? [newRule] : [])]
           : bundle.priceRules,
     });
   }
@@ -208,21 +254,24 @@ export default function AdminCampaignEditorScreen() {
 
   function setPriceMode(mode: 'none' | 'percentage' | 'manual_price') {
     if (!bundle) return;
-    if (mode === 'none') update({ priceRules: [] });
-    else if (mode === 'percentage') update({
-      priceRules: [newPriceRule(bundle.id, 'percentage', null)],
-    });
+    if (mode === 'none') {
+      setPriceInputs({});
+      update({ priceRules: [] });
+    } else if (mode === 'percentage') {
+      const rule = newPriceRule(bundle.id, 'percentage', null);
+      setPercentageInput('10');
+      setPriceInputs({});
+      update({ priceRules: [rule] });
+    }
     else {
       const productTargets = bundle.targets.filter((target) => target.productId);
       if (!productTargets.length) {
         Alert.alert('Selecione produtos', 'O preço manual exige público por produto.');
         return;
       }
-      update({
-        priceRules: productTargets.map((target) =>
-          newPriceRule(bundle.id, 'manual_price', target.productId),
-        ),
-      });
+      const rules = productTargets.map((target) => newPriceRule(bundle.id, 'manual_price', target.productId));
+      setPriceInputs(Object.fromEntries(rules.map((rule) => [rule.id, ''])));
+      update({ priceRules: rules });
     }
   }
 
@@ -235,16 +284,71 @@ export default function AdminCampaignEditorScreen() {
     if (!bundle) return null;
     setSaving(true);
     try {
+      const nextErrors: Record<string, string> = {};
+      const nameError = validatePlainText(bundle.name, { minimum: 3, maximum: 120 });
+      if (nameError) nextErrors.name = nameError;
+      if (bundle.badge) {
+        const badgeError = validatePlainText(bundle.badge.label, { minimum: 1, maximum: 24 });
+        if (badgeError) nextErrors.badge = badgeError;
+      }
+      if (startDateInput && !isValidBrazilDate(startDateInput)) nextErrors.startDate = 'Informe uma data válida no formato dia/mês/ano.';
+      if (endDateInput && !isValidBrazilDate(endDateInput)) nextErrors.endDate = 'Informe uma data válida no formato dia/mês/ano.';
+      if (showScheduleOptions && !isValidTime(startTimeInput)) nextErrors.startTime = 'Informe um horário válido entre 00:00 e 23:59.';
+      if (showScheduleOptions && endDateInput && !isValidTime(endTimeInput)) nextErrors.endTime = 'Informe um horário válido entre 00:00 e 23:59.';
+      const preparedRules = bundle.priceRules.map((rule) => {
+        if (rule.ruleType === 'percentage') {
+          const basisPoints = parsePercentageBasisPoints(percentageInput);
+          if (basisPoints === null || basisPoints <= 0 || basisPoints >= 10000) {
+            nextErrors.percentage = 'Informe um desconto maior que 0% e menor que 100%.';
+          }
+          return { ...rule, percentageBasisPoints: basisPoints };
+        }
+        const cents = parseBrlCents(priceInputs[rule.id] ?? '');
+        const product = products.find((item) => item.id === rule.productId);
+        const normalCents = Math.round((product?.originalPrice ?? product?.price ?? 0) * 100);
+        if (cents === null || cents <= 0) nextErrors[`price-${rule.id}`] = 'Informe um preço maior que zero.';
+        else if (cents >= normalCents) nextErrors[`price-${rule.id}`] = 'O preço promocional deve ser menor que o normal.';
+        return { ...rule, promotionalPriceCents: cents };
+      });
+      setFieldErrors(nextErrors);
+      if (Object.keys(nextErrors).length) {
+        if (nextErrors.name) nameRef.current?.focus();
+        else if (nextErrors.startDate) startDateRef.current?.focus();
+        else if (nextErrors.endDate) endDateRef.current?.focus();
+        else if (nextErrors.badge) badgeRef.current?.focus();
+        else if (nextErrors.percentage) percentageRef.current?.focus();
+        else {
+          const priceKey = Object.keys(nextErrors).find((key) => key.startsWith('price-'));
+          if (priceKey) manualPriceRefs.current[priceKey.slice(6)]?.focus();
+        }
+        throw new Error('Corrija os campos destacados antes de salvar.');
+      }
+
+      const startAt = startDateInput
+        ? maceioDateTimeToIso(startDateInput, showScheduleOptions ? startTimeInput : '00:00', 'start')
+        : null;
+      const endAt = endDateInput
+        ? maceioDateTimeToIso(endDateInput, showScheduleOptions ? endTimeInput : '23:59', 'end')
+        : null;
+      if (startAt && endAt && Date.parse(endAt) <= Date.parse(startAt)) {
+        setFieldErrors((current) => ({ ...current, endDate: 'A data final deve ser posterior à data inicial.' }));
+        throw new Error('A data final deve ser posterior à data inicial.');
+      }
       const prepared = {
         ...bundle,
-        startAt: maceioInputToIso(startInput),
-        endAt: maceioInputToIso(endInput),
+        startAt,
+        endAt,
+        priceRules: preparedRules,
       };
       const saved = await saveMarketingCampaignBundle(prepared);
       if (!saved) throw new Error('A campanha não foi retornada após salvar.');
       setBundle(saved);
-      setStartInput(isoToLocalInput(saved.startAt));
-      setEndInput(isoToLocalInput(saved.endAt));
+      const savedStart = isoToMaceioFields(saved.startAt);
+      const savedEnd = isoToMaceioFields(saved.endAt);
+      setStartDateInput(savedStart.date);
+      setEndDateInput(savedEnd.date);
+      setStartTimeInput(savedStart.time || '00:00');
+      setEndTimeInput(savedEnd.time || '23:59');
       if (showSuccess) Alert.alert('Rascunho salvo', 'As alterações foram salvas sem publicar.');
       return saved;
     } catch (error) {
@@ -287,8 +391,34 @@ export default function AdminCampaignEditorScreen() {
     }
   }
 
+  async function deleteCampaign() {
+    if (!bundle || !await confirmDeleteDraft()) return;
+    try {
+      const result = await deleteDraftMarketingCampaign(bundle.id);
+      router.replace('/admin/campaigns');
+      Alert.alert(
+        'Campanha excluída',
+        result.storageCleanupPending
+          ? 'O rascunho foi excluído. Uma imagem ficou pendente de limpeza.'
+          : 'O rascunho foi excluído permanentemente.',
+      );
+    } catch (error) {
+      Alert.alert('Não foi possível excluir', errorMessage(error));
+    }
+  }
+
   const priceMode = bundle?.priceRules[0]?.ruleType ?? 'none';
   const previewCampaign = useMemo(() => bundle ? [{ ...bundle, status: 'published' as const }] : [], [bundle]);
+  const selectedProductIds = useMemo(
+    () => new Set(bundle?.targets.filter((target) => target.targetType === 'product').map((target) => target.productId) ?? []),
+    [bundle],
+  );
+  const filteredProducts = useMemo(() => products.filter((product) => {
+    if (!product.active) return false;
+    if (showSelectedProducts && !selectedProductIds.has(product.id)) return false;
+    if (productCategory !== 'all' && product.category !== productCategory) return false;
+    return product.name.toLocaleLowerCase('pt-BR').includes(productSearch.trim().toLocaleLowerCase('pt-BR'));
+  }), [productCategory, productSearch, products, selectedProductIds, showSelectedProducts]);
 
   if (loading || !bundle) {
     return (
@@ -306,13 +436,33 @@ export default function AdminCampaignEditorScreen() {
         <AppHeader compact title="Editar campanha" showBack showStoreHome />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <Section title="1. Identificação e período" description="Datas digitadas no horário de Sergipe (America/Maceió). O banco salva em UTC.">
-              <Field label="Nome interno" value={bundle.name} editable={!archived} onChangeText={(name) => update({ name })} />
+            <Section title="1. Identificação e período" description="Datas no horário de Sergipe (America/Maceió). O banco converte e salva em UTC.">
+              <Field ref={nameRef} label="Nome interno" value={bundle.name} editable={!archived} maxLength={120} error={fieldErrors.name} onChangeText={(name) => update({ name })} />
               <View style={styles.twoColumns}>
-                <Field label="Início (AAAA-MM-DDTHH:MM)" placeholder="2026-08-10T09:00" value={startInput} editable={!archived} onChangeText={setStartInput} style={styles.column} />
-                <Field label="Término opcional" placeholder="2026-08-17T23:59" value={endInput} editable={!archived} onChangeText={setEndInput} style={styles.column} />
+                <StructuredField ref={startDateRef} kind="date" label="Data de início" placeholder="DD/MM/AAAA" value={startDateInput} editable={!archived} error={fieldErrors.startDate} onChangeText={setStartDateInput} style={styles.column} />
+                <StructuredField ref={endDateRef} kind="date" label="Data de término (opcional)" placeholder="DD/MM/AAAA" value={endDateInput} editable={!archived} error={fieldErrors.endDate} onChangeText={setEndDateInput} style={styles.column} />
               </View>
-              <Field label="Prioridade (-1000 a 1000)" keyboardType="numbers-and-punctuation" value={String(bundle.priority)} editable={!archived} onChangeText={(value) => update({ priority: Number.parseInt(value || '0', 10) || 0 })} />
+              <Button variant="ghost" icon={showScheduleOptions ? 'chevron-up-outline' : 'time-outline'} onPress={() => setShowScheduleOptions((current) => !current)}>
+                {showScheduleOptions ? 'Ocultar horários avançados' : 'Opções avançadas de horário'}
+              </Button>
+              {showScheduleOptions ? (
+                <View style={styles.twoColumns}>
+                  <StructuredField kind="time" label="Hora de início" value={startTimeInput} editable={!archived} error={fieldErrors.startTime} onChangeText={setStartTimeInput} style={styles.column} />
+                  <StructuredField kind="time" label="Hora de término" value={endTimeInput} editable={!archived && Boolean(endDateInput)} error={fieldErrors.endTime} onChangeText={setEndTimeInput} style={styles.column} />
+                </View>
+              ) : null}
+              <Button variant="ghost" icon={showAdvancedOptions ? 'chevron-up-outline' : 'options-outline'} onPress={() => setShowAdvancedOptions((current) => !current)}>
+                {showAdvancedOptions ? 'Ocultar opções avançadas' : 'Opções avançadas'}
+              </Button>
+              {showAdvancedOptions ? (
+                <>
+                  <Field label="Prioridade (-1000 a 1000)" keyboardType="numbers-and-punctuation" maxLength={5} value={String(bundle.priority)} editable={!archived} onChangeText={(value) => {
+                    const sanitized = value.replace(/(?!^-)[^0-9]/g, '').slice(0, 5);
+                    update({ priority: Math.max(-1000, Math.min(1000, Number.parseInt(sanitized || '0', 10) || 0)) });
+                  }} />
+                  <Text style={styles.muted}>Campanhas com número maior vencem quando houver conflito.</Text>
+                </>
+              ) : null}
             </Section>
 
             <Section title="2. Público da campanha" description="A precedência de preço é produto, categoria e loja; em empate, vence a maior prioridade.">
@@ -341,16 +491,49 @@ export default function AdminCampaignEditorScreen() {
                 </>
               ) : null}
               {targetScope === 'product' ? (
-                <ChipGrid>{products.filter((product) => product.active).map((product) => (
-                  <ChoiceChip key={product.id} label={product.name} selected={bundle.targets.some((target) => target.productId === product.id)} disabled={archived} onPress={() => toggleProduct(product.id)} />
-                ))}</ChipGrid>
+                <>
+                  <Text style={styles.fieldTitle}>Produtos — {selectedProductIds.size} selecionado(s)</Text>
+                  <Field
+                    label="Buscar por nome"
+                    value={productSearch}
+                    onChangeText={setProductSearch}
+                    placeholder="Digite o nome do produto"
+                    maxLength={120}
+                  />
+                  <Text style={styles.fieldTitle}>Filtrar por categoria</Text>
+                  <ChoiceRow
+                    options={[{ value: 'all', label: 'Todas' }, ...categories.filter((item) => item.active).map((item) => ({ value: item.slug, label: item.name }))]}
+                    value={productCategory}
+                    disabled={archived}
+                    onChange={setProductCategory}
+                  />
+                  <ChoiceRow
+                    options={[{ value: 'all', label: 'Mostrar todos' }, { value: 'selected', label: 'Mostrar selecionados' }]}
+                    value={showSelectedProducts ? 'selected' : 'all'}
+                    disabled={archived}
+                    onChange={(value) => setShowSelectedProducts(value === 'selected')}
+                  />
+                  {selectedProductIds.size ? (
+                    <View style={styles.selectedArea}>
+                      <Text style={styles.selectedTitle}>Selecionados — toque para remover</Text>
+                      <ChipGrid>{products.filter((product) => selectedProductIds.has(product.id)).map((product) => (
+                        <ChoiceChip key={`selected-${product.id}`} label={`× ${product.name}`} selected disabled={archived} onPress={() => toggleProduct(product.id)} />
+                      ))}</ChipGrid>
+                    </View>
+                  ) : null}
+                  <ChipGrid>{filteredProducts.map((product) => (
+                    <ChoiceChip key={product.id} label={product.name} selected={selectedProductIds.has(product.id)} disabled={archived} onPress={() => toggleProduct(product.id)} />
+                  ))}</ChipGrid>
+                  {!filteredProducts.length ? <Text style={styles.muted}>Nenhum produto encontrado com esses filtros.</Text> : null}
+                </>
               ) : null}
             </Section>
 
             <Section title="3. Selo dos produtos" description="No máximo um selo é exibido em cada produto.">
               <ChoiceRow options={[{ value: 'off', label: 'Sem selo' }, { value: 'on', label: 'Usar selo' }]} value={bundle.badge ? 'on' : 'off'} disabled={archived} onChange={(value) => setBadgeEnabled(value === 'on')} />
               {bundle.badge ? <>
-                <Field label="Texto do selo" maxLength={36} value={bundle.badge.label} editable={!archived} onChangeText={(label) => update({ badge: bundle.badge ? { ...bundle.badge, label } : null })} />
+                <Field ref={badgeRef} label="Texto do selo" maxLength={24} value={bundle.badge.label} editable={!archived} error={fieldErrors.badge} onChangeText={(label) => update({ badge: bundle.badge ? { ...bundle.badge, label } : null })} />
+                <Text style={styles.counter}>{bundle.badge.label.length}/24</Text>
                 <ChoiceRow options={badgeTones} value={bundle.badge.tone} disabled={archived} onChange={(tone) => update({ badge: bundle.badge ? { ...bundle.badge, tone: tone as CampaignBadgeTone } : null })} />
               </> : null}
             </Section>
@@ -381,13 +564,34 @@ export default function AdminCampaignEditorScreen() {
             <Section title="5. Promoção de preço" description="O desconto nunca se acumula com outra campanha e o pedido ignora qualquer preço enviado pelo navegador.">
               <ChoiceRow options={[{ value: 'none', label: 'Sem promoção' }, { value: 'percentage', label: 'Percentual' }, { value: 'manual_price', label: 'Preço por produto' }]} value={priceMode} disabled={archived} onChange={(value) => setPriceMode(value as typeof priceMode)} />
               {priceMode === 'percentage' && bundle.priceRules[0] ? (
-                <Field label="Desconto (%)" keyboardType="decimal-pad" value={String((bundle.priceRules[0].percentageBasisPoints ?? 0) / 100)} editable={!archived} onChangeText={(value) => updateRule(bundle.priceRules[0].id, { percentageBasisPoints: Math.round((Number(value.replace(',', '.')) || 0) * 100) })} />
+                <StructuredField ref={percentageRef} kind="percentage" label="Desconto (%)" value={percentageInput} editable={!archived} error={fieldErrors.percentage} onChangeText={(value) => {
+                  const sanitized = sanitizePercentageInput(value);
+                  setPercentageInput(sanitized);
+                  updateRule(bundle.priceRules[0].id, { percentageBasisPoints: parsePercentageBasisPoints(sanitized) });
+                }} />
               ) : null}
               {priceMode === 'manual_price' ? bundle.priceRules.map((rule) => {
                 const product = products.find((item) => item.id === rule.productId);
                 return <View key={rule.id} style={styles.manualRule}>
                   <View style={styles.ruleCopy}><Text style={styles.ruleName}>{product?.name ?? 'Produto'}</Text><Text style={styles.muted}>Preço normal: {formatCurrency(product?.originalPrice ?? product?.price ?? 0)}</Text></View>
-                  <Field label="Preço promocional (R$)" keyboardType="decimal-pad" value={rule.promotionalPriceCents ? String(rule.promotionalPriceCents / 100).replace('.', ',') : ''} editable={!archived} onChangeText={(value) => updateRule(rule.id, { promotionalPriceCents: Math.round((Number(value.replace(',', '.')) || 0) * 100) })} style={styles.priceField} />
+                  <StructuredField
+                    ref={(input) => { manualPriceRefs.current[rule.id] = input; }}
+                    kind="currency"
+                    label="Preço promocional"
+                    value={priceInputs[rule.id] ?? ''}
+                    editable={!archived}
+                    error={fieldErrors[`price-${rule.id}`]}
+                    onChangeText={(value) => {
+                      setPriceInputs((current) => ({ ...current, [rule.id]: value }));
+                      updateRule(rule.id, { promotionalPriceCents: parseBrlCents(value) });
+                    }}
+                    onBlur={() => {
+                      const cents = parseBrlCents(priceInputs[rule.id] ?? '');
+                      if (cents !== null) setPriceInputs((current) => ({ ...current, [rule.id]: formatBrlInput(cents) }));
+                    }}
+                    placeholder="R$ 0,00"
+                    style={styles.priceField}
+                  />
                 </View>;
               }) : null}
             </Section>
@@ -406,6 +610,13 @@ export default function AdminCampaignEditorScreen() {
               {bundle.status === 'paused' ? <Button icon="play-outline" onPress={() => void changeStatus('published')}>Reativar</Button> : null}
               {!archived ? <Button variant="danger" icon="archive-outline" onPress={() => void changeStatus('archived')}>Arquivar</Button> : null}
             </View>
+            {bundle.status === 'draft' && !bundle.publishedAt ? (
+              <View style={styles.dangerZone}>
+                <Text style={styles.dangerTitle}>Área de ações destrutivas</Text>
+                <Text style={styles.dangerCopy}>Somente rascunhos nunca publicados podem ser excluídos definitivamente.</Text>
+                <Button variant="danger" icon="trash-outline" onPress={() => void deleteCampaign()}>Excluir campanha</Button>
+              </View>
+            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </Screen>
@@ -424,7 +635,7 @@ function ChoiceRow({ options, value, disabled = false, onChange }: { options: { 
 function ChipGrid({ children }: React.PropsWithChildren) { return <View style={styles.chipGrid}>{children}</View>; }
 
 function ChoiceChip({ label, selected, disabled = false, onPress }: { label: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
-  return <Pressable disabled={disabled} onPress={onPress} style={[styles.choice, selected && styles.choiceSelected, disabled && styles.disabled]}><Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={[styles.choice, selected && styles.choiceSelected, disabled && styles.disabled]}><Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text></Pressable>;
 }
 
 function PlacementEditor({ placement, assets, disabled, uploading, products, categories, onChange, onAssetChange, onChooseImage, onRemove }: {
@@ -442,9 +653,9 @@ function PlacementEditor({ placement, assets, disabled, uploading, products, cat
   const position = positions.find((item) => item.value === placement.position)?.label ?? placement.position;
   return <View style={styles.placementCard}>
     <View style={styles.placementHeader}><Text style={styles.placementTitle}>{position}</Text><Button variant="ghost" disabled={disabled} onPress={onRemove}>Remover</Button></View>
-    <Field label="Título" value={placement.title} editable={!disabled} onChangeText={(title) => onChange({ title })} />
-    <Field label="Subtítulo" value={placement.subtitle} editable={!disabled} onChangeText={(subtitle) => onChange({ subtitle })} />
-    <Field label="Texto do botão" value={placement.buttonLabel} editable={!disabled} onChangeText={(buttonLabel) => onChange({ buttonLabel })} />
+    <Field label="Título" value={placement.title} editable={!disabled} maxLength={120} onChangeText={(title) => onChange({ title })} />
+    <Field label="Subtítulo" value={placement.subtitle} editable={!disabled} maxLength={240} onChangeText={(subtitle) => onChange({ subtitle })} />
+    <Field label="Texto do botão" value={placement.buttonLabel} editable={!disabled} maxLength={40} onChangeText={(buttonLabel) => onChange({ buttonLabel })} />
     <View style={styles.imageActions}>
       <Button variant="secondary" loading={uploading} disabled={disabled} icon={placement.desktopAssetId ? 'checkmark-circle-outline' : 'image-outline'} onPress={() => onChooseImage('desktop')}>Imagem computador</Button>
       <Button variant="secondary" loading={uploading} disabled={disabled} icon={placement.mobileAssetId ? 'checkmark-circle-outline' : 'phone-portrait-outline'} onPress={() => onChooseImage('mobile')}>Imagem celular</Button>
@@ -456,8 +667,8 @@ function PlacementEditor({ placement, assets, disabled, uploading, products, cat
     <ChoiceRow options={destinationOptions} value={placement.destinationType} disabled={disabled} onChange={(value) => onChange(clearDestination(value as CampaignDestinationType))} />
     {placement.destinationType === 'product' ? <ChipGrid>{products.filter((product) => product.active).map((product) => <ChoiceChip key={product.id} label={product.name} selected={placement.destinationProductId === product.id} disabled={disabled} onPress={() => onChange({ destinationProductId: product.id })} />)}</ChipGrid> : null}
     {placement.destinationType === 'category' ? <ChipGrid>{categories.filter((category) => category.active).map((category) => <ChoiceChip key={category.slug} label={category.name} selected={placement.destinationCategorySlug === category.slug} disabled={disabled} onPress={() => onChange({ destinationCategorySlug: category.slug })} />)}</ChipGrid> : null}
-    {placement.destinationType === 'search' ? <Field label="Texto da busca" value={placement.destinationSearch ?? ''} editable={!disabled} onChangeText={(destinationSearch) => onChange({ destinationSearch })} /> : null}
-    {placement.destinationType === 'external' ? <Field label="Link externo HTTPS" placeholder="https://..." autoCapitalize="none" value={placement.destinationUrl ?? ''} editable={!disabled} onChangeText={(destinationUrl) => onChange({ destinationUrl })} /> : null}
+    {placement.destinationType === 'search' ? <Field label="Texto da busca" value={placement.destinationSearch ?? ''} editable={!disabled} maxLength={120} onChangeText={(destinationSearch) => onChange({ destinationSearch })} /> : null}
+    {placement.destinationType === 'external' ? <Field label="Link externo HTTPS" placeholder="https://..." autoCapitalize="none" value={placement.destinationUrl ?? ''} editable={!disabled} maxLength={500} onChangeText={(destinationUrl) => onChange({ destinationUrl })} /> : null}
   </View>;
 }
 
@@ -468,9 +679,12 @@ function AssetControls({ label, asset, disabled, onChange }: { label: string; as
     <Text style={styles.muted}>{asset.width}×{asset.height} · {(asset.byteSize / 1_048_576).toFixed(2)} MB</Text>
     <Field label="Texto alternativo" maxLength={160} value={asset.altText} editable={!disabled} onChangeText={(altText) => onChange(asset.id, { altText })} />
     <View style={styles.threeColumns}>
-      <Field label="Foco horizontal (%)" keyboardType="number-pad" value={String(Math.round(asset.focalX * 100))} editable={!disabled} onChangeText={(value) => onChange(asset.id, { focalX: clamp(Number(value) / 100, 0, 1) })} style={styles.smallField} />
-      <Field label="Foco vertical (%)" keyboardType="number-pad" value={String(Math.round(asset.focalY * 100))} editable={!disabled} onChangeText={(value) => onChange(asset.id, { focalY: clamp(Number(value) / 100, 0, 1) })} style={styles.smallField} />
-      <Field label="Zoom (1 a 2)" keyboardType="decimal-pad" value={String(asset.zoom).replace('.', ',')} editable={!disabled} onChangeText={(value) => onChange(asset.id, { zoom: clamp(Number(value.replace(',', '.')), 1, 2) })} style={styles.smallField} />
+      <StructuredField kind="percentage" label="Foco horizontal (%)" value={String(Math.round(asset.focalX * 100))} editable={!disabled} onChangeText={(value) => onChange(asset.id, { focalX: clamp((parsePercentageBasisPoints(value) ?? 0) / 10000, 0, 1) })} style={styles.smallField} />
+      <StructuredField kind="percentage" label="Foco vertical (%)" value={String(Math.round(asset.focalY * 100))} editable={!disabled} onChangeText={(value) => onChange(asset.id, { focalY: clamp((parsePercentageBasisPoints(value) ?? 0) / 10000, 0, 1) })} style={styles.smallField} />
+      <Field label="Zoom (1 a 2)" keyboardType="decimal-pad" maxLength={4} value={String(asset.zoom).replace('.', ',')} editable={!disabled} onChangeText={(value) => {
+        const sanitized = value.replace(/[^\d,]/g, '').slice(0, 4);
+        onChange(asset.id, { zoom: clamp(Number(sanitized.replace(',', '.')), 1, 2) });
+      }} style={styles.smallField} />
     </View>
   </View>;
 }
@@ -532,6 +746,20 @@ async function confirmArchive() {
   return new Promise<boolean>((resolve) => Alert.alert('Arquivar campanha', 'Arquivar é definitivo. Deseja continuar?', [{ text: 'Cancelar', onPress: () => resolve(false) }, { text: 'Arquivar', style: 'destructive', onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
 }
 
+async function confirmDeleteDraft() {
+  const message = 'Excluir esta campanha em rascunho? Esta ação é permanente e não poderá ser desfeita.';
+  if (Platform.OS === 'web') return window.confirm(message);
+  return new Promise<boolean>((resolve) => Alert.alert(
+    'Excluir campanha',
+    message,
+    [
+      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Excluir', style: 'destructive', onPress: () => resolve(true) },
+    ],
+    { cancelable: true, onDismiss: () => resolve(false) },
+  ));
+}
+
 function errorMessage(error: unknown) { return error instanceof Error ? error.message : 'Tente novamente.'; }
 function clamp(value: number, minimum: number, maximum: number) { return Math.min(maximum, Math.max(minimum, Number.isFinite(value) ? value : minimum)); }
 
@@ -550,10 +778,10 @@ const styles = StyleSheet.create({
   twoColumns: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   column: { minWidth: 240, flex: 1 },
   choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chipGrid: { maxHeight: 260, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  choice: { minHeight: 40, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  chipGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: spacing.sm, paddingBottom: spacing.sm },
+  choice: { maxWidth: '100%', minHeight: 40, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   choiceSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
-  choiceText: { color: colors.text, fontSize: 12, fontWeight: '800' },
+  choiceText: { maxWidth: '100%', flexShrink: 1, color: colors.text, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   choiceTextSelected: { color: colors.white },
   disabled: { opacity: 0.48 },
   addPositions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -567,6 +795,9 @@ const styles = StyleSheet.create({
   threeColumns: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   smallField: { minWidth: 150, flex: 1 },
   fieldTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  counter: { marginTop: -spacing.md, color: colors.textMuted, fontSize: 10, textAlign: 'right' },
+  selectedArea: { padding: spacing.md, borderWidth: 1, borderColor: colors.primarySoft, borderRadius: radii.medium, gap: spacing.sm, backgroundColor: colors.surfaceWarm },
+  selectedTitle: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
   manualRule: { padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.lg },
   ruleCopy: { minWidth: 220, flex: 1, gap: spacing.xs },
   ruleName: { color: colors.text, fontSize: 14, fontWeight: '900' },
@@ -574,4 +805,7 @@ const styles = StyleSheet.create({
   previewFrame: { width: '100%', overflow: 'hidden', borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium },
   previewMobile: { width: 390, maxWidth: '100%', alignSelf: 'center' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.md },
+  dangerZone: { padding: spacing.xl, borderWidth: 1, borderColor: colors.danger, borderRadius: radii.large, gap: spacing.md, backgroundColor: colors.dangerSoft },
+  dangerTitle: { color: colors.danger, fontSize: 16, fontWeight: '900' },
+  dangerCopy: { color: colors.text, fontSize: 12, lineHeight: 18 },
 });

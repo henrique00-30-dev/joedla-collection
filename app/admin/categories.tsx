@@ -20,6 +20,7 @@ import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
 import { Category } from '@/src/types';
+import { normalizePlainText, validatePlainText } from '@/src/utils/fields';
 
 export default function AdminCategoriesScreen() {
   const {
@@ -35,11 +36,13 @@ export default function AdminCategoriesScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
+  const [nameError, setNameError] = useState('');
 
   function resetForm() {
     setEditing(null);
     setName('');
     setImageUrl('');
+    setNameError('');
   }
 
   function beginEdit(category: Category) {
@@ -86,14 +89,16 @@ export default function AdminCategoriesScreen() {
   }
 
   async function handleSave() {
-    if (name.trim().length < 2) {
-      showMessage('Nome obrigatório', 'Digite o nome da categoria.');
+    const error = validatePlainText(name, { minimum: 2, maximum: 80 });
+    setNameError(error ?? '');
+    if (error) {
+      showMessage('Nome inválido', error);
       return;
     }
 
     setSaving(true);
     try {
-      await saveCategory({ slug: editing?.slug, name: name.trim(), imageUrl });
+      await saveCategory({ slug: editing?.slug, name: normalizePlainText(name), imageUrl });
       showMessage(
         editing ? 'Categoria renomeada' : 'Categoria criada',
         'A alteração já está disponível no catálogo e no cadastro de produtos.',
@@ -157,6 +162,8 @@ export default function AdminCategoriesScreen() {
               onChangeText={setName}
               placeholder="Ex.: Acessórios"
               autoCapitalize="words"
+              maxLength={80}
+              error={nameError}
             />
             <View style={styles.imageRow}>
               {imageUrl ? (

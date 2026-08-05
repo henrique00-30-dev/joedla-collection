@@ -9,13 +9,30 @@ import { AdminGuard } from '@/src/components/admin-guard';
 import { AppHeader } from '@/src/components/app-header';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
+import { StructuredField } from '@/src/components/structured-field';
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 import { Banner, StoreSettings } from '@/src/types';
+import {
+  brazilDateToIsoDate,
+  isValidBrazilDate,
+  isoDateToBrazilDate,
+  normalizePlainText,
+  validatePlainText,
+} from '@/src/utils/fields';
 
 export default function AdminAppearanceScreen() {
   const { settings, updateSettings, uploadProductImage } = useStore();
-  const [form, setForm] = useState(settings);
+  const [form, setForm] = useState(() => ({
+    ...settings,
+    bannerStartAt: settings.bannerStartAt ? isoDateToBrazilDate(settings.bannerStartAt) : '',
+    bannerEndAt: settings.bannerEndAt ? isoDateToBrazilDate(settings.bannerEndAt) : '',
+    banners: settings.banners.map((banner) => ({
+      ...banner,
+      startAt: banner.startAt ? isoDateToBrazilDate(banner.startAt) : '',
+      endAt: banner.endAt ? isoDateToBrazilDate(banner.endAt) : '',
+    })),
+  }));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -173,9 +190,41 @@ async function chooseBannerImage(bannerId: string) {
       Alert.alert('Banner incompleto', 'Informe título, texto do botão e imagem.');
       return;
     }
+    const dates = [
+      ...(form.bannerStartAt ? [form.bannerStartAt] : []),
+      ...(form.bannerEndAt ? [form.bannerEndAt] : []),
+      ...form.banners.flatMap((banner) => [banner.startAt, banner.endAt].filter(Boolean)),
+    ];
+    if (dates.some((date) => !isValidBrazilDate(date))) {
+      Alert.alert('Data inválida', 'Informe as datas no formato dia/mês/ano.');
+      return;
+    }
+    const textValues = [
+      [form.bannerTitle, 120], [form.bannerSubtitle, 240], [form.bannerButtonLabel, 40],
+      ...form.banners.flatMap((banner) => [[banner.title, 120], [banner.subtitle, 240], [banner.buttonLabel, 40]] as [string, number][]),
+    ] as [string, number][];
+    if (textValues.some(([value, maximum]) => validatePlainText(value, { maximum }))) {
+      Alert.alert('Texto inválido', 'Revise os textos e os limites dos banners.');
+      return;
+    }
     setSaving(true);
     try {
-      await updateSettings(form);
+      await updateSettings({
+        ...form,
+        bannerTitle: normalizePlainText(form.bannerTitle),
+        bannerSubtitle: normalizePlainText(form.bannerSubtitle),
+        bannerButtonLabel: normalizePlainText(form.bannerButtonLabel),
+        bannerStartAt: form.bannerStartAt ? brazilDateToIsoDate(form.bannerStartAt) ?? '' : '',
+        bannerEndAt: form.bannerEndAt ? brazilDateToIsoDate(form.bannerEndAt) ?? '' : '',
+        banners: form.banners.map((banner) => ({
+          ...banner,
+          title: normalizePlainText(banner.title),
+          subtitle: normalizePlainText(banner.subtitle),
+          buttonLabel: normalizePlainText(banner.buttonLabel),
+          startAt: banner.startAt ? brazilDateToIsoDate(banner.startAt) ?? '' : '',
+          endAt: banner.endAt ? brazilDateToIsoDate(banner.endAt) ?? '' : '',
+        })),
+      });
       Alert.alert('Visual publicado', 'O novo banner já está disponível na página inicial.');
     } catch (error) {
       Alert.alert('Não foi possível publicar', error instanceof Error ? error.message : 'Tente novamente.');
@@ -240,6 +289,7 @@ async function chooseBannerImage(bannerId: string) {
       onChangeText={(value) =>
         updateBanner(banner.id, { title: value })
       }
+      maxLength={120}
     />
 
     <Field
@@ -248,6 +298,7 @@ async function chooseBannerImage(bannerId: string) {
       onChangeText={(value) =>
         updateBanner(banner.id, { subtitle: value })
       }
+      maxLength={240}
     />
 
     <Field
@@ -256,6 +307,7 @@ async function chooseBannerImage(bannerId: string) {
       onChangeText={(value) =>
         updateBanner(banner.id, { buttonLabel: value })
       }
+      maxLength={40}
     />
 
     <Field
@@ -264,18 +316,21 @@ async function chooseBannerImage(bannerId: string) {
       onChangeText={(value) =>
         updateBanner(banner.id, { link: value })
       }
+      maxLength={500}
     />
 
-    <Field
-      label="Início (AAAA-MM-DD), opcional"
+    <StructuredField
+      kind="date"
+      label="Data de início (opcional)"
       value={banner.startAt}
       onChangeText={(value) =>
         updateBanner(banner.id, { startAt: value })
       }
     />
 
-    <Field
-      label="Fim (AAAA-MM-DD), opcional"
+    <StructuredField
+      kind="date"
+      label="Data de término (opcional)"
       value={banner.endAt}
       onChangeText={(value) =>
         updateBanner(banner.id, { endAt: value })
@@ -299,17 +354,17 @@ async function chooseBannerImage(bannerId: string) {
   </View>
 ))}
             <View style={styles.card}>
-              <Field label="Título" value={form.bannerTitle} onChangeText={(value) => update('bannerTitle', value)} placeholder="Elegância para todos os momentos" />
-              <Field label="Subtítulo curto" value={form.bannerSubtitle} onChangeText={(value) => update('bannerSubtitle', value)} multiline />
-              <Field label="Texto do botão" value={form.bannerButtonLabel} onChangeText={(value) => update('bannerButtonLabel', value)} />
-              <Field label="Destino do botão" value={form.bannerLink} onChangeText={(value) => update('bannerLink', value)} placeholder="/(tabs)/categories" autoCapitalize="none" />
+              <Field label="Título" value={form.bannerTitle} onChangeText={(value) => update('bannerTitle', value)} placeholder="Elegância para todos os momentos" maxLength={120} />
+              <Field label="Subtítulo curto" value={form.bannerSubtitle} onChangeText={(value) => update('bannerSubtitle', value)} multiline maxLength={240} />
+              <Field label="Texto do botão" value={form.bannerButtonLabel} onChangeText={(value) => update('bannerButtonLabel', value)} maxLength={40} />
+              <Field label="Destino do botão" value={form.bannerLink} onChangeText={(value) => update('bannerLink', value)} placeholder="/(tabs)/categories" autoCapitalize="none" maxLength={500} />
               <Button variant="secondary" icon="image-outline" loading={uploading} onPress={chooseBanner}>Trocar imagem do banner</Button>
             </View>
 
             <Text style={styles.sectionTitle}>Agendamento opcional</Text>
             <View style={styles.card}>
-              <Field label="Início (AAAA-MM-DD), opcional" value={form.bannerStartAt} onChangeText={(value) => update('bannerStartAt', value)} placeholder="2026-08-10" autoCapitalize="none" />
-              <Field label="Fim (AAAA-MM-DD), opcional" value={form.bannerEndAt} onChangeText={(value) => update('bannerEndAt', value)} placeholder="2026-08-20" autoCapitalize="none" />
+              <StructuredField kind="date" label="Data de início (opcional)" value={form.bannerStartAt} onChangeText={(value) => update('bannerStartAt', value)} placeholder="DD/MM/AAAA" />
+              <StructuredField kind="date" label="Data de término (opcional)" value={form.bannerEndAt} onChangeText={(value) => update('bannerEndAt', value)} placeholder="DD/MM/AAAA" />
             </View>
             <Button loading={saving} onPress={save}>Salvar e publicar</Button>
           </ScrollView>

@@ -11,6 +11,7 @@ import { loadCloudCustomerOrders } from '@/src/services/cloud';
 import { colors, radii, spacing } from '@/src/theme';
 import { Order } from '@/src/types';
 import { formatCurrency, formatDate } from '@/src/utils/format';
+import { digitsOnly, isValidEmail, normalizeEmail } from '@/src/utils/fields';
 
 export default function AccountScreen() {
   const [user, setUser] = useState<User | null>(null);
@@ -59,14 +60,14 @@ export default function AccountScreen() {
   }
 
   async function sendAccess() {
-    if (!supabase || !email.includes('@')) {
+    if (!supabase || !isValidEmail(email)) {
       Alert.alert('E-mail inválido', 'Informe um endereço de e-mail válido.');
       return;
     }
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
+        email: normalizeEmail(email),
         options: {
           shouldCreateUser: true,
           emailRedirectTo: 'https://www.joedla-collection.com.br/account',
@@ -83,13 +84,13 @@ export default function AccountScreen() {
   }
 
   async function verifyCode() {
-    if (!supabase || token.trim().length !== 6) {
+    if (!supabase || digitsOnly(token).length !== 6) {
       Alert.alert('Código incompleto', 'Digite os 6 números recebidos por e-mail.');
       return;
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: token.trim(), type: 'email' });
+      const { error } = await supabase.auth.verifyOtp({ email: normalizeEmail(email), token: digitsOnly(token), type: 'email' });
       if (error) throw error;
       await refreshAccount();
     } catch (error) {
@@ -126,9 +127,9 @@ export default function AccountScreen() {
           <View style={styles.card}>
             <Text style={styles.title}>Entrar sem senha</Text>
             <Text style={styles.text}>Enviaremos um acesso único para seu e-mail.</Text>
-            <Field label="Seu e-mail" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="voce@exemplo.com" />
+            <Field label="Seu e-mail" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="voce@exemplo.com" maxLength={254} />
             {codeSent ? (
-              <Field label="Código de 6 números" value={token} onChangeText={setToken} keyboardType="number-pad" placeholder="000000" />
+              <Field label="Código de 6 números" value={token} onChangeText={(value) => setToken(digitsOnly(value, 6))} keyboardType="number-pad" placeholder="000000" maxLength={6} />
             ) : null}
             {codeSent ? <Button loading={loading} onPress={verifyCode}>Confirmar código</Button> : null}
             <Button variant={codeSent ? 'secondary' : 'primary'} loading={loading} onPress={sendAccess}>

@@ -23,6 +23,7 @@ export function SearchBar({
         clearButtonMode="while-editing"
         onChangeText={onChangeText}
         placeholder={placeholder}
+        maxLength={120}
         placeholderTextColor={colors.textMuted}
         returnKeyType="search"
         style={styles.input}
