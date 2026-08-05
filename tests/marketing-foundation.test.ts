@@ -5,6 +5,13 @@ import {
   validateCampaignTransition,
 } from '../src/features/marketing/foundation';
 import { MarketingCampaign } from '../src/features/marketing/types';
+import {
+  activePlacements,
+  campaignTargetRank,
+  marketingDestination,
+  resolveProductMarketingBadge,
+} from '../src/features/marketing/storefront';
+import { MarketingCampaignBundle } from '../src/features/marketing/types';
 
 let executed = 0;
 
@@ -48,6 +55,27 @@ function campaign(
     archivedAt: null,
     createdAt: '2026-08-05T11:00:00.000Z',
     updatedAt: '2026-08-05T12:00:00.000Z',
+    ...changes,
+  };
+}
+
+function bundle(changes: Partial<MarketingCampaignBundle> = {}): MarketingCampaignBundle {
+  const base = campaign();
+  return {
+    ...base,
+    targets: [{
+      id: '21111111-1111-4111-8111-111111111111',
+      campaignId: base.id,
+      targetType: 'store',
+      productId: null,
+      categorySlug: null,
+      includeNewProducts: true,
+      version: 1,
+    }],
+    assets: [],
+    placements: [],
+    badge: null,
+    priceRules: [],
     ...changes,
   };
 }
@@ -149,6 +177,60 @@ test('transição inválida é identificada', () => {
     'draft',
   );
   expectIncludes(issues.map((issue) => issue.code), 'invalid_transition');
+});
+
+test('alvo direto de produto possui maior precedência', () => {
+  const direct = bundle({
+    targets: [{
+      id: '31111111-1111-4111-8111-111111111111',
+      campaignId: campaign().id,
+      targetType: 'product',
+      productId: 'produto-1',
+      categorySlug: null,
+      includeNewProducts: false,
+      version: 1,
+    }],
+  });
+  expectEqual(campaignTargetRank(direct, { id: 'produto-1', category: 'fitness' }), 3);
+});
+
+test('apenas um selo vencedor é exibido', () => {
+  const lower = bundle({
+    id: '41111111-1111-4111-8111-111111111111',
+    priority: 1,
+    badge: { id: '51111111-1111-4111-8111-111111111111', campaignId: '41111111-1111-4111-8111-111111111111', label: 'Menor', tone: 'dark', version: 1 },
+  });
+  const higher = bundle({
+    id: '61111111-1111-4111-8111-111111111111',
+    priority: 20,
+    badge: { id: '71111111-1111-4111-8111-111111111111', campaignId: '61111111-1111-4111-8111-111111111111', label: 'Maior', tone: 'wine', version: 1 },
+  });
+  expectEqual(resolveProductMarketingBadge([lower, higher], { id: 'produto-1', category: 'fitness' })?.label, 'Maior');
+});
+
+test('posição visual mantém somente o vencedor', () => {
+  const placement = {
+    id: '81111111-1111-4111-8111-111111111111', campaignId: campaign().id,
+    position: 'home_hero' as const, title: '', subtitle: '', buttonLabel: '',
+    desktopAssetId: null, mobileAssetId: null, destinationType: 'none' as const,
+    destinationProductId: null, destinationCategorySlug: null, destinationSearch: null,
+    destinationUrl: null, sortOrder: 0, version: 1,
+  };
+  const lower = bundle({ id: '91111111-1111-4111-8111-111111111111', priority: 1, placements: [{ ...placement, campaignId: '91111111-1111-4111-8111-111111111111' }] });
+  const higher = bundle({ id: 'a1111111-1111-4111-8111-111111111111', priority: 2, placements: [{ ...placement, id: 'b1111111-1111-4111-8111-111111111111', campaignId: 'a1111111-1111-4111-8111-111111111111' }] });
+  expectEqual(activePlacements([lower, higher])[0].campaign.id, higher.id);
+  expectEqual(activePlacements([lower, higher]).length, 1);
+});
+
+test('link externo inseguro é bloqueado', () => {
+  const placement = {
+    id: 'c1111111-1111-4111-8111-111111111111', campaignId: campaign().id,
+    position: 'home_hero' as const, title: '', subtitle: '', buttonLabel: '',
+    desktopAssetId: null, mobileAssetId: null, destinationType: 'external' as const,
+    destinationProductId: null, destinationCategorySlug: null, destinationSearch: null,
+    destinationUrl: 'javascript:alert(1)', sortOrder: 0, version: 1,
+  };
+  expectEqual(marketingDestination(placement, ''), null);
 });
 
 console.log(`${executed} testes da fundação de marketing aprovados.`);
