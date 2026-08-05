@@ -1,4 +1,5 @@
-import { ComponentProps } from 'react';
+import { ComponentProps, forwardRef } from 'react';
+import { TextInput } from 'react-native';
 
 import { Field } from '@/src/components/ui';
 import {
@@ -35,14 +36,18 @@ const settings: Record<FieldKind, {
   integer: { keyboardType: 'number-pad', maxLength: 6, mask: maskNonNegativeInteger },
 };
 
-export function StructuredField({ kind, onChangeText, ...props }: Props) {
+export const StructuredField = forwardRef<TextInput, Props>(function StructuredField(
+  { kind, onChangeText, ...props },
+  ref,
+) {
   const configuration = settings[kind];
   return (
     <Field
+      ref={ref}
       {...props}
       keyboardType={props.keyboardType ?? configuration.keyboardType}
       maxLength={props.maxLength ?? configuration.maxLength}
       onChangeText={(value) => onChangeText(configuration.mask(value))}
     />
   );
-}
+});

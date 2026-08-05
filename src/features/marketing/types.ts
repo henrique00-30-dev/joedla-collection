@@ -23,6 +23,12 @@ export type CampaignDestinationType =
   | 'external';
 export type CampaignBadgeTone = 'wine' | 'caramel' | 'dark' | 'success' | 'attention';
 export type CampaignPriceRuleType = 'percentage' | 'manual_price';
+export type PriceSource =
+  | 'normal'
+  | 'individual'
+  | 'campaign_product'
+  | 'campaign_category'
+  | 'campaign_store';
 
 export type MarketingCampaign = {
   id: string;
@@ -104,6 +110,26 @@ export type MarketingCampaignPriceRule = {
   version: number;
 };
 
+export type ProductPromotion = {
+  id: string;
+  productId: string;
+  enabled: boolean;
+  promotionalPriceCents: number;
+  startAt: string | null;
+  endAt: string | null;
+  showBadge: boolean;
+  badgeLabel: string;
+  badgeTone: CampaignBadgeTone;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProductPromotionInput = Omit<
+  ProductPromotion,
+  'id' | 'productId' | 'version' | 'createdAt' | 'updatedAt'
+>;
+
 export type MarketingCampaignBundle = MarketingCampaign & {
   targets: MarketingCampaignTarget[];
   assets: MarketingCampaignAsset[];
@@ -148,6 +174,12 @@ export type CatalogPriceResolution = {
   productId: string;
   originalPriceCents: number;
   finalPriceCents: number;
+  priceSource: PriceSource;
+  individualPromotionId: string | null;
+  individualPriceCents: number | null;
+  individualBadgeLabel: string | null;
+  individualBadgeTone: CampaignBadgeTone | null;
+  campaignPriceCents: number | null;
   campaignId: string | null;
   campaignName: string | null;
   ruleType: CampaignPriceRuleType | null;

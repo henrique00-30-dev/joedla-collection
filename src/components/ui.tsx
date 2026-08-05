@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PropsWithChildren } from 'react';
+import { forwardRef, PropsWithChildren } from 'react';
 import {
   ActivityIndicator,
   KeyboardTypeOptions,
@@ -71,11 +71,15 @@ type FieldProps = TextInputProps & {
   keyboardType?: KeyboardTypeOptions;
 };
 
-export function Field({ label, error, multiline, style, ...props }: FieldProps) {
+export const Field = forwardRef<TextInput, FieldProps>(function Field(
+  { label, error, multiline, style, ...props },
+  ref,
+) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
+        ref={ref}
         multiline={multiline}
         placeholderTextColor={colors.textMuted}
         style={[styles.field, multiline && styles.fieldMultiline, style]}
@@ -84,7 +88,7 @@ export function Field({ label, error, multiline, style, ...props }: FieldProps) 
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
   );
-}
+});
 
 export function QuantityStepper({
   value,

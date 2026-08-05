@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -19,13 +20,27 @@ import { AppHeader } from '@/src/components/app-header';
 import { ProductImage } from '@/src/components/product-image';
 import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
+import { StructuredField } from '@/src/components/structured-field';
 import { useStore } from '@/src/context/store-context';
+import { loadAdminProductPromotion, saveProductPromotion } from '@/src/features/marketing/service';
+import { CampaignBadgeTone } from '@/src/features/marketing/types';
 import { colors, radii, spacing } from '@/src/theme';
 import { Availability, CategorySlug, PhotoQuality, ProductDraft } from '@/src/types';
+import {
+  formatBrlInput,
+  isValidBrazilDate,
+  isValidQuantity,
+  maceioDateTimeToIso,
+  normalizePlainText,
+  parseBrlCents,
+  validatePlainText,
+  isoToMaceioFields,
+} from '@/src/utils/fields';
+import { formatCurrency } from '@/src/utils/format';
 
 export default function ProductFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { products, categories, saveProduct, uploadProductImage } = useStore();
+  const { products, categories, saveProduct, uploadProductImage, refreshStore } = useStore();
   const existing = products.find((product) => product.id === id);
 
   const [name, setName] = useState('');
@@ -40,16 +55,33 @@ export default function ProductFormScreen() {
   const [featured, setFeatured] = useState(false);
   const [photoQuality, setPhotoQuality] = useState<PhotoQuality>('acceptable');
   const [photoProvisional, setPhotoProvisional] = useState(false);
+  const [promotionEnabled, setPromotionEnabled] = useState(false);
+  const [promotionalPrice, setPromotionalPrice] = useState('');
+  const [promotionStartDate, setPromotionStartDate] = useState('');
+  const [promotionEndDate, setPromotionEndDate] = useState('');
+  const [promotionShowBadge, setPromotionShowBadge] = useState(true);
+  const [promotionBadgeLabel, setPromotionBadgeLabel] = useState('Promoção');
+  const [promotionBadgeTone, setPromotionBadgeTone] = useState<CampaignBadgeTone>('wine');
+  const [promotionVersion, setPromotionVersion] = useState<number | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const savingRef = useRef(false);
+  const nameRef = useRef<TextInput>(null);
+  const priceRef = useRef<TextInput>(null);
+  const promotionalPriceRef = useRef<TextInput>(null);
+  const promotionStartDateRef = useRef<TextInput>(null);
+  const promotionEndDateRef = useRef<TextInput>(null);
+  const promotionBadgeRef = useRef<TextInput>(null);
+  const stockRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!existing) return;
     setName(existing.name);
     setDescription(existing.description);
     setCategory(existing.category);
-    setPrice(existing.price.toFixed(2).replace('.', ','));
+    const basePrice = existing.originalPrice ?? existing.price;
+    setPrice(formatBrlInput(Math.round(basePrice * 100)));
     setImages(existing.imageUrls);
     setSizes(existing.sizes.join(', '));
     setColorsText(existing.colors.join(', '));
@@ -58,6 +90,28 @@ export default function ProductFormScreen() {
     setFeatured(existing.featured);
     setPhotoQuality(existing.photoQuality);
     setPhotoProvisional(existing.photoProvisional);
+  }, [existing]);
+
+  useEffect(() => {
+    if (!existing) return;
+    let active = true;
+    void loadAdminProductPromotion(existing.id)
+      .then((promotion) => {
+        if (!active || !promotion) return;
+        setPromotionEnabled(promotion.enabled);
+        setPromotionalPrice(formatBrlInput(promotion.promotionalPriceCents));
+        setPromotionStartDate(isoToMaceioFields(promotion.startAt).date);
+        setPromotionEndDate(isoToMaceioFields(promotion.endAt).date);
+        setPromotionShowBadge(promotion.showBadge);
+        setPromotionBadgeLabel(promotion.badgeLabel);
+        setPromotionBadgeTone(promotion.badgeTone);
+        setPromotionVersion(promotion.version);
+      })
+      .catch((error) => Alert.alert(
+        'Não foi possível carregar a promoção',
+        error instanceof Error ? error.message : 'Tente novamente.',
+      ));
+    return () => { active = false; };
   }, [existing]);
 
   async function pickImage() {
@@ -119,19 +173,57 @@ export default function ProductFormScreen() {
     // repetidamente antes de o React atualizar o estado `saving`.
     if (savingRef.current) return;
 
-    const parsedPrice = Number(price.replace(/\./g, '').replace(',', '.'));
-    const parsedStock = Math.max(0, Number.parseInt(stock || '0', 10) || 0);
-
-    if (name.trim().length < 3) {
-      Alert.alert('Nome obrigatório', 'Informe o nome do produto.');
-      return;
-    }
-    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert('Preço inválido', 'Informe um preço maior que zero.');
-      return;
-    }
+    const priceCents = parseBrlCents(price);
+    const promotionalPriceCents = parseBrlCents(promotionalPrice);
+    const nextErrors: Record<string, string> = {};
+    const nameError = validatePlainText(name, { minimum: 3, maximum: 120 });
+    const descriptionError = validatePlainText(description, { maximum: 2000, multiline: true });
+    if (nameError) nextErrors.name = nameError;
+    if (descriptionError) nextErrors.description = descriptionError;
+    if (priceCents === null || priceCents <= 0) nextErrors.price = 'Informe um preço maior que zero.';
     if (!category) {
-      Alert.alert('Categoria obrigatória', 'Escolha em qual categoria o produto deve aparecer.');
+      nextErrors.category = 'Escolha em qual categoria o produto deve aparecer.';
+    }
+    if (availability === 'ready' && !isValidQuantity(stock, 0, 999999)) {
+      nextErrors.stock = 'Informe uma quantidade inteira entre 0 e 999999.';
+    }
+    if (promotionEnabled) {
+      if (promotionalPriceCents === null || promotionalPriceCents <= 0) {
+        nextErrors.promotionalPrice = 'Informe um preço promocional maior que zero.';
+      } else if (priceCents !== null && promotionalPriceCents >= priceCents) {
+        nextErrors.promotionalPrice = 'O preço promocional deve ser menor que o preço normal.';
+      }
+      if (promotionStartDate && !isValidBrazilDate(promotionStartDate)) {
+        nextErrors.promotionStartDate = 'Informe uma data válida no formato dia/mês/ano.';
+      }
+      if (promotionEndDate && !isValidBrazilDate(promotionEndDate)) {
+        nextErrors.promotionEndDate = 'Informe uma data válida no formato dia/mês/ano.';
+      }
+      const badgeError = validatePlainText(promotionBadgeLabel, { minimum: 1, maximum: 24 });
+      if (promotionShowBadge && badgeError) nextErrors.promotionBadgeLabel = badgeError;
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      if (nextErrors.name) nameRef.current?.focus();
+      else if (nextErrors.price) priceRef.current?.focus();
+      else if (nextErrors.promotionalPrice) promotionalPriceRef.current?.focus();
+      else if (nextErrors.promotionStartDate) promotionStartDateRef.current?.focus();
+      else if (nextErrors.promotionEndDate) promotionEndDateRef.current?.focus();
+      else if (nextErrors.promotionBadgeLabel) promotionBadgeRef.current?.focus();
+      else if (nextErrors.stock) stockRef.current?.focus();
+      return;
+    }
+    if (!category || priceCents === null) return;
+
+    const parsedStock = Number.parseInt(stock || '0', 10);
+    const promotionStartAt = promotionStartDate
+      ? maceioDateTimeToIso(promotionStartDate, '00:00', 'start')
+      : null;
+    const promotionEndAt = promotionEndDate
+      ? maceioDateTimeToIso(promotionEndDate, '23:59', 'end')
+      : null;
+    if (promotionStartAt && promotionEndAt && Date.parse(promotionEndAt) <= Date.parse(promotionStartAt)) {
+      setErrors((current) => ({ ...current, promotionEndDate: 'A data final deve ser posterior à data inicial.' }));
       return;
     }
 
@@ -143,10 +235,10 @@ export default function ProductFormScreen() {
 
     const draft: ProductDraft = {
       id: existing?.id,
-      name: name.trim(),
-      description: description.trim(),
+      name: normalizePlainText(name),
+      description: normalizePlainText(description, true),
       category,
-      price: parsedPrice,
+      price: priceCents / 100,
       imageUrls: images,
       sizes: splitValues(sizes),
       colors: splitValues(colorsText),
@@ -163,7 +255,19 @@ export default function ProductFormScreen() {
     let savedSuccessfully = false;
 
     try {
-      await saveProduct(draft);
+      const savedProduct = await saveProduct(draft);
+      if (promotionEnabled || promotionVersion !== null) {
+        await saveProductPromotion(savedProduct.id, promotionVersion, {
+          enabled: promotionEnabled,
+          promotionalPriceCents: promotionalPriceCents ?? Math.max(1, Math.round((priceCents ?? 1) * 0.9)),
+          startAt: promotionStartAt,
+          endAt: promotionEndAt,
+          showBadge: promotionShowBadge,
+          badgeLabel: normalizePlainText(promotionBadgeLabel) || 'Promoção',
+          badgeTone: promotionBadgeTone,
+        });
+      }
+      await refreshStore();
       savedSuccessfully = true;
 
       // Sai da tela imediatamente depois do primeiro salvamento concluído.
@@ -271,10 +375,13 @@ export default function ProductFormScreen() {
             <Text style={styles.sectionTitle}>Informações</Text>
             <View style={styles.card}>
               <Field
+                ref={nameRef}
                 label="Nome do produto"
                 value={name}
                 onChangeText={setName}
                 placeholder="Ex.: Conjunto Fitness"
+                maxLength={120}
+                error={errors.name}
               />
               <Field
                 label="Descrição"
@@ -282,20 +389,126 @@ export default function ProductFormScreen() {
                 onChangeText={setDescription}
                 placeholder="Detalhes, tecido e características"
                 multiline
+                maxLength={2000}
+                error={errors.description}
               />
-              <Field
-                label="Preço"
+            </View>
+
+            <Text style={styles.sectionTitle}>Preço e promoção</Text>
+            <View style={styles.card}>
+              <StructuredField
+                ref={priceRef}
+                kind="currency"
+                label="Preço normal"
                 value={price}
-                onChangeText={setPrice}
-                placeholder="0,00"
-                keyboardType="decimal-pad"
+                onChangeText={(value) => { setPrice(value); setErrors((current) => ({ ...current, price: '' })); }}
+                onBlur={() => {
+                  const cents = parseBrlCents(price);
+                  if (cents !== null) setPrice(formatBrlInput(cents));
+                }}
+                placeholder="R$ 0,00"
+                error={errors.price}
               />
+              <View style={styles.switchRow}>
+                <View style={styles.switchText}>
+                  <Text style={styles.switchTitle}>Produto em promoção</Text>
+                  <Text style={styles.switchDescription}>Funciona sem campanha e sem banner</Text>
+                </View>
+                <Switch
+                  value={promotionEnabled}
+                  onValueChange={setPromotionEnabled}
+                  trackColor={{ false: colors.border, true: colors.primarySoft }}
+                  thumbColor={promotionEnabled ? colors.primary : colors.white}
+                />
+              </View>
+              {promotionEnabled ? (
+                <>
+                  <StructuredField
+                    ref={promotionalPriceRef}
+                    kind="currency"
+                    label="Preço promocional"
+                    value={promotionalPrice}
+                    onChangeText={(value) => { setPromotionalPrice(value); setErrors((current) => ({ ...current, promotionalPrice: '' })); }}
+                    onBlur={() => {
+                      const cents = parseBrlCents(promotionalPrice);
+                      if (cents !== null) setPromotionalPrice(formatBrlInput(cents));
+                    }}
+                    placeholder="R$ 0,00"
+                    error={errors.promotionalPrice}
+                  />
+                  <View style={styles.dateFields}>
+                    <StructuredField
+                      ref={promotionStartDateRef}
+                      kind="date"
+                      label="Data de início (opcional)"
+                      value={promotionStartDate}
+                      onChangeText={setPromotionStartDate}
+                      placeholder="DD/MM/AAAA"
+                      error={errors.promotionStartDate}
+                      style={styles.dateField}
+                    />
+                    <StructuredField
+                      ref={promotionEndDateRef}
+                      kind="date"
+                      label="Data de término (opcional)"
+                      value={promotionEndDate}
+                      onChangeText={setPromotionEndDate}
+                      placeholder="DD/MM/AAAA"
+                      error={errors.promotionEndDate}
+                      style={styles.dateField}
+                    />
+                  </View>
+                  <View style={styles.switchRow}>
+                    <View style={styles.switchText}>
+                      <Text style={styles.switchTitle}>Exibir selo promocional</Text>
+                      <Text style={styles.switchDescription}>A disponibilidade continua aparecendo separadamente</Text>
+                    </View>
+                    <Switch
+                      value={promotionShowBadge}
+                      onValueChange={setPromotionShowBadge}
+                      trackColor={{ false: colors.border, true: colors.primarySoft }}
+                      thumbColor={promotionShowBadge ? colors.primary : colors.white}
+                    />
+                  </View>
+                  {promotionShowBadge ? (
+                    <>
+                      <Field
+                        ref={promotionBadgeRef}
+                        label="Texto curto do selo"
+                        value={promotionBadgeLabel}
+                        onChangeText={setPromotionBadgeLabel}
+                        maxLength={24}
+                        error={errors.promotionBadgeLabel}
+                      />
+                      <Text style={styles.counter}>{promotionBadgeLabel.length}/24</Text>
+                      <View style={styles.chips}>
+                        {promotionTones.map((tone) => (
+                          <ChoiceChip
+                            key={tone.value}
+                            active={promotionBadgeTone === tone.value}
+                            label={tone.label}
+                            onPress={() => setPromotionBadgeTone(tone.value)}
+                          />
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
+                  {parseBrlCents(price) && parseBrlCents(promotionalPrice) ? (
+                    <View style={styles.pricePreview}>
+                      <Text style={styles.previewLabel}>Prévia do preço</Text>
+                      <Text style={styles.previewOriginal}>{formatCurrency((parseBrlCents(price) ?? 0) / 100)}</Text>
+                      <Text style={styles.previewPromotional}>{formatCurrency((parseBrlCents(promotionalPrice) ?? 0) / 100)}</Text>
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
             </View>
 
             <Text style={styles.sectionTitle}>Categoria</Text>
             <Text style={styles.categoryHint}>
               Escolha uma categoria antes de salvar. O produto aparecerá somente nela e, se for destaque, também na página inicial.
             </Text>
+            {errors.category ? <Text style={styles.fieldError}>{errors.category}</Text> : null}
             <View style={styles.chips}>
               {categories.map((item) => (
                 <ChoiceChip
@@ -323,12 +536,14 @@ export default function ProductFormScreen() {
 
             <View style={styles.card}>
               {availability === 'ready' ? (
-                <Field
+                <StructuredField
+                  ref={stockRef}
+                  kind="integer"
                   label="Quantidade em estoque"
                   value={stock}
                   onChangeText={setStock}
                   placeholder="0"
-                  keyboardType="number-pad"
+                  error={errors.stock}
                 />
               ) : (
                 <View style={styles.customInfo}>
@@ -344,6 +559,7 @@ export default function ProductFormScreen() {
                 onChangeText={setSizes}
                 placeholder="P, M, G, GG"
                 autoCapitalize="characters"
+                maxLength={300}
               />
               <Field
                 label="Cores, separadas por vírgula"
@@ -351,6 +567,7 @@ export default function ProductFormScreen() {
                 onChangeText={setColorsText}
                 placeholder="Preto, Marrom, Rosa"
                 autoCapitalize="words"
+                maxLength={300}
               />
               <View style={styles.switchRow}>
                 <View style={styles.switchText}>
@@ -415,6 +632,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  fieldError: { color: colors.danger, fontSize: 11, fontWeight: '700' },
+  counter: { marginTop: -spacing.md, color: colors.textMuted, fontSize: 10, textAlign: 'right' },
+  dateFields: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  dateField: { minWidth: 220, flex: 1 },
+  pricePreview: { padding: spacing.md, borderRadius: radii.small, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surfaceWarm },
+  previewLabel: { width: '100%', color: colors.textMuted, fontSize: 11, fontWeight: '800' },
+  previewOriginal: { color: colors.textMuted, fontSize: 14, textDecorationLine: 'line-through' },
+  previewPromotional: { color: colors.primary, fontSize: 19, fontWeight: '900' },
   photoNotice: {
     padding: spacing.md,
     borderRadius: radii.medium,
@@ -557,3 +782,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
 });
+
+const promotionTones: { value: CampaignBadgeTone; label: string }[] = [
+  { value: 'wine', label: 'Vinho' },
+  { value: 'caramel', label: 'Caramelo' },
+  { value: 'dark', label: 'Escuro' },
+  { value: 'success', label: 'Verde' },
+  { value: 'attention', label: 'Atenção' },
+];

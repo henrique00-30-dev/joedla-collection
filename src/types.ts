@@ -14,6 +14,8 @@ export type Product = {
   promotionCampaignName?: string;
   promotionType?: 'percentage' | 'manual_price';
   discountBasisPoints?: number;
+  priceSource?: 'normal' | 'individual' | 'campaign_product' | 'campaign_category' | 'campaign_store';
+  individualPromotionId?: string;
   marketingBadge?: {
     label: string;
     tone: 'wine' | 'caramel' | 'dark' | 'success' | 'attention';
@@ -52,6 +54,8 @@ export type CartItem = {
   unitPrice: number;
   originalUnitPrice?: number;
   promotionCampaignId?: string;
+  individualPromotionId?: string;
+  priceSource?: Product['priceSource'];
   quantity: number;
   selectedSize?: string;
   selectedColor?: string;
@@ -83,6 +87,10 @@ export type OrderItem = {
   campaignName?: string;
   promotionType?: 'percentage' | 'manual_price';
   discountBasisPoints?: number;
+  individualPromotionId?: string;
+  individualUnitPrice?: number;
+  campaignUnitPrice?: number;
+  priceSource?: Product['priceSource'];
   quantity: number;
   selectedSize?: string;
   selectedColor?: string;

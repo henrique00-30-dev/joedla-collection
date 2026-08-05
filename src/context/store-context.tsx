@@ -213,7 +213,11 @@ export function StoreProvider({ children }: PropsWithChildren) {
     const priceByProduct = new Map(priceResolutions.map((price) => [price.productId, price]));
     const cloudProducts = baseProducts.map((product) => {
       const resolution = priceByProduct.get(product.id);
-      const badge = resolveProductMarketingBadge(cloudMarketing.campaigns, product);
+      const campaignBadge = resolveProductMarketingBadge(cloudMarketing.campaigns, product);
+      const individualBadge = resolution?.individualBadgeLabel && resolution.individualBadgeTone
+        ? { label: resolution.individualBadgeLabel, tone: resolution.individualBadgeTone }
+        : null;
+      const badge = campaignBadge ?? individualBadge;
       return {
         ...product,
         price: resolution ? resolution.finalPriceCents / 100 : product.price,
@@ -224,6 +228,8 @@ export function StoreProvider({ children }: PropsWithChildren) {
         promotionCampaignName: resolution?.campaignName ?? undefined,
         promotionType: resolution?.ruleType ?? undefined,
         discountBasisPoints: resolution?.discountBasisPoints ?? undefined,
+        priceSource: resolution?.priceSource ?? 'normal',
+        individualPromotionId: resolution?.individualPromotionId ?? undefined,
         marketingBadge: badge ? { label: badge.label, tone: badge.tone } : undefined,
       };
     });
@@ -238,6 +244,8 @@ export function StoreProvider({ children }: PropsWithChildren) {
         unitPrice: product.price,
         originalUnitPrice: product.originalPrice,
         promotionCampaignId: product.promotionCampaignId,
+        individualPromotionId: product.individualPromotionId,
+        priceSource: product.priceSource,
         stock: product.availability === 'ready' ? product.stock : item.stock,
       };
     }));
@@ -280,7 +288,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
                 quantity:
                   effectiveAvailability === 'ready'
                     ? Math.min(item.quantity + quantity, effectiveStock)
-                    : item.quantity + quantity,
+                    : Math.min(item.quantity + quantity, 99),
               }
             : item,
         );
@@ -296,7 +304,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
           unitPrice: product.price,
           originalUnitPrice: product.originalPrice,
           promotionCampaignId: product.promotionCampaignId,
-          quantity,
+          quantity: Math.max(1, Math.min(quantity, effectiveStock, 99)),
           selectedSize,
           selectedColor,
           availability: effectiveAvailability,
@@ -364,6 +372,8 @@ export function StoreProvider({ children }: PropsWithChildren) {
             ? resolution.originalPriceCents / 100
             : undefined,
           promotionCampaignId: resolution.campaignId ?? undefined,
+          individualPromotionId: resolution.individualPromotionId ?? undefined,
+          priceSource: resolution.priceSource,
         };
       }));
       throw new Error(
