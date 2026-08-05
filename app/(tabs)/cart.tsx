@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
@@ -16,7 +17,14 @@ export default function CartScreen() {
     cartSubtotal,
     updateCartQuantity,
     removeFromCart,
+    refreshStore,
   } = useStore();
+  const refreshStoreRef = useRef(refreshStore);
+  refreshStoreRef.current = refreshStore;
+
+  useFocusEffect(useCallback(() => {
+    void refreshStoreRef.current().catch(() => undefined);
+  }, []));
 
   return (
     <Screen>
@@ -63,7 +71,12 @@ export default function CartScreen() {
                     {item.availability === 'ready' ? 'Pronta entrega' : 'Por encomenda'}
                   </Text>
                   <View style={styles.itemBottom}>
-                    <Text style={styles.price}>{formatCurrency(item.unitPrice)}</Text>
+                    <View style={styles.itemPrices}>
+                      {item.originalUnitPrice && item.originalUnitPrice > item.unitPrice ? (
+                        <Text style={styles.originalPrice}>{formatCurrency(item.originalUnitPrice)}</Text>
+                      ) : null}
+                      <Text style={styles.price}>{formatCurrency(item.unitPrice)}</Text>
+                    </View>
                     <QuantityStepper
                       value={item.quantity}
                       maximum={item.availability === 'ready' ? item.stock : 99}
@@ -188,6 +201,15 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 15,
     fontWeight: '900',
+  },
+  itemPrices: {
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  originalPrice: {
+    color: colors.textMuted,
+    fontSize: 11,
+    textDecorationLine: 'line-through',
   },
   remove: {
     position: 'absolute',
