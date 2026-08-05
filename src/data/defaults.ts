@@ -54,3 +54,4 @@ export const defaultSettings: StoreSettings = {
   bannerStartAt: '',
   bannerEndAt: '',
 };
+
