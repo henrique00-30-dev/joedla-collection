@@ -1,5 +1,5 @@
-import * as Crypto from 'expo-crypto';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { defaultCategories, defaultSettings } from '@/src/data/defaults';
 import { getStoredJson, setStoredJson } from '@/src/lib/storage';
@@ -8,7 +8,7 @@ import { recordSiteVisit } from '@/src/services/analytics';
 import {
   archiveCloudCategory,
   archiveCloudProduct,
-  createCloudOrder,
+  createTrustedCloudOrder,
   loadCloudAdminOrders,
   loadCloudCatalog,
   loadCloudCategories,
@@ -35,7 +35,9 @@ import {
   ProductDraft,
   StoreSettings,
 } from '@/src/types';
-import { orderCodeFromUuid } from '@/src/utils/format';
+import { loadCatalogPriceResolutions, loadMarketingStorefront } from '@/src/features/marketing/service';
+import { resolveProductMarketingBadge } from '@/src/features/marketing/storefront';
+import { MARKETING_TIMEZONE, MarketingStorefront } from '@/src/features/marketing/types';
 
 const STORAGE_KEYS = {
   products: 'joedla.products.v1',
@@ -50,6 +52,7 @@ type StoreContextValue = {
   products: Product[];
   categories: Category[];
   settings: StoreSettings;
+  marketing: MarketingStorefront;
   cart: CartItem[];
   customerOrders: Order[];
   adminOrders: Order[];
@@ -91,6 +94,20 @@ export function StoreProvider({ children }: PropsWithChildren) {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
+  const [marketing, setMarketing] = useState<MarketingStorefront>({
+    settings: {
+      enabled: false,
+      pricingEnabled: false,
+      storeTimezone: MARKETING_TIMEZONE,
+      maxImageBytes: 5_242_880,
+      version: 1,
+      createdAt: '',
+      updatedAt: '',
+    },
+    campaigns: [],
+    nextBoundaryAt: null,
+    nextBoundaryDelayMs: null,
+  });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [adminOrders, setAdminOrders] = useState<Order[]>([]);
@@ -122,6 +139,25 @@ export function StoreProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!loading) void setStoredJson(STORAGE_KEYS.favorites, favorites);
   }, [favorites, loading]);
+
+  useEffect(() => {
+    if (marketing.nextBoundaryDelayMs === null) return;
+    const delay = Math.max(1_000, marketing.nextBoundaryDelayMs + 500);
+    const timer = setTimeout(() => void refreshStore(), Math.min(delay, 2_147_000_000));
+    return () => clearTimeout(timer);
+    // A fronteira calculada é a única dependência temporal necessária.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketing.nextBoundaryDelayMs]);
+
+  useEffect(() => {
+    if (!cloudEnabled) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshStore().catch(() => undefined);
+    });
+    return () => subscription.remove();
+    // A retomada apenas revalida a fonte online configurada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudEnabled]);
 
   async function initialize() {
     setLoading(true);
@@ -165,13 +201,46 @@ export function StoreProvider({ children }: PropsWithChildren) {
       throw new Error('A conexão online da loja não foi configurada.');
     }
 
-    const [cloudProducts, cloudCategories, cloudSettings] = await Promise.all([
+    const [baseProducts, cloudCategories, cloudSettings, cloudMarketing] = await Promise.all([
       loadCloudCatalog(),
       loadCloudCategories(),
       loadCloudSettings(),
+      loadMarketingStorefront(),
     ]);
+    const priceResolutions = cloudMarketing.settings.pricingEnabled
+      ? await loadCatalogPriceResolutions(baseProducts.map((product) => product.id))
+      : [];
+    const priceByProduct = new Map(priceResolutions.map((price) => [price.productId, price]));
+    const cloudProducts = baseProducts.map((product) => {
+      const resolution = priceByProduct.get(product.id);
+      const badge = resolveProductMarketingBadge(cloudMarketing.campaigns, product);
+      return {
+        ...product,
+        price: resolution ? resolution.finalPriceCents / 100 : product.price,
+        originalPrice: resolution && resolution.finalPriceCents < resolution.originalPriceCents
+          ? resolution.originalPriceCents / 100
+          : undefined,
+        promotionCampaignId: resolution?.campaignId ?? undefined,
+        promotionCampaignName: resolution?.campaignName ?? undefined,
+        promotionType: resolution?.ruleType ?? undefined,
+        discountBasisPoints: resolution?.discountBasisPoints ?? undefined,
+        marketingBadge: badge ? { label: badge.label, tone: badge.tone } : undefined,
+      };
+    });
     setProducts(cloudProducts);
     setCategories(cloudCategories);
+    setMarketing(cloudMarketing);
+    setCart((current) => current.map((item) => {
+      const product = cloudProducts.find((candidate) => candidate.id === item.productId);
+      if (!product) return item;
+      return {
+        ...item,
+        unitPrice: product.price,
+        originalUnitPrice: product.originalPrice,
+        promotionCampaignId: product.promotionCampaignId,
+        stock: product.availability === 'ready' ? product.stock : item.stock,
+      };
+    }));
     await Promise.all([
       setStoredJson(STORAGE_KEYS.products, cloudProducts),
       setStoredJson(STORAGE_KEYS.categories, cloudCategories),
@@ -225,6 +294,8 @@ export function StoreProvider({ children }: PropsWithChildren) {
           productName: product.name,
           imageUrl: product.imageUrls[0] ?? '',
           unitPrice: product.price,
+          originalUnitPrice: product.originalPrice,
+          promotionCampaignId: product.promotionCampaignId,
           quantity,
           selectedSize,
           selectedColor,
@@ -268,83 +339,39 @@ export function StoreProvider({ children }: PropsWithChildren) {
     if (!cloudEnabled) {
       throw new Error('A loja está sem conexão com o banco online. Tente novamente depois.');
     }
-    for (const item of cart) {
-  const currentProduct = products.find(
-    (product) => product.id === item.productId,
-  );
 
-  if (!currentProduct) {
-    throw new Error(
-      `"${item.productName}" não está mais disponível no catálogo.`,
+    const currentPrices = await loadCatalogPriceResolutions(
+      [...new Set(cart.map((item) => item.productId))],
     );
-  }
-
-  if (!currentProduct.active) {
-    throw new Error(
-      `"${item.productName}" foi desativado e não pode ser comprado.`,
+    const priceByProduct = new Map(
+      currentPrices.map((price) => [price.productId, price]),
     );
-  }
+    const priceChanged = cart.some((item) => {
+      const resolution = priceByProduct.get(item.productId);
+      return resolution
+        ? Math.round(item.unitPrice * 100) !== resolution.finalPriceCents
+        : false;
+    });
 
-  if (currentProduct.availability !== item.availability) {
-    throw new Error(
-      `A disponibilidade de "${item.productName}" mudou. Remova o item e adicione novamente.`,
-    );
-  }
+    if (priceChanged) {
+      setCart((current) => current.map((item) => {
+        const resolution = priceByProduct.get(item.productId);
+        if (!resolution) return item;
+        return {
+          ...item,
+          unitPrice: resolution.finalPriceCents / 100,
+          originalUnitPrice: resolution.finalPriceCents < resolution.originalPriceCents
+            ? resolution.originalPriceCents / 100
+            : undefined,
+          promotionCampaignId: resolution.campaignId ?? undefined,
+        };
+      }));
+      throw new Error(
+        'Os preços do carrinho foram atualizados. Revise os valores e confirme o pedido novamente.',
+      );
+    }
 
-  if (
-    currentProduct.availability === 'ready' &&
-    currentProduct.stock <= 0
-  ) {
-    throw new Error(
-      `"${item.productName}" ficou sem estoque. Remova o item do carrinho para continuar.`,
-    );
-  }
-
-  if (
-    currentProduct.availability === 'ready' &&
-    item.quantity > currentProduct.stock
-  ) {
-    throw new Error(
-      `"${item.productName}" possui apenas ${currentProduct.stock} unidade(s) disponível(is).`,
-    );
-  }
-
-  if (item.unitPrice !== currentProduct.price) {
-    throw new Error(
-      `O preço de "${item.productName}" mudou. Remova o item e adicione novamente.`,
-    );
-  }
-}
-
-    const id = Crypto.randomUUID();
-    const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const order: Order = {
-      id,
-      publicCode: orderCodeFromUuid(id),
-      lookupToken: Crypto.randomUUID(),
-      customer: draft.customer,
-      deliveryMethod: draft.deliveryMethod,
-      paymentMethod: draft.paymentMethod,
-      items: cart.map((item) => ({
-        id: Crypto.randomUUID(),
-        productId: item.productId,
-        productName: item.productName,
-        imageUrl: item.imageUrl,
-        unitPrice: item.unitPrice,
-        quantity: item.quantity,
-        selectedSize: item.selectedSize,
-        selectedColor: item.selectedColor,
-        availability: item.availability,
-        subtotal: item.unitPrice * item.quantity,
-      })),
-      subtotal,
-      deliveryFee: 0,
-      total: subtotal,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-
-    await createCloudOrder(order);
+    const order = await createTrustedCloudOrder(draft, cart);
 
     setCustomerOrders((current) => [order, ...current]);
     setCart([]);
@@ -474,6 +501,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
     products,
     categories,
     settings,
+    marketing,
     cart,
     customerOrders,
     adminOrders,
