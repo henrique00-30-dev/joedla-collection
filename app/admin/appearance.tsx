@@ -169,7 +169,6 @@ async function chooseBannerImage(bannerId: string) {
 }
 
   async function save() {
-    console.log('SALVAR CLICADO', form.banners);
     if (!form.bannerTitle.trim() || !form.bannerButtonLabel.trim() || !form.bannerImageUrl.trim()) {
       Alert.alert('Banner incompleto', 'Informe título, texto do botão e imagem.');
       return;

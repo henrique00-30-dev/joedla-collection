@@ -163,8 +163,18 @@ export default function ProductDetailsScreen() {
                   : 'Produto por encomenda'}
             </Text>
           </View>
+          {product.marketingBadge ? (
+            <View style={[styles.marketingBadge, badgeToneStyles[product.marketingBadge.tone]]}>
+              <Text style={styles.marketingBadgeText}>{product.marketingBadge.label}</Text>
+            </View>
+          ) : null}
           <Text style={styles.name}>{product.name}</Text>
-          <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+          <View style={styles.priceRow}>
+            {product.originalPrice && product.originalPrice > product.price ? (
+              <Text style={styles.originalPrice}>{formatCurrency(product.originalPrice)}</Text>
+            ) : null}
+            <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+          </View>
           <Text style={styles.description}>{product.description}</Text>
 
           {product.sizes.length ? (
@@ -352,6 +362,14 @@ function OptionGroup({
   );
 }
 
+const badgeToneStyles = StyleSheet.create({
+  wine: { backgroundColor: '#6F243A' },
+  caramel: { backgroundColor: '#A66A3F' },
+  dark: { backgroundColor: '#2C2522' },
+  success: { backgroundColor: '#2D6A4F' },
+  attention: { backgroundColor: '#A44A1F' },
+});
+
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xl,
@@ -457,8 +475,31 @@ const styles = StyleSheet.create({
     lineHeight: 33,
     fontWeight: '700',
   },
-  price: {
+  marketingBadge: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+  },
+  marketingBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  priceRow: {
     marginTop: spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+  },
+  originalPrice: {
+    color: colors.textMuted,
+    fontSize: 15,
+    textDecorationLine: 'line-through',
+  },
+  price: {
     color: colors.primary,
     fontSize: 24,
     fontWeight: '900',

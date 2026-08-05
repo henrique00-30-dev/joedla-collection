@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import * as Crypto from 'expo-crypto';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -56,7 +57,7 @@ function formatWhatsApp(value: string) {
 }
 
 export default function CheckoutScreen() {
-  const { cart, cartSubtotal, createOrder, settings } = useStore();
+  const { cart, cartSubtotal, createOrder, settings, refreshStore } = useStore();
   const [customer, setCustomer] = useState(initialCustomer);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
@@ -66,6 +67,13 @@ export default function CheckoutScreen() {
   const [storeNotificationOpened, setStoreNotificationOpened] = useState(false);
   const [openingWhatsApp, setOpeningWhatsApp] = useState(false);
   const submittingRef = useRef(false);
+  const idempotencyKeyRef = useRef(Crypto.randomUUID());
+  const refreshStoreRef = useRef(refreshStore);
+  refreshStoreRef.current = refreshStore;
+
+  useFocusEffect(useCallback(() => {
+    void refreshStoreRef.current().catch(() => undefined);
+  }, []));
 
   function updateCustomer(field: keyof CustomerDetails, value: string) {
     setCustomer((current) => ({ ...current, [field]: value }));
@@ -108,7 +116,12 @@ export default function CheckoutScreen() {
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const order = await createOrder({ customer, deliveryMethod, paymentMethod });
+      const order = await createOrder({
+        customer,
+        deliveryMethod,
+        paymentMethod,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
       setCompletedOrder(order);
     } catch (error) {
       Alert.alert(

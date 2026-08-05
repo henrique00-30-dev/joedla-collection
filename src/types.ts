@@ -9,6 +9,15 @@ export type Product = {
   description: string;
   category: CategorySlug;
   price: number;
+  originalPrice?: number;
+  promotionCampaignId?: string;
+  promotionCampaignName?: string;
+  promotionType?: 'percentage' | 'manual_price';
+  discountBasisPoints?: number;
+  marketingBadge?: {
+    label: string;
+    tone: 'wine' | 'caramel' | 'dark' | 'success' | 'attention';
+  };
   imageUrls: string[];
   sizes: string[];
   colors: string[];
@@ -41,6 +50,8 @@ export type CartItem = {
   productName: string;
   imageUrl: string;
   unitPrice: number;
+  originalUnitPrice?: number;
+  promotionCampaignId?: string;
   quantity: number;
   selectedSize?: string;
   selectedColor?: string;
@@ -67,6 +78,11 @@ export type OrderItem = {
   productName: string;
   imageUrl: string;
   unitPrice: number;
+  originalUnitPrice?: number;
+  campaignId?: string;
+  campaignName?: string;
+  promotionType?: 'percentage' | 'manual_price';
+  discountBasisPoints?: number;
   quantity: number;
   selectedSize?: string;
   selectedColor?: string;
@@ -97,6 +113,7 @@ export type Order = {
   total: number;
   status: OrderStatus;
   createdAt: string;
+  idempotencyKey?: string;
 };
 export type Banner = {
   id: string;
@@ -138,6 +155,7 @@ export type CheckoutDraft = {
   customer: CustomerDetails;
   deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentMethod;
+  idempotencyKey: string;
 };
 
 export type AnalyticsProductMetric = {

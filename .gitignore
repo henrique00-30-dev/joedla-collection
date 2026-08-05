@@ -41,6 +41,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+.marketing-test-dist/
 
 app-example
 

@@ -40,6 +40,8 @@ export default function RootLayout() {
             <Stack.Screen name="admin/order/[id]" />
             <Stack.Screen name="admin/settings" />
             <Stack.Screen name="admin/appearance" />
+            <Stack.Screen name="admin/campaigns" />
+            <Stack.Screen name="admin/campaign/[id]" />
           </Stack>
         </StoreProvider>
       </SafeAreaProvider>

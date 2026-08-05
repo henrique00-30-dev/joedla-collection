@@ -106,6 +106,12 @@ export default function AdminDashboardScreen() {
           <Text style={styles.sectionTitle}>Gerenciar</Text>
           <View style={styles.actions}>
             <ActionCard
+              icon="sparkles-outline"
+              title="Campanhas e promoções"
+              description="Agendar banners, selos, públicos e preços promocionais"
+              onPress={() => router.push('/admin/campaigns' as Href)}
+            />
+            <ActionCard
               icon="color-palette-outline"
               title="Destaques e banner"
               description="Editar imagem e conteúdo principal da loja"

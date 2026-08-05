@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "test:marketing": "tsc -p tsconfig.marketing-tests.json && node .marketing-test-dist/tests/marketing-foundation.test.js",
     "export:web": "expo export --platform web"
   },
   "dependencies": {

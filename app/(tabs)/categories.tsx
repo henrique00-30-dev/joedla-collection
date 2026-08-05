@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
@@ -6,20 +7,28 @@ import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
 import { useStore } from '@/src/context/store-context';
+import { campaignAppliesToProduct } from '@/src/features/marketing/storefront';
 import { colors, radii, spacing } from '@/src/theme';
 import { CategorySlug } from '@/src/types';
 
 type Filter = 'all' | CategorySlug;
 
 export default function CategoriesScreen() {
-  const { products, categories } = useStore();
+  const { campaign: campaignId, search } = useLocalSearchParams<{ campaign?: string; search?: string }>();
+  const { products, categories, marketing } = useStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
+  const campaign = marketing.campaigns.find((item) => item.id === campaignId);
+
+  useEffect(() => {
+    if (typeof search === 'string') setQuery(search);
+  }, [search]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('pt-BR');
     return products.filter((product) => {
       if (!product.active) return false;
+      if (campaign && !campaignAppliesToProduct(campaign, product)) return false;
       if (filter !== 'all' && product.category !== filter) return false;
       return (
         !normalized ||
@@ -27,7 +36,7 @@ export default function CategoriesScreen() {
         product.description.toLocaleLowerCase('pt-BR').includes(normalized)
       );
     });
-  }, [filter, products, query]);
+  }, [campaign, filter, products, query]);
 
   return (
     <Screen>
@@ -55,7 +64,9 @@ export default function CategoriesScreen() {
 
         <View style={styles.titleRow}>
           <Text style={styles.title}>
-            {filter === 'all'
+            {campaign
+              ? campaign.name
+              : filter === 'all'
               ? 'Todos os produtos'
               : categories.find((category) => category.slug === filter)?.name}
           </Text>
@@ -72,6 +83,7 @@ export default function CategoriesScreen() {
               onPress={() => {
                 setFilter('all');
                 setQuery('');
+                if (campaignId) router.replace('/(tabs)/categories');
               }}>
               <Text style={styles.clear}>Limpar filtros</Text>
             </Pressable>
