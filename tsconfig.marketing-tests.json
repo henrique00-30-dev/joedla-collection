@@ -16,6 +16,8 @@
     "src/features/marketing/foundation.ts",
     "src/features/marketing/storefront.ts",
     "src/types.ts",
-    "tests/marketing-foundation.test.ts"
+    "src/utils/fields.ts",
+    "tests/marketing-foundation.test.ts",
+    "tests/fields.test.ts"
   ]
 }
