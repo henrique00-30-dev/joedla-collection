@@ -199,7 +199,7 @@ create table public.marketing_campaign_placements (
       and destination_product_id is null
       and destination_category_slug is null
       and destination_search is null
-      and destination_url ~ '^https://')
+      and destination_url ~ '^https://[[:alnum:]][^[:space:]<>]*$')
     or (destination_type in ('campaign_products', 'whatsapp')
       and destination_product_id is null
       and destination_category_slug is null
@@ -888,3 +888,59 @@ using (
   bucket_id = 'campaign-images'
   and (select private.is_admin())
 );
+
+-- Expõe somente o próximo instante de mudança visual. Isso permite que uma
+-- página já aberta atualize campanhas futuras sem confiar no relógio do cliente.
+create or replace function public.marketing_next_boundary()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with next_boundary as (
+    select min(boundary) as value
+    from (
+      select campaign.start_at as boundary
+      from public.marketing_campaigns campaign
+      where campaign.status = 'published' and campaign.start_at > now()
+      union all
+      select campaign.end_at as boundary
+      from public.marketing_campaigns campaign
+      where campaign.status = 'published' and campaign.end_at > now()
+    ) boundaries
+    where exists (
+      select 1 from public.marketing_settings settings
+      where settings.id = 1 and settings.enabled
+    )
+  )
+  select case when value is null then null else jsonb_build_object(
+    'at', value,
+    'delayMs', greatest(0, floor(extract(epoch from (value - now())) * 1000)::bigint)
+  ) end
+  from next_boundary;
+$$;
+
+revoke all on function public.marketing_next_boundary() from public;
+grant execute on function public.marketing_next_boundary() to anon, authenticated;
+
+create or replace function public.active_marketing_campaign_ids()
+returns uuid[]
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(array_agg(campaign.id order by campaign.priority desc, campaign.start_at desc), '{}'::uuid[])
+  from public.marketing_campaigns campaign
+  where campaign.status = 'published'
+    and campaign.start_at <= now()
+    and (campaign.end_at is null or now() < campaign.end_at)
+    and exists (
+      select 1 from public.marketing_settings settings
+      where settings.id = 1 and settings.enabled
+    );
+$$;
+
+revoke all on function public.active_marketing_campaign_ids() from public;
+grant execute on function public.active_marketing_campaign_ids() to anon, authenticated;
