@@ -4,6 +4,8 @@ import { supabase } from '@/src/lib/supabase';
 import {
   Category,
   CategoryDraft,
+  CartItem,
+  CheckoutDraft,
   Order,
   OrderStatus,
   Product,
@@ -88,6 +90,15 @@ function mapOrder(row: Record<string, any>): Order {
     productName: item.productName,
     imageUrl: item.imageUrl ?? '',
     unitPrice: Number(item.unitPrice),
+    originalUnitPrice: item.originalUnitPrice === undefined
+      ? undefined
+      : Number(item.originalUnitPrice),
+    campaignId: item.campaignId ?? undefined,
+    campaignName: item.campaignName ?? undefined,
+    promotionType: item.promotionType ?? undefined,
+    discountBasisPoints: item.discountBasisPoints === undefined
+      ? undefined
+      : Number(item.discountBasisPoints),
     quantity: item.quantity,
     selectedSize: item.selectedSize ?? undefined,
     selectedColor: item.selectedColor ?? undefined,
@@ -116,6 +127,7 @@ function mapOrder(row: Record<string, any>): Order {
     total: Number(row.total),
     status: row.status,
     createdAt: row.created_at,
+    idempotencyKey: row.idempotency_key ?? undefined,
   };
 }
 
@@ -176,34 +188,27 @@ export async function loadCloudSettings(): Promise<StoreSettings | null> {
   };
 }
 
-export async function createCloudOrder(order: Order): Promise<void> {
+export async function createTrustedCloudOrder(
+  draft: CheckoutDraft,
+  cart: CartItem[],
+): Promise<Order> {
   const client = requireClient();
-  const {
-    data: { user },
-  } = await client.auth.getUser();
-  const { error } = await client.from('orders').insert({
-    id: order.id,
-    public_code: order.publicCode,
-    lookup_token: order.lookupToken,
-    customer_name: order.customer.name,
-    customer_whatsapp: order.customer.whatsapp,
-    city: order.customer.city,
-    neighborhood: order.customer.neighborhood,
-    address: order.customer.address,
-    reference: order.customer.reference,
-    notes: order.customer.notes,
-    delivery_method: order.deliveryMethod,
-    payment_method: order.paymentMethod,
-    subtotal: order.subtotal,
-    delivery_fee: order.deliveryFee,
-    total: order.total,
-    status: order.status,
-    items: order.items,
-    created_at: order.createdAt,
-    customer_id: user?.id ?? null,
+  const requestedItems = cart.map((item) => ({
+    productId: item.productId,
+    quantity: item.quantity,
+    selectedSize: item.selectedSize ?? null,
+    selectedColor: item.selectedColor ?? null,
+  }));
+  const { data, error } = await client.rpc('create_trusted_order', {
+    request_id: draft.idempotencyKey,
+    customer_payload: draft.customer,
+    requested_delivery_method: draft.deliveryMethod,
+    requested_payment_method: draft.paymentMethod,
+    requested_items: requestedItems,
   });
-
   if (error) throw error;
+  if (!data || typeof data !== 'object') throw new Error('O banco não devolveu o pedido confirmado.');
+  return mapOrder(data as Record<string, any>);
 }
 
 export async function loadCloudCustomerOrders(): Promise<Order[]> {
