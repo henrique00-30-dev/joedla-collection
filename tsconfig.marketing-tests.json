@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "incremental": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": false,
+    "outDir": ".marketing-test-dist",
+    "sourceMap": false,
+    "target": "ES2022",
+    "types": []
+  },
+  "include": [
+    "src/features/marketing/types.ts",
+    "src/features/marketing/foundation.ts",
+    "tests/marketing-foundation.test.ts"
+  ]
+}
