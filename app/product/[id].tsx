@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
+import { ProductGrid } from '@/src/components/product-grid';
 import { ProductImage } from '@/src/components/product-image';
 import { Screen } from '@/src/components/screen';
 import { Button, EmptyState, QuantityStepper } from '@/src/components/ui';
@@ -39,6 +40,14 @@ export default function ProductDetailsScreen() {
   const favorite = useMemo(
     () => (product ? favorites.includes(product.id) : false),
     [favorites, product],
+  );
+  const relatedProducts = useMemo(
+    () => product
+      ? products
+        .filter((item) => item.active && item.id !== product.id && item.category === product.category)
+        .slice(0, 4)
+      : [],
+    [product, products],
   );
 
   if (!product) {
@@ -242,6 +251,13 @@ export default function ProductDetailsScreen() {
           </View>
           </View>
         </View>
+        {relatedProducts.length ? (
+          <View style={styles.relatedSection}>
+            <Text style={styles.relatedTitle}>Você também pode gostar</Text>
+            <Text style={styles.relatedDescription}>Outras peças da mesma categoria</Text>
+            <ProductGrid products={relatedProducts} />
+          </View>
+        ) : null}
       </ScrollView>
       <View style={[styles.footer, desktop && styles.footerDesktop]}>
         <View style={styles.footerTotalRow}>
@@ -384,6 +400,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 54,
+  },
+  relatedSection: {
+    width: '100%',
+    maxWidth: 1180,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    alignSelf: 'center',
+  },
+  relatedTitle: {
+    color: colors.text,
+    fontFamily: fonts.display,
+    fontSize: 23,
+    fontWeight: '700',
+  },
+  relatedDescription: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+    color: colors.textMuted,
+    fontSize: 13,
   },
   galleryColumn: {
     backgroundColor: colors.surface,
