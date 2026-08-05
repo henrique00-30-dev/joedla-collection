@@ -119,6 +119,18 @@ export function isValidBrazilDate(value: string) {
   return parseBrazilDate(value) !== null;
 }
 
+export function brazilDateToIsoDate(value: string) {
+  const date = parseBrazilDate(value);
+  if (!date) return null;
+  return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+}
+
+export function isoDateToBrazilDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return maskBrazilDate(value);
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
 export function maskTime(value: string) {
   const digits = digitsOnly(value, 4);
   return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;

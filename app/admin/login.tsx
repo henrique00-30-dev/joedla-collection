@@ -17,6 +17,7 @@ import { Screen } from '@/src/components/screen';
 import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
+import { isValidEmail, normalizeEmail } from '@/src/utils/fields';
 
 export default function AdminLoginScreen() {
   const { loginAdmin, adminLoading, isAdmin, cloudEnabled } = useStore();
@@ -28,13 +29,13 @@ export default function AdminLoginScreen() {
   }, [isAdmin]);
 
   async function handleLogin() {
-    if (!email.trim() || !password) {
-      Alert.alert('Preencha os dados', 'Informe o e-mail e a senha.');
+    if (!isValidEmail(email) || !password || password.length > 128) {
+      Alert.alert('Revise os dados', 'Informe um e-mail válido e a senha.');
       return;
     }
 
     try {
-      await loginAdmin(email, password);
+      await loginAdmin(normalizeEmail(email), password);
       router.replace('/admin');
     } catch (error) {
       Alert.alert(
@@ -85,6 +86,7 @@ export default function AdminLoginScreen() {
               onChangeText={setEmail}
               placeholder="E-mail da administradora"
               value={email}
+              maxLength={254}
             />
             <Field
               label="Senha"
@@ -94,6 +96,7 @@ export default function AdminLoginScreen() {
               placeholder="Digite a senha"
               secureTextEntry
               value={password}
+              maxLength={128}
             />
             <Button disabled={!cloudEnabled} loading={adminLoading} onPress={handleLogin}>
               Entrar no painel

@@ -1,11 +1,13 @@
 import {
   formatBrlInput,
+  brazilDateToIsoDate,
   isValidBrazilDate,
   isValidBrazilPhone,
   isValidCnpj,
   isValidCpf,
   isValidQuantity,
   isValidTime,
+  isoDateToBrazilDate,
   maceioDateTimeToIso,
   maskBrazilPhone,
   maskCep,
@@ -46,6 +48,8 @@ test('CNPJ válido passa dígitos verificadores', () => equal(isValidCnpj('04.25
 test('CEP possui oito números', () => equal(maskCep('49000000'), '49000-000'));
 test('data bissexta válida', () => equal(isValidBrazilDate('29/02/2028'), true));
 test('data impossível é inválida', () => equal(isValidBrazilDate('31/02/2026'), false));
+test('data brasileira converte para armazenamento', () => equal(brazilDateToIsoDate('10/08/2026'), '2026-08-10'));
+test('data armazenada exibe padrão brasileiro', () => equal(isoDateToBrazilDate('2026-08-10'), '10/08/2026'));
 test('hora máxima válida', () => equal(isValidTime('23:59'), true));
 test('hora 24 é inválida', () => equal(isValidTime('24:00'), false));
 test('quantidade inteira respeita limite', () => equal(isValidQuantity('99', 1, 99), true));
