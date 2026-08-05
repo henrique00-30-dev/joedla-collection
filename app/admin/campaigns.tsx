@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { AdminGuard } from '@/src/components/admin-guard';
 import { AppHeader } from '@/src/components/app-header';
@@ -13,12 +13,14 @@ import { getCampaignSituation } from '@/src/features/marketing/foundation';
 import {
   createMarketingCampaign,
   cleanupExpiredMarketingAssets,
+  deleteDraftMarketingCampaign,
   loadAdminMarketingCampaigns,
   loadMarketingSettings,
   updateMarketingSettings,
 } from '@/src/features/marketing/service';
 import { MarketingCampaignBundle, MarketingSettings } from '@/src/features/marketing/types';
 import { colors, radii, shadow, spacing } from '@/src/theme';
+import { formatMaceioDate } from '@/src/utils/fields';
 
 export default function AdminCampaignsScreen() {
   const { refreshStore } = useStore();
@@ -83,6 +85,22 @@ export default function AdminCampaignsScreen() {
     }
   }
 
+  async function deleteCampaign(campaign: MarketingCampaignBundle) {
+    if (!await confirmDeleteDraft()) return;
+    try {
+      const result = await deleteDraftMarketingCampaign(campaign.id);
+      setCampaigns((current) => current.filter((item) => item.id !== campaign.id));
+      Alert.alert(
+        'Campanha excluída',
+        result.storageCleanupPending
+          ? 'O rascunho foi excluído. Uma imagem sem referência ficou pendente de limpeza.'
+          : 'O rascunho e seus registros exclusivos foram removidos.',
+      );
+    } catch (error) {
+      Alert.alert('Não foi possível excluir', errorMessage(error));
+    }
+  }
+
   return (
     <AdminGuard>
       <Screen>
@@ -143,28 +161,51 @@ export default function AdminCampaignsScreen() {
             <View style={styles.list}>
               {campaigns.map((campaign) => {
                 const situation = getCampaignSituation(campaign);
+                const productCount = campaign.targets.filter((target) => target.targetType === 'product').length;
+                const categoryCount = campaign.targets.filter((target) => target.targetType === 'category').length;
+                const period = campaign.startAt
+                  ? `${formatMaceioDate(campaign.startAt)}${campaign.endAt ? ` até ${formatMaceioDate(campaign.endAt)}` : ' sem término'}`
+                  : 'Período ainda não informado';
+                const summary = [
+                  productCount ? `${productCount} produto(s)` : null,
+                  categoryCount ? `${categoryCount} categoria(s)` : null,
+                  campaign.targets.some((target) => target.targetType === 'store') ? 'Loja inteira' : null,
+                  campaign.placements.length ? `${campaign.placements.length} banner(es)` : 'Sem banner',
+                  campaign.priceRules.length ? 'Alteração de preço' : 'Sem alteração de preço',
+                  campaign.badge ? 'Com selo' : 'Sem selo',
+                ].filter(Boolean).join(' · ');
+                const canDelete = campaign.status === 'draft' && !campaign.publishedAt;
                 return (
-                  <Pressable
-                    key={campaign.id}
-                    onPress={() => router.push({
-                      pathname: '/admin/campaign/[id]',
-                      params: { id: campaign.id },
-                    })}
-                    style={({ pressed }) => [styles.campaignCard, pressed && styles.pressed]}>
-                    <View style={styles.campaignCopy}>
-                      <View style={styles.badges}>
-                        <Text style={[styles.status, statusColors[campaign.status]]}>
-                          {campaignStatusLabel(campaign.status)}
-                        </Text>
-                        <Text style={styles.situation}>{situationLabel[situation]}</Text>
+                  <View key={campaign.id} style={styles.campaignCard}>
+                    <Pressable
+                      onPress={() => router.push({
+                        pathname: '/admin/campaign/[id]',
+                        params: { id: campaign.id },
+                      })}
+                      style={({ pressed }) => [styles.campaignMain, pressed && styles.pressed]}>
+                      <View style={styles.campaignCopy}>
+                        <View style={styles.badges}>
+                          <Text style={[styles.status, statusColors[campaign.status]]}>
+                            {campaignStatusLabel(campaign.status)}
+                          </Text>
+                          {campaign.status === 'published' ? <Text style={styles.situation}>{situationLabel[situation]}</Text> : null}
+                        </View>
+                        <Text style={styles.campaignName}>{campaign.name}</Text>
+                        <Text style={styles.campaignMeta}>{summary}</Text>
+                        <Text style={styles.campaignPeriod}>{period}</Text>
                       </View>
-                      <Text style={styles.campaignName}>{campaign.name}</Text>
-                      <Text style={styles.campaignMeta}>
-                        Prioridade {campaign.priority} · {campaign.placements.length} banner(es) · {campaign.targets.length} destino(s)
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={21} color={colors.textMuted} />
-                  </Pressable>
+                      <Ionicons name="chevron-forward" size={21} color={colors.textMuted} />
+                    </Pressable>
+                    {canDelete ? (
+                      <Pressable
+                        accessibilityLabel={`Excluir rascunho ${campaign.name}`}
+                        onPress={() => void deleteCampaign(campaign)}
+                        style={({ pressed }) => [styles.deleteAction, pressed && styles.pressed]}>
+                        <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                        <Text style={styles.deleteText}>Excluir rascunho</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 );
               })}
             </View>
@@ -204,6 +245,20 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Tente novamente.';
 }
 
+async function confirmDeleteDraft() {
+  const message = 'Excluir esta campanha em rascunho? Esta ação é permanente e não poderá ser desfeita.';
+  if (Platform.OS === 'web') return window.confirm(message);
+  return new Promise<boolean>((resolve) => Alert.alert(
+    'Excluir campanha',
+    message,
+    [
+      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Excluir', style: 'destructive', onPress: () => resolve(true) },
+    ],
+    { cancelable: true, onDismiss: () => resolve(false) },
+  ));
+}
+
 const situationLabel = {
   draft: 'Em preparação',
   scheduled: 'Agendada',
@@ -238,12 +293,16 @@ const styles = StyleSheet.create({
   loading: { padding: spacing.xxl, alignItems: 'center', gap: spacing.md },
   muted: { color: colors.textMuted, fontSize: 13 },
   list: { gap: spacing.md },
-  campaignCard: { padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, ...shadow },
+  campaignCard: { overflow: 'hidden', borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, backgroundColor: colors.surface, ...shadow },
+  campaignMain: { padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   campaignCopy: { flex: 1, gap: spacing.sm },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   status: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radii.pill, fontSize: 10, fontWeight: '900' },
   situation: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radii.pill, color: colors.textMuted, backgroundColor: colors.surfaceWarm, fontSize: 10, fontWeight: '800' },
   campaignName: { color: colors.text, fontSize: 17, fontWeight: '900' },
   campaignMeta: { color: colors.textMuted, fontSize: 12 },
+  campaignPeriod: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  deleteAction: { minHeight: 44, paddingHorizontal: spacing.lg, borderTopWidth: 1, borderTopColor: colors.dangerSoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.sm, backgroundColor: colors.dangerSoft },
+  deleteText: { color: colors.danger, fontSize: 12, fontWeight: '900' },
   pressed: { opacity: 0.78 },
 });
