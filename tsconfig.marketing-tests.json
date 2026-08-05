@@ -14,6 +14,8 @@
   "include": [
     "src/features/marketing/types.ts",
     "src/features/marketing/foundation.ts",
+    "src/features/marketing/storefront.ts",
+    "src/types.ts",
     "tests/marketing-foundation.test.ts"
   ]
 }
