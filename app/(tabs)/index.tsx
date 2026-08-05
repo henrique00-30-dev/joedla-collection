@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -17,16 +17,19 @@ import {
 import { AnnouncementTicker } from '@/src/components/announcement-ticker';
 import { AppHeader } from '@/src/components/app-header';
 import { CategoryTile } from '@/src/components/category-tile';
+import { MarketingBanners } from '@/src/components/marketing-banners';
 import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
 import { SearchBar } from '@/src/components/search-bar';
 import { SectionHeader } from '@/src/components/section-header';
 import { StoreFooter } from '@/src/components/store-footer';
 import { useStore } from '@/src/context/store-context';
+import { activePlacements } from '@/src/features/marketing/storefront';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 
 export default function HomeScreen() {
-  const { products, categories, settings, loading, refreshStore } = useStore();
+  const { products, categories, settings, marketing, loading, refreshStore } = useStore();
+  const { search } = useLocalSearchParams<{ search?: string }>();
   const { width } = useWindowDimensions();
 
   const desktop = width >= 900;
@@ -34,6 +37,10 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+
+  useEffect(() => {
+    if (typeof search === 'string') setQuery(search);
+  }, [search]);
 
   useEffect(() => {
     if (
@@ -123,6 +130,8 @@ export default function HomeScreen() {
   const bannerLink = currentBanner?.link ?? settings.bannerLink;
 
   const shouldShowBanner = Boolean(currentBanner) || legacyBannerActive;
+  const hasMarketingHero = marketing.settings.enabled && activePlacements(marketing.campaigns)
+    .some(({ placement }) => placement.position === 'home_hero');
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -219,7 +228,16 @@ export default function HomeScreen() {
           <>
             <AnnouncementTicker messages={settings.tickerMessages} />
 
-            {shouldShowBanner ? (
+            {hasMarketingHero ? (
+              <View style={[styles.pageWidth, styles.horizontalPadding, styles.marketingHero]}>
+                <MarketingBanners
+                  campaigns={marketing.campaigns}
+                  desktop={desktop}
+                  whatsappNumber={settings.whatsappNumber}
+                  positions={['home_hero']}
+                />
+              </View>
+            ) : shouldShowBanner ? (
               <View style={[styles.pageWidth, styles.horizontalPadding]}>
                 <View style={[styles.hero, desktop && styles.heroDesktop]}>
                   <View style={styles.heroText}>
@@ -370,6 +388,21 @@ export default function HomeScreen() {
               </ScrollView>
             </View>
 
+            {marketing.settings.enabled ? (
+              <View style={[styles.pageWidth, styles.horizontalPadding, styles.secondaryCampaigns]}>
+                <MarketingBanners
+                  campaigns={marketing.campaigns}
+                  desktop={desktop}
+                  whatsappNumber={settings.whatsappNumber}
+                  positions={[
+                    'home_secondary_1',
+                    'home_secondary_2',
+                    'home_secondary_3',
+                  ]}
+                />
+              </View>
+            ) : null}
+
             <View style={[styles.pageWidth, styles.section]}>
               <SectionHeader
                 title="Destaques"
@@ -436,6 +469,14 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 1200,
     alignSelf: 'center',
+  },
+
+  marketingHero: {
+    marginTop: spacing.lg,
+  },
+
+  secondaryCampaigns: {
+    marginTop: spacing.xl,
   },
 
   searchArea: {
