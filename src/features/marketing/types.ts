@@ -8,11 +8,13 @@ export type CampaignSituation = (typeof campaignSituations)[number];
 export type CampaignTargetType = 'store' | 'category' | 'product';
 export type CampaignAssetFormat = 'desktop' | 'mobile';
 export type CampaignAssetLifecycle = 'active' | 'pending_deletion';
+
 export type CampaignPlacementPosition =
   | 'home_hero'
   | 'home_secondary_1'
   | 'home_secondary_2'
   | 'home_secondary_3';
+
 export type CampaignDestinationType =
   | 'none'
   | 'product'
@@ -21,8 +23,34 @@ export type CampaignDestinationType =
   | 'search'
   | 'whatsapp'
   | 'external';
-export type CampaignBadgeTone = 'wine' | 'caramel' | 'dark' | 'success' | 'attention';
-export type CampaignPriceRuleType = 'percentage' | 'manual_price';
+
+export type CampaignBadgeTone =
+  | 'wine'
+  | 'caramel'
+  | 'dark'
+  | 'success'
+  | 'attention';
+
+export type PromotionBadgePosition =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
+export type PromotionBadgeSize =
+  | 'small'
+  | 'medium'
+  | 'large';
+
+export type PromotionBadgeShape =
+  | 'pill'
+  | 'rounded'
+  | 'square';
+
+export type CampaignPriceRuleType =
+  | 'percentage'
+  | 'manual_price';
+
 export type PriceSource =
   | 'normal'
   | 'individual'
@@ -120,6 +148,9 @@ export type ProductPromotion = {
   showBadge: boolean;
   badgeLabel: string;
   badgeTone: CampaignBadgeTone;
+  badgePosition: PromotionBadgePosition;
+  badgeSize: PromotionBadgeSize;
+  badgeShape: PromotionBadgeShape;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -166,7 +197,10 @@ export type MarketingStorefront = {
   nextBoundaryDelayMs: number | null;
 };
 
-export type MarketingBadgeView = Pick<MarketingCampaignBadge, 'label' | 'tone'> & {
+export type MarketingBadgeView = Pick<
+  MarketingCampaignBadge,
+  'label' | 'tone'
+> & {
   campaignId: string;
 };
 

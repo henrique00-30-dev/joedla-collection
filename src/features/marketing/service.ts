@@ -22,6 +22,9 @@ import {
   MarketingStorefront,
   ProductPromotion,
   ProductPromotionInput,
+  PromotionBadgePosition,
+  PromotionBadgeShape,
+  PromotionBadgeSize,
 } from './types';
 
 const campaignColumns = [
@@ -54,29 +57,76 @@ export class MarketingConcurrencyError extends Error {
     this.name = 'MarketingConcurrencyError';
   }
 }
-
 export async function loadMarketingStorefront(): Promise<MarketingStorefront> {
+  let settings: MarketingSettings | null = null;
+
   try {
-    const settings = await loadMarketingSettings();
-    if (!settings?.enabled) {
-      return { settings: settings ?? disabledSettings, campaigns: [], nextBoundaryAt: null, nextBoundaryDelayMs: null };
-    }
-    const [campaigns, serverBoundary] = await Promise.all([
-      loadMarketingCampaignBundles(false),
-      loadNextMarketingBoundary(),
-    ]);
-    return {
-      settings,
-      campaigns,
-      nextBoundaryAt: serverBoundary?.at ?? null,
-      nextBoundaryDelayMs: serverBoundary?.delayMs ?? null,
-    };
+    settings = await loadMarketingSettings();
   } catch (error) {
     if (isMissingMarketingSchema(error)) {
-      return { settings: disabledSettings, campaigns: [], nextBoundaryAt: null, nextBoundaryDelayMs: null };
+      return {
+        settings: disabledSettings,
+        campaigns: [],
+        nextBoundaryAt: null,
+        nextBoundaryDelayMs: null,
+      };
     }
-    throw error;
+
+    // Uma falha isolada no módulo de marketing não deve impedir
+    // o catálogo público de carregar.
+    console.warn('Não foi possível carregar as configurações de marketing.', error);
+
+    return {
+      settings: disabledSettings,
+      campaigns: [],
+      nextBoundaryAt: null,
+      nextBoundaryDelayMs: null,
+    };
   }
+
+  const effectiveSettings = settings ?? disabledSettings;
+
+  // Campanhas visuais e preços promocionais são independentes.
+  // Mesmo com o módulo visual desligado, pricingEnabled deve continuar
+  // disponível para as promoções individuais.
+  if (!effectiveSettings.enabled) {
+    return {
+      settings: effectiveSettings,
+      campaigns: [],
+      nextBoundaryAt: null,
+      nextBoundaryDelayMs: null,
+    };
+  }
+
+  const [campaignsResult, boundaryResult] = await Promise.allSettled([
+    loadMarketingCampaignBundles(false),
+    loadNextMarketingBoundary(),
+  ]);
+
+  if (campaignsResult.status === 'rejected') {
+    console.warn('Não foi possível carregar as campanhas visuais.', campaignsResult.reason);
+  }
+
+  if (boundaryResult.status === 'rejected') {
+    console.warn('Não foi possível carregar a próxima atualização do marketing.', boundaryResult.reason);
+  }
+
+  const campaigns =
+    campaignsResult.status === 'fulfilled'
+      ? campaignsResult.value
+      : [];
+
+  const serverBoundary =
+    boundaryResult.status === 'fulfilled'
+      ? boundaryResult.value
+      : null;
+
+  return {
+    settings: effectiveSettings,
+    campaigns,
+    nextBoundaryAt: serverBoundary?.at ?? null,
+    nextBoundaryDelayMs: serverBoundary?.delayMs ?? null,
+  };
 }
 
 async function loadNextMarketingBoundary() {
@@ -266,6 +316,73 @@ export async function loadCatalogPriceResolutions(productIds: string[]) {
   }));
 }
 
+export async function loadAdminProductPromotions() {
+  const client = requireCloud();
+
+  const { data, error } = await client
+    .from('product_promotions')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    if (isMissingMarketingSchema(error)) return [];
+    throw error;
+  }
+
+  return ((data ?? []) as Record<string, any>[]).map(mapProductPromotion);
+}
+
+export async function loadActiveProductPromotionVisuals(): Promise<
+  {
+    productId: string;
+    label: string;
+    tone: ProductPromotion['badgeTone'];
+    position: PromotionBadgePosition;
+    size: PromotionBadgeSize;
+    shape: PromotionBadgeShape;
+  }[]
+> {
+  const client = requireCloud();
+
+  const { data, error } = await client
+    .from('product_promotions')
+    .select(
+      'product_id,start_at,end_at,badge_label,badge_tone,badge_position,badge_size,badge_shape',
+    )
+    .eq('enabled', true)
+    .eq('show_badge', true);
+
+  if (error) {
+    if (isMissingMarketingSchema(error)) return [];
+    throw error;
+  }
+
+  const now = Date.now();
+
+  return ((data ?? []) as Record<string, any>[])
+    .filter((row) => {
+      const startsAt = row.start_at
+        ? Date.parse(row.start_at)
+        : null;
+      const endsAt = row.end_at
+        ? Date.parse(row.end_at)
+        : null;
+
+      return (
+        (startsAt === null || startsAt <= now) &&
+        (endsAt === null || now <= endsAt)
+      );
+    })
+    .map((row) => ({
+      productId: String(row.product_id),
+      label: String(row.badge_label ?? 'Promoção'),
+      tone: row.badge_tone ?? 'wine',
+      position: row.badge_position ?? 'top-left',
+      size: row.badge_size ?? 'medium',
+      shape: row.badge_shape ?? 'pill',
+    }));
+}
+
 export async function loadAdminProductPromotion(productId: string) {
   const client = requireCloud();
   const { data, error } = await client
@@ -297,6 +414,9 @@ export async function saveProductPromotion(
       show_badge: input.showBadge,
       badge_label: input.badgeLabel,
       badge_tone: input.badgeTone,
+      badge_position: input.badgePosition,
+      badge_size: input.badgeSize,
+      badge_shape: input.badgeShape,
     },
   });
   if (error) {
@@ -552,6 +672,9 @@ function mapProductPromotion(row: Record<string, any>): ProductPromotion {
     showBadge: Boolean(row.show_badge),
     badgeLabel: row.badge_label,
     badgeTone: row.badge_tone,
+    badgePosition: row.badge_position ?? 'top-left',
+    badgeSize: row.badge_size ?? 'medium',
+    badgeShape: row.badge_shape ?? 'pill',
     version: Number(row.version),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

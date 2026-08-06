@@ -265,6 +265,9 @@ export default function ProductFormScreen() {
           showBadge: promotionShowBadge,
           badgeLabel: normalizePlainText(promotionBadgeLabel) || 'Promoção',
           badgeTone: promotionBadgeTone,
+          badgePosition: 'top-left',
+  badgeSize: 'medium',
+  badgeShape: 'pill',
         });
       }
       await refreshStore();

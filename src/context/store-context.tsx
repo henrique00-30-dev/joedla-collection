@@ -2,6 +2,13 @@ import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useSt
 import { AppState } from 'react-native';
 
 import { defaultCategories, defaultSettings } from '@/src/data/defaults';
+import {
+  loadActiveProductPromotionVisuals,
+  loadCatalogPriceResolutions,
+  loadMarketingStorefront,
+} from '@/src/features/marketing/service';
+import { resolveProductMarketingBadge } from '@/src/features/marketing/storefront';
+import { MARKETING_TIMEZONE, MarketingStorefront } from '@/src/features/marketing/types';
 import { getStoredJson, setStoredJson } from '@/src/lib/storage';
 import { isCloudConfigured } from '@/src/lib/supabase';
 import { recordSiteVisit } from '@/src/services/analytics';
@@ -35,9 +42,6 @@ import {
   ProductDraft,
   StoreSettings,
 } from '@/src/types';
-import { loadCatalogPriceResolutions, loadMarketingStorefront } from '@/src/features/marketing/service';
-import { resolveProductMarketingBadge } from '@/src/features/marketing/storefront';
-import { MARKETING_TIMEZONE, MarketingStorefront } from '@/src/features/marketing/types';
 
 const STORAGE_KEYS = {
   products: 'joedla.products.v1',
@@ -195,67 +199,205 @@ export function StoreProvider({ children }: PropsWithChildren) {
       setLoading(false);
     }
   }
-
   async function refreshStore() {
     if (!cloudEnabled) {
-      throw new Error('A conexão online da loja não foi configurada.');
+      throw new Error(
+        'A conexão online da loja não foi configurada.',
+      );
     }
 
-    const [baseProducts, cloudCategories, cloudSettings, cloudMarketing] = await Promise.all([
+    const [
+      baseProducts,
+      cloudCategories,
+      cloudSettings,
+    ] = await Promise.all([
       loadCloudCatalog(),
       loadCloudCategories(),
       loadCloudSettings(),
-      loadMarketingStorefront(),
     ]);
-    const priceResolutions = cloudMarketing.settings.pricingEnabled
-      ? await loadCatalogPriceResolutions(baseProducts.map((product) => product.id))
-      : [];
-    const priceByProduct = new Map(priceResolutions.map((price) => [price.productId, price]));
-    const cloudProducts = baseProducts.map((product) => {
-      const resolution = priceByProduct.get(product.id);
-      const campaignBadge = resolveProductMarketingBadge(cloudMarketing.campaigns, product);
-      const individualBadge = resolution?.individualBadgeLabel && resolution.individualBadgeTone
-        ? { label: resolution.individualBadgeLabel, tone: resolution.individualBadgeTone }
-        : null;
-      const badge = campaignBadge ?? individualBadge;
-      return {
-        ...product,
-        price: resolution ? resolution.finalPriceCents / 100 : product.price,
-        originalPrice: resolution && resolution.finalPriceCents < resolution.originalPriceCents
-          ? resolution.originalPriceCents / 100
-          : undefined,
-        promotionCampaignId: resolution?.campaignId ?? undefined,
-        promotionCampaignName: resolution?.campaignName ?? undefined,
-        promotionType: resolution?.ruleType ?? undefined,
-        discountBasisPoints: resolution?.discountBasisPoints ?? undefined,
-        priceSource: resolution?.priceSource ?? 'normal',
-        individualPromotionId: resolution?.individualPromotionId ?? undefined,
-        marketingBadge: badge ? { label: badge.label, tone: badge.tone } : undefined,
-      };
-    });
+
+    let cloudMarketing = marketing;
+
+    try {
+      cloudMarketing = await loadMarketingStorefront();
+    } catch (error) {
+      console.warn(
+        'Falha ao carregar o marketing da loja.',
+        error,
+      );
+    }
+
+    let priceResolutions: Awaited<
+      ReturnType<typeof loadCatalogPriceResolutions>
+    > = [];
+
+    let individualVisuals: Awaited<
+      ReturnType<typeof loadActiveProductPromotionVisuals>
+    > = [];
+
+    if (cloudMarketing.settings.pricingEnabled) {
+      const [pricesResult, visualsResult] =
+        await Promise.allSettled([
+          loadCatalogPriceResolutions(
+            baseProducts.map((product) => product.id),
+          ),
+          loadActiveProductPromotionVisuals(),
+        ]);
+
+      if (pricesResult.status === 'fulfilled') {
+        priceResolutions = pricesResult.value;
+      } else {
+        console.warn(
+          'Falha ao carregar preços promocionais.',
+          pricesResult.reason,
+        );
+      }
+
+      if (visualsResult.status === 'fulfilled') {
+        individualVisuals = visualsResult.value;
+      } else {
+        console.warn(
+          'Falha ao carregar o visual dos selos promocionais.',
+          visualsResult.reason,
+        );
+      }
+    }
+
+    const priceByProduct = new Map(
+      priceResolutions.map((price) => [
+        price.productId,
+        price,
+      ]),
+    );
+
+    const visualByProduct = new Map(
+      individualVisuals.map((visual) => [
+        visual.productId,
+        visual,
+      ]),
+    );
+
+    const cloudProducts: Product[] = baseProducts.map(
+      (product) => {
+        const resolution = priceByProduct.get(product.id);
+        const individualVisual = visualByProduct.get(
+          product.id,
+        );
+
+        const campaignBadge =
+          resolveProductMarketingBadge(
+            cloudMarketing.campaigns,
+            product,
+          );
+
+        const individualBadge =
+          resolution?.individualBadgeLabel &&
+          resolution.individualBadgeTone
+            ? {
+                label:
+                  resolution.individualBadgeLabel,
+                tone:
+                  resolution.individualBadgeTone,
+                position:
+                  individualVisual?.position ??
+                  ('top-left' as const),
+                size:
+                  individualVisual?.size ??
+                  ('medium' as const),
+                shape:
+                  individualVisual?.shape ??
+                  ('pill' as const),
+              }
+            : null;
+
+        const badge = campaignBadge
+          ? {
+              label: campaignBadge.label,
+              tone: campaignBadge.tone,
+              position: 'top-left' as const,
+              size: 'medium' as const,
+              shape: 'pill' as const,
+            }
+          : individualBadge;
+
+        return {
+          ...product,
+          price: resolution
+            ? resolution.finalPriceCents / 100
+            : product.price,
+          originalPrice:
+            resolution &&
+            resolution.finalPriceCents <
+              resolution.originalPriceCents
+              ? resolution.originalPriceCents / 100
+              : undefined,
+          promotionCampaignId:
+            resolution?.campaignId ?? undefined,
+          promotionCampaignName:
+            resolution?.campaignName ?? undefined,
+          promotionType:
+            resolution?.ruleType ?? undefined,
+          discountBasisPoints:
+            resolution?.discountBasisPoints ??
+            undefined,
+          priceSource:
+            resolution?.priceSource ?? 'normal',
+          individualPromotionId:
+            resolution?.individualPromotionId ??
+            undefined,
+          marketingBadge: badge ?? undefined,
+        };
+      },
+    );
+
     setProducts(cloudProducts);
     setCategories(cloudCategories);
     setMarketing(cloudMarketing);
-    setCart((current) => current.map((item) => {
-      const product = cloudProducts.find((candidate) => candidate.id === item.productId);
-      if (!product) return item;
-      return {
-        ...item,
-        unitPrice: product.price,
-        originalUnitPrice: product.originalPrice,
-        promotionCampaignId: product.promotionCampaignId,
-        individualPromotionId: product.individualPromotionId,
-        priceSource: product.priceSource,
-        stock: product.availability === 'ready' ? product.stock : item.stock,
-      };
-    }));
+
+    setCart((current) =>
+      current.map((item) => {
+        const product = cloudProducts.find(
+          (candidate) =>
+            candidate.id === item.productId,
+        );
+
+        if (!product) return item;
+
+        return {
+          ...item,
+          unitPrice: product.price,
+          originalUnitPrice:
+            product.originalPrice,
+          promotionCampaignId:
+            product.promotionCampaignId,
+          individualPromotionId:
+            product.individualPromotionId,
+          priceSource: product.priceSource,
+          stock:
+            product.availability === 'ready'
+              ? product.stock
+              : item.stock,
+        };
+      }),
+    );
+
     await Promise.all([
-      setStoredJson(STORAGE_KEYS.products, cloudProducts),
-      setStoredJson(STORAGE_KEYS.categories, cloudCategories),
+      setStoredJson(
+        STORAGE_KEYS.products,
+        cloudProducts,
+      ),
+      setStoredJson(
+        STORAGE_KEYS.categories,
+        cloudCategories,
+      ),
     ]);
+
     if (cloudSettings) {
       setSettings(cloudSettings);
-      await setStoredJson(STORAGE_KEYS.settings, cloudSettings);
+      await setStoredJson(
+        STORAGE_KEYS.settings,
+        cloudSettings,
+      );
     }
   }
 

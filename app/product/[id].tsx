@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
+import { MarketingBadge } from '@/src/components/marketing-badge';
 import { ProductGrid } from '@/src/components/product-grid';
 import { ProductImage } from '@/src/components/product-image';
 import { Screen } from '@/src/components/screen';
@@ -120,11 +121,24 @@ export default function ProductDetailsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <View style={[styles.productLayout, desktop && styles.productLayoutDesktop]}>
           <View style={[styles.galleryColumn, desktop && styles.galleryColumnDesktop]}>
-            <ProductImage
-              uri={selectedImage}
-              contentFit={currentProduct.photoProvisional || currentProduct.photoQuality === 'reduced' ? 'contain' : 'cover'}
-              style={styles.image}
-            />
+            <View style={styles.mainImageWrap}>
+              <ProductImage
+                uri={selectedImage}
+                contentFit={
+                  currentProduct.photoProvisional ||
+                  currentProduct.photoQuality === 'reduced'
+                    ? 'contain'
+                    : 'cover'
+                }
+                style={styles.image}
+              />
+
+              {product.marketingBadge ? (
+                <MarketingBadge
+                  badge={product.marketingBadge}
+                />
+              ) : null}
+            </View>
             {imageUrls.length > 1 ? (
               <View style={styles.gallery}>
                 <View style={styles.galleryHeader}>
@@ -172,11 +186,6 @@ export default function ProductDetailsScreen() {
                   : 'Produto por encomenda'}
             </Text>
           </View>
-          {product.marketingBadge ? (
-            <View style={[styles.marketingBadge, badgeToneStyles[product.marketingBadge.tone]]}>
-              <Text style={styles.marketingBadgeText}>{product.marketingBadge.label}</Text>
-            </View>
-          ) : null}
           <Text style={styles.name}>{product.name}</Text>
           <View style={styles.priceRow}>
             {product.originalPrice && product.originalPrice > product.price ? (
@@ -378,13 +387,6 @@ function OptionGroup({
   );
 }
 
-const badgeToneStyles = StyleSheet.create({
-  wine: { backgroundColor: '#6F243A' },
-  caramel: { backgroundColor: '#A66A3F' },
-  dark: { backgroundColor: '#2C2522' },
-  success: { backgroundColor: '#2D6A4F' },
-  attention: { backgroundColor: '#A44A1F' },
-});
 
 const styles = StyleSheet.create({
   content: {
@@ -429,6 +431,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: radii.large,
   },
+  mainImageWrap: {
+    position: 'relative',
+  },
+
   image: {
     width: '100%',
     aspectRatio: 1,
@@ -510,18 +516,6 @@ const styles = StyleSheet.create({
     fontSize: 27,
     lineHeight: 33,
     fontWeight: '700',
-  },
-  marketingBadge: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-  },
-  marketingBadgeText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: '900',
   },
   priceRow: {
     marginTop: spacing.sm,

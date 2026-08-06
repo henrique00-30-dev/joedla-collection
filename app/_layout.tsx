@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { StoreProvider } from '@/src/context/store-context';
 import { colors } from '@/src/theme';
@@ -42,6 +42,8 @@ export default function RootLayout() {
             <Stack.Screen name="admin/appearance" />
             <Stack.Screen name="admin/campaigns" />
             <Stack.Screen name="admin/campaign/[id]" />
+            <Stack.Screen name="admin/promotions" />
+            <Stack.Screen name="admin/promotion/[id]" />
           </Stack>
         </StoreProvider>
       </SafeAreaProvider>

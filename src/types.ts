@@ -3,6 +3,22 @@ export type CategorySlug = string;
 export type Availability = 'ready' | 'custom';
 export type PhotoQuality = 'recommended' | 'acceptable' | 'reduced';
 
+export type PromotionBadgePosition =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
+export type PromotionBadgeSize =
+  | 'small'
+  | 'medium'
+  | 'large';
+
+export type PromotionBadgeShape =
+  | 'pill'
+  | 'rounded'
+  | 'square';
+
 export type Product = {
   id: string;
   name: string;
@@ -14,11 +30,24 @@ export type Product = {
   promotionCampaignName?: string;
   promotionType?: 'percentage' | 'manual_price';
   discountBasisPoints?: number;
-  priceSource?: 'normal' | 'individual' | 'campaign_product' | 'campaign_category' | 'campaign_store';
+  priceSource?:
+    | 'normal'
+    | 'individual'
+    | 'campaign_product'
+    | 'campaign_category'
+    | 'campaign_store';
   individualPromotionId?: string;
   marketingBadge?: {
     label: string;
-    tone: 'wine' | 'caramel' | 'dark' | 'success' | 'attention';
+    tone:
+      | 'wine'
+      | 'caramel'
+      | 'dark'
+      | 'success'
+      | 'attention';
+    position: PromotionBadgePosition;
+    size: PromotionBadgeSize;
+    shape: PromotionBadgeShape;
   };
   imageUrls: string[];
   sizes: string[];
@@ -63,9 +92,15 @@ export type CartItem = {
   stock: number;
 };
 
-export type DeliveryMethod = 'delivery' | 'pickup' | 'whatsapp';
+export type DeliveryMethod =
+  | 'delivery'
+  | 'pickup'
+  | 'whatsapp';
 
-export type PaymentMethod = 'pix' | 'card_link' | 'whatsapp';
+export type PaymentMethod =
+  | 'pix'
+  | 'card_link'
+  | 'whatsapp';
 
 export type OrderStatus =
   | 'pending'
@@ -123,6 +158,7 @@ export type Order = {
   createdAt: string;
   idempotencyKey?: string;
 };
+
 export type Banner = {
   id: string;
   title: string;
@@ -155,7 +191,10 @@ export type StoreSettings = {
   bannerEndAt: string;
 };
 
-export type ProductDraft = Omit<Product, 'id' | 'createdAt'> & {
+export type ProductDraft = Omit<
+  Product,
+  'id' | 'createdAt'
+> & {
   id?: string;
 };
 
