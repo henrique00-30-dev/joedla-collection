@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import {
   Alert,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -14,43 +15,53 @@ import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import { openStoreWhatsApp } from '@/src/utils/whatsapp';
 
+function instagramUrl(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const username = raw.replace(/^@/, '').replace(/^instagram\.com\//i, '').replace(/\/$/, '').trim();
+  return username ? `https://www.instagram.com/${username}/` : null;
+}
+
 export function StoreFooter() {
   const { settings } = useStore();
   const { width } = useWindowDimensions();
-
   const desktop = width >= 900;
   const tablet = width >= 640 && width < 900;
 
   async function openWhatsApp() {
-    if (!(await openStoreWhatsApp(settings))) {
-      Alert.alert(
-        'WhatsApp não configurado',
-        'O contato da loja ainda não está disponível.',
-      );
+    try {
+      if (!(await openStoreWhatsApp(settings))) {
+        Alert.alert('WhatsApp não configurado', 'O contato da loja ainda não está disponível.');
+      }
+    } catch {
+      Alert.alert('WhatsApp indisponível', 'Não foi possível abrir o WhatsApp agora.');
+    }
+  }
+
+  async function openInstagram() {
+    const url = instagramUrl(settings.instagram);
+    if (!url) {
+      Alert.alert('Instagram não configurado', 'O perfil da loja ainda não está disponível.');
+      return;
+    }
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Instagram indisponível', 'Não foi possível abrir o Instagram agora.');
     }
   }
 
   return (
     <View style={styles.footer}>
       <View style={styles.newsletterArea}>
-        <View
-          style={[
-            styles.newsletterInner,
-            desktop && styles.newsletterInnerDesktop,
-          ]}>
+        <View style={[styles.newsletterInner, desktop && styles.newsletterInnerDesktop]}>
           <View style={styles.newsletterCopy}>
             <Text style={styles.newsletterEyebrow}>JOEDLA COLLECTION</Text>
             <Text style={styles.newsletterTitle}>Atendimento próximo, moda escolhida com cuidado.</Text>
-            <Text style={styles.newsletterText}>
-              Fale com a loja, tire dúvidas e receba atendimento personalizado pelo WhatsApp.
-            </Text>
+            <Text style={styles.newsletterText}>Fale com a loja, tire dúvidas e receba atendimento personalizado pelo WhatsApp.</Text>
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Falar com a loja no WhatsApp"
-            onPress={openWhatsApp}
-            style={({ pressed }) => [styles.whatsappButton, pressed && styles.buttonPressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Falar com a loja no WhatsApp" onPress={openWhatsApp} style={({ pressed }) => [styles.whatsappButton, pressed && styles.buttonPressed]}>
             <Ionicons name="logo-whatsapp" size={20} color={colors.white} />
             <Text style={styles.whatsappButtonText}>Falar no WhatsApp</Text>
           </Pressable>
@@ -59,42 +70,19 @@ export function StoreFooter() {
 
       <View style={[styles.inner, desktop && styles.innerDesktop, tablet && styles.innerTablet]}>
         <View style={styles.brandColumn}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Ir para o início"
-            onPress={() => router.replace('/')}
-            style={({ pressed }) => [styles.brandRow, pressed && styles.pressed]}>
-            <Image
-              source={require('@/assets/images/joedla-logo.png')}
-              contentFit="contain"
-              style={styles.logo}
-            />
+          <Pressable accessibilityRole="button" accessibilityLabel="Ir para o início" onPress={() => router.replace('/')} style={({ pressed }) => [styles.brandRow, pressed && styles.pressed]}>
+            <Image source={require('@/assets/images/joedla-logo.png')} contentFit="contain" style={styles.logo} />
             <View>
               <Text style={styles.brand}>JOEDLA</Text>
               <Text style={styles.brandCollection}>COLLECTION</Text>
             </View>
           </Pressable>
-
           <Text style={styles.tagline}>Moda e acessórios selecionados para valorizar cada momento.</Text>
-
           <View style={styles.socialRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Abrir Instagram"
-              onPress={() => {
-                if (settings.instagram.trim()) {
-                  router.push(settings.instagram as never);
-                }
-              }}
-              style={({ pressed }) => [styles.socialButton, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Abrir Instagram" onPress={openInstagram} style={({ pressed }) => [styles.socialButton, pressed && styles.pressed]}>
               <Ionicons name="logo-instagram" size={19} color={colors.white} />
             </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Falar no WhatsApp"
-              onPress={openWhatsApp}
-              style={({ pressed }) => [styles.socialButton, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Falar no WhatsApp" onPress={openWhatsApp} style={({ pressed }) => [styles.socialButton, pressed && styles.pressed]}>
               <Ionicons name="logo-whatsapp" size={19} color={colors.white} />
             </Pressable>
           </View>
@@ -107,13 +95,11 @@ export function StoreFooter() {
             <FooterLink label="Categorias" onPress={() => router.push('/(tabs)/categories')} />
             <FooterLink label="Favoritos" onPress={() => router.push('/favorites')} />
           </View>
-
           <View style={styles.column}>
             <Text style={styles.heading}>Ajuda</Text>
             <FooterLink label="Como comprar" onPress={() => router.push('/how-to-buy')} />
             <FooterLink label="Privacidade" onPress={() => router.push('/privacy')} />
           </View>
-
           <View style={styles.column}>
             <Text style={styles.heading}>Atendimento</Text>
             <FooterLink label="Falar no WhatsApp" onPress={openWhatsApp} icon="logo-whatsapp" />
@@ -131,20 +117,9 @@ export function StoreFooter() {
   );
 }
 
-function FooterLink({
-  label,
-  onPress,
-  icon,
-}: {
-  label: string;
-  onPress: () => void;
-  icon?: keyof typeof Ionicons.glyphMap;
-}) {
+function FooterLink({ label, onPress, icon }: { label: string; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.link, pressed && styles.linkPressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.link, pressed && styles.linkPressed]}>
       {icon ? <Ionicons name={icon} size={16} color="#D8B36A" /> : null}
       <Text style={styles.linkText}>{label}</Text>
     </Pressable>
@@ -152,12 +127,7 @@ function FooterLink({
 }
 
 function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Ionicons name={icon} size={16} color="#D8B36A" />
-      <Text style={styles.muted}>{text}</Text>
-    </View>
-  );
+  return <View style={styles.infoRow}><Ionicons name={icon} size={16} color="#D8B36A" /><Text style={styles.muted}>{text}</Text></View>;
 }
 
 const styles = StyleSheet.create({
