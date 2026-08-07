@@ -77,11 +77,9 @@ export default function MenuScreen() {
       ],
     },
     {
-      title: 'Minha conta',
+      title: 'Pedidos',
       items: [
         { icon: 'receipt-outline', label: 'Acompanhar pedidos', description: 'Consulte o andamento das suas compras', onPress: () => router.push('/(tabs)/orders') },
-        { icon: 'person-circle-outline', label: 'Minha conta', description: 'Pedidos, avaliações, pontos e notificações', onPress: () => router.push('/account' as Href) },
-        { icon: 'shield-checkmark-outline', label: 'Segurança, endereços e privacidade', description: 'Senha, endereços, cupons e solicitações LGPD', onPress: () => router.push('/account-settings' as Href) },
       ],
     },
     {
