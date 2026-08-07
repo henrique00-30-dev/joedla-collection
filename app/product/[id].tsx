@@ -20,7 +20,7 @@ export default function ProductDetailsScreen() {
   const phone = width < 600;
   const desktop = width >= 900;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { products, favorites, toggleFavorite, addToCart } = useStore();
+  const { products, favorites, toggleFavorite, addToCart, startDirectCheckout } = useStore();
   const product = products.find((item) => item.id === id);
   const [selectedSize, setSelectedSize] = useState<string>();
   const [selectedColor, setSelectedColor] = useState<string>();
@@ -84,11 +84,23 @@ export default function ProductDetailsScreen() {
       return;
     }
 
-    addToCart(product, quantity, selectedSize, selectedColor, isCustomOrder ? 'custom' : undefined);
     if (destination === 'checkout') {
-      router.push('/checkout');
+      try {
+        const buyNow = startDirectCheckout(
+          product,
+          quantity,
+          selectedSize,
+          selectedColor,
+          isCustomOrder ? 'custom' : undefined,
+        );
+        router.push({ pathname: '/checkout', params: { buyNow } });
+      } catch (error) {
+        setActionMessage(error instanceof Error ? error.message : 'Não foi possível iniciar a compra agora.');
+      }
       return;
     }
+
+    addToCart(product, quantity, selectedSize, selectedColor, isCustomOrder ? 'custom' : undefined);
     setActionMessage(isCustomOrder ? 'Encomenda adicionada ao carrinho.' : 'Produto adicionado ao carrinho.');
   }
 
