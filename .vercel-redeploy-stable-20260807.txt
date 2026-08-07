@@ -1,0 +1,1 @@
+Redeploy da versão estável anterior ao tema claro/escuro.
