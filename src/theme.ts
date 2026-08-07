@@ -45,10 +45,18 @@ export const fonts = {
   body: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
 };
 
-export const shadow = {
+const shadowBase = {
   shadowColor: '#2D2116',
   shadowOffset: { width: 0, height: 4 },
   shadowOpacity: 0.08,
   shadowRadius: 12,
   elevation: 3,
 };
+
+// `card` não é enumerável: `...shadow` continua gerando apenas propriedades
+// válidas de estilo, enquanto componentes podem reutilizar `shadow.card`.
+export const shadow = Object.defineProperty(
+  { ...shadowBase },
+  'card',
+  { value: { ...shadowBase }, enumerable: false },
+) as typeof shadowBase & { card: typeof shadowBase };
