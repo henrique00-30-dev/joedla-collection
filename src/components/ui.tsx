@@ -60,6 +60,7 @@ export function Button({
           ) : null}
           <Text
             numberOfLines={2}
+            ellipsizeMode="tail"
             style={[styles.buttonText, styles[`buttonText_${variant}`]]}>
             {children}
           </Text>
@@ -195,16 +196,19 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   button: {
+    width: 'auto',
     minWidth: 0,
     maxWidth: '100%',
     minHeight: 50,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.medium,
     flexDirection: 'row',
+    flexGrow: 0,
     flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    overflow: 'hidden',
   },
   button_primary: {
     backgroundColor: colors.primary,
@@ -230,6 +234,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     minWidth: 0,
+    maxWidth: '100%',
     flexShrink: 1,
     fontSize: 15,
     fontWeight: '800',
