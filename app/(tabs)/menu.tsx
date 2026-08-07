@@ -111,11 +111,7 @@ export default function MenuScreen() {
         showsVerticalScrollIndicator>
         <View style={[styles.brandCard, phone && styles.brandCardPhone]}>
           <View style={styles.brandGlow} />
-          <Image
-            source={require('@/assets/images/joedla-logo.png')}
-            contentFit="contain"
-            style={[styles.logo, phone && styles.logoPhone]}
-          />
+          <Image source={require('@/assets/images/joedla-logo.png')} contentFit="contain" style={[styles.logo, phone && styles.logoPhone]} />
           <View style={styles.brandCopy}>
             <Text style={styles.brandEyebrow}>JOEDLA COLLECTION</Text>
             <Text style={[styles.brandName, phone && styles.brandNamePhone]}>Moda e atendimento em um só lugar</Text>
@@ -125,7 +121,7 @@ export default function MenuScreen() {
 
         {channelMessage ? (
           <View style={styles.channelNotice}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+            <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
             <Text style={styles.channelNoticeText}>{channelMessage}</Text>
           </View>
         ) : null}
@@ -144,18 +140,12 @@ export default function MenuScreen() {
         </View>
 
         <View style={[styles.quickActions, phone && styles.quickActionsPhone]}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleWhatsApp}
-            style={({ pressed }) => [styles.quickAction, phone && styles.quickActionPhone, styles.quickActionWhatsapp, pressed && styles.quickActionPressed]}>
-            <Ionicons name="logo-whatsapp" size={20} color={colors.white} />
+          <Pressable accessibilityRole="button" onPress={handleWhatsApp} style={({ pressed }) => [styles.quickAction, phone && styles.quickActionPhone, styles.quickActionWhatsapp, pressed && styles.quickActionPressed]}>
+            <Ionicons name="logo-whatsapp" size={19} color={colors.white} />
             <Text style={styles.quickActionText}>WhatsApp</Text>
           </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleInstagram}
-            style={({ pressed }) => [styles.quickAction, phone && styles.quickActionPhone, styles.quickActionInstagram, pressed && styles.quickActionPressed]}>
-            <Ionicons name="logo-instagram" size={20} color={colors.white} />
+          <Pressable accessibilityRole="button" onPress={handleInstagram} style={({ pressed }) => [styles.quickAction, phone && styles.quickActionPhone, styles.quickActionInstagram, pressed && styles.quickActionPressed]}>
+            <Ionicons name="logo-instagram" size={19} color={colors.white} />
             <Text style={styles.quickActionText}>Instagram</Text>
           </Pressable>
         </View>
@@ -168,58 +158,54 @@ export default function MenuScreen() {
 
 function MenuItem({ icon, label, description, onPress, last = false }: MenuOption & { last?: boolean }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.menuItem, !last && styles.menuItemBorder, pressed && styles.pressed]}>
-      <View style={styles.menuIcon}><Ionicons name={icon} size={21} color={colors.primary} /></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.menuItem, !last && styles.menuItemBorder, pressed && styles.pressed]}>
+      <View style={styles.menuIcon}><Ionicons name={icon} size={19} color={colors.primary} /></View>
       <View style={styles.menuCopy}>
         <Text style={styles.menuLabel}>{label}</Text>
         {description ? <Text numberOfLines={2} style={styles.menuDescription}>{description}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { width: '100%', minWidth: 0, padding: spacing.lg, paddingBottom: spacing.xxl, alignSelf: 'center', gap: spacing.xl },
-  contentPhone: { paddingHorizontal: spacing.md },
+  content: { width: '100%', minWidth: 0, padding: spacing.lg, paddingBottom: spacing.xxl, alignSelf: 'center', gap: spacing.lg },
+  contentPhone: { paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md },
   contentTablet: { maxWidth: 900, paddingHorizontal: spacing.xl },
-  contentDesktop: { maxWidth: 980, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl },
-  brandCard: { position: 'relative', overflow: 'hidden', minHeight: 170, padding: spacing.xl, borderWidth: 1, borderColor: 'rgba(111,76,56,0.12)', borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: spacing.xl, backgroundColor: '#21150F', ...shadow },
-  brandCardPhone: { minHeight: 0, padding: spacing.lg, flexDirection: 'column', alignItems: 'flex-start', gap: spacing.md },
-  brandGlow: { position: 'absolute', right: -50, top: -70, width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(216,179,106,0.13)' },
-  logo: { width: 100, height: 100, flexShrink: 0 },
-  logoPhone: { width: 76, height: 76 },
+  contentDesktop: { maxWidth: 980, paddingHorizontal: spacing.xxl, paddingTop: spacing.xl },
+  brandCard: { position: 'relative', overflow: 'hidden', minHeight: 142, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(111,76,56,0.12)', borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: spacing.lg, backgroundColor: '#21150F', ...shadow },
+  brandCardPhone: { minHeight: 0, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  brandGlow: { position: 'absolute', right: -50, top: -70, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(216,179,106,0.13)' },
+  logo: { width: 82, height: 82, flexShrink: 0 },
+  logoPhone: { width: 58, height: 58 },
   brandCopy: { minWidth: 0, flex: 1 },
-  brandEyebrow: { color: '#D8B36A', fontSize: 10, fontWeight: '900', letterSpacing: 2.3 },
-  brandName: { maxWidth: 520, marginTop: spacing.sm, fontFamily: fonts.display, color: colors.white, fontSize: 25, lineHeight: 31, fontWeight: '800' },
-  brandNamePhone: { fontSize: 21, lineHeight: 27 },
-  delivery: { maxWidth: 540, marginTop: spacing.md, color: '#D8C7B8', fontSize: 12, lineHeight: 18 },
-  channelNotice: { maxWidth: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceWarm },
-  channelNoticeText: { minWidth: 0, flex: 1, color: colors.text, fontSize: 12, lineHeight: 18 },
-  groupsGrid: { minWidth: 0, gap: spacing.xl },
+  brandEyebrow: { color: '#D8B36A', fontSize: 9, fontWeight: '900', letterSpacing: 2 },
+  brandName: { maxWidth: 520, marginTop: 4, fontFamily: fonts.display, color: colors.white, fontSize: 22, lineHeight: 27, fontWeight: '800' },
+  brandNamePhone: { fontSize: 17, lineHeight: 21 },
+  delivery: { maxWidth: 540, marginTop: 5, color: '#D8C7B8', fontSize: 11, lineHeight: 16 },
+  channelNotice: { maxWidth: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceWarm },
+  channelNoticeText: { minWidth: 0, flex: 1, color: colors.text, fontSize: 11, lineHeight: 16 },
+  groupsGrid: { minWidth: 0, gap: spacing.md },
   groupsGridTablet: { flexDirection: 'row', flexWrap: 'wrap' },
   groupsGridDesktop: { flexDirection: 'row', flexWrap: 'wrap' },
-  group: { minWidth: 0, flexBasis: 280, flexGrow: 1, flexShrink: 1, gap: spacing.sm },
-  groupTitle: { paddingHorizontal: spacing.xs, color: colors.primaryDark, fontSize: 11, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  menuCard: { overflow: 'hidden', minWidth: 0, borderWidth: 1, borderColor: 'rgba(111,76,56,0.12)', borderRadius: 20, backgroundColor: '#FFFEFC', ...shadow },
-  menuItem: { minWidth: 0, minHeight: 78, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  group: { minWidth: 0, flexBasis: 280, flexGrow: 1, flexShrink: 1, gap: 5 },
+  groupTitle: { paddingHorizontal: 3, color: colors.primaryDark, fontSize: 10, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  menuCard: { overflow: 'hidden', minWidth: 0, borderWidth: 1, borderColor: 'rgba(111,76,56,0.12)', borderRadius: 16, backgroundColor: '#FFFEFC', ...shadow },
+  menuItem: { minWidth: 0, minHeight: 62, paddingHorizontal: spacing.md, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   pressed: { backgroundColor: colors.surfaceWarm },
-  menuIcon: { width: 42, height: 42, flexShrink: 0, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceWarm },
+  menuIcon: { width: 36, height: 36, flexShrink: 0, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceWarm },
   menuCopy: { minWidth: 0, flex: 1 },
-  menuLabel: { color: colors.text, fontSize: 14, fontWeight: '900', flexShrink: 1 },
-  menuDescription: { marginTop: 3, color: colors.textMuted, fontSize: 10, lineHeight: 15 },
-  quickActions: { minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  quickActionsPhone: { flexDirection: 'column' },
-  quickAction: { minWidth: 0, minHeight: 48, flexBasis: 180, flexGrow: 1, flexShrink: 1, borderRadius: radii.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, ...shadow },
-  quickActionPhone: { width: '100%', flexBasis: 48 },
+  menuLabel: { color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: '900', flexShrink: 1 },
+  menuDescription: { marginTop: 1, color: colors.textMuted, fontSize: 9.5, lineHeight: 13 },
+  quickActions: { minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  quickActionsPhone: { flexDirection: 'row' },
+  quickAction: { minWidth: 0, minHeight: 44, flexBasis: 150, flexGrow: 1, flexShrink: 1, borderRadius: radii.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, ...shadow },
+  quickActionPhone: { flexBasis: 0, flexGrow: 1 },
   quickActionWhatsapp: { backgroundColor: '#1F7A4D' },
   quickActionInstagram: { backgroundColor: '#8B451C' },
   quickActionPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
-  quickActionText: { color: colors.white, fontSize: 12, fontWeight: '900' },
-  version: { color: colors.textMuted, fontSize: 10, textAlign: 'center' },
+  quickActionText: { color: colors.white, fontSize: 11, fontWeight: '900' },
+  version: { marginTop: 2, color: colors.textMuted, fontSize: 9, textAlign: 'center' },
 });
