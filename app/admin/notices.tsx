@@ -4,20 +4,28 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import {
+  AdminCard,
+  AdminField,
+  AdminFormActions,
+  AdminPage,
+  AdminSection,
+  AdminStatCard,
+  AdminToolbarButton,
+} from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
 import { AnnouncementTicker } from '@/src/components/announcement-ticker';
-import { AppHeader } from '@/src/components/app-header';
-import { Screen } from '@/src/components/screen';
-import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, radii, spacing } from '@/src/theme';
-import { normalizePlainText, validatePlainText } from '@/src/utils/fields';
+import {
+  normalizePlainText,
+  validatePlainText,
+} from '@/src/utils/fields';
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 220;
@@ -31,40 +39,102 @@ function parseMessages(value: string) {
 
 export default function AdminNoticesScreen() {
   const { settings, updateSettings } = useStore();
-  const [value, setValue] = useState((settings.tickerMessages ?? []).join(' ! '));
+
+  const [value, setValue] = useState(
+    (settings.tickerMessages ?? []).join(' ! '),
+  );
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setValue((settings.tickerMessages ?? []).join(' ! '));
+    setValue(
+      (settings.tickerMessages ?? []).join(' ! '),
+    );
   }, [settings.tickerMessages]);
 
-  const previewMessages = useMemo(() => parseMessages(value), [value]);
+  const previewMessages = useMemo(
+    () => parseMessages(value),
+    [value],
+  );
+
+  const highlightedMessages = useMemo(
+    () =>
+      previewMessages.filter(
+        (message) =>
+          message.startsWith('(') &&
+          message.endsWith(')'),
+      ).length,
+    [previewMessages],
+  );
+
+  const remainingMessages =
+    MAX_MESSAGES - previewMessages.length;
 
   async function handleSave() {
     const messages = parseMessages(value);
+
     if (messages.length > MAX_MESSAGES) {
-      Alert.alert('Muitas mensagens', `Cadastre no máximo ${MAX_MESSAGES} mensagens.`);
+      Alert.alert(
+        'Muitas mensagens',
+        `Cadastre no máximo ${MAX_MESSAGES} mensagens.`,
+      );
       return;
     }
-    if (messages.some((message) => message.length > MAX_MESSAGE_LENGTH)) {
+
+    if (
+      messages.some(
+        (message) =>
+          message.length > MAX_MESSAGE_LENGTH,
+      )
+    ) {
       Alert.alert(
         'Mensagem muito grande',
         `Cada mensagem pode ter no máximo ${MAX_MESSAGE_LENGTH} caracteres.`,
       );
       return;
     }
-    const invalidMessage = messages.find((message) => validatePlainText(message, { minimum: 1, maximum: MAX_MESSAGE_LENGTH }));
+
+    const invalidMessage = messages.find(
+      (message) =>
+        validatePlainText(message, {
+          minimum: 1,
+          maximum: MAX_MESSAGE_LENGTH,
+        }),
+    );
+
     if (invalidMessage) {
-      Alert.alert('Mensagem inválida', validatePlainText(invalidMessage, { minimum: 1, maximum: MAX_MESSAGE_LENGTH }) ?? 'Revise a mensagem.');
+      Alert.alert(
+        'Mensagem inválida',
+        validatePlainText(invalidMessage, {
+          minimum: 1,
+          maximum: MAX_MESSAGE_LENGTH,
+        }) ?? 'Revise a mensagem.',
+      );
       return;
     }
 
     setSaving(true);
+
     try {
-      await updateSettings({ ...settings, tickerMessages: messages.map((message) => normalizePlainText(message)) });
-      Alert.alert('Faixa atualizada', 'As mensagens já aparecem no início da loja.');
+      await updateSettings({
+        ...settings,
+        tickerMessages: messages.map(
+          (message) =>
+            normalizePlainText(message),
+        ),
+      });
+
+      Alert.alert(
+        'Faixa atualizada',
+        'As mensagens já aparecem no início da loja.',
+      );
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Tente novamente.');
+      Alert.alert(
+        'Erro',
+        error instanceof Error
+          ? error.message
+          : 'Tente novamente.',
+      );
     } finally {
       setSaving(false);
     }
@@ -72,48 +142,149 @@ export default function AdminNoticesScreen() {
 
   return (
     <AdminGuard>
-      <Screen edges={['top', 'left', 'right', 'bottom']}>
-        <AppHeader compact title="Promoções e comunicados" showBack showStoreHome />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.flex}>
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator>
-            <View style={styles.infoCard}>
-              <Ionicons name="partly-sunny-outline" size={24} color={colors.info} />
-              <Text style={styles.infoText}>
-                O clima de Rosário do Catete, Aracaju, Santo Amaro, Maruim e Carmópolis entra automaticamente entre os comunicados. Sem mensagens, a faixa mostra somente o clima.
-              </Text>
-            </View>
+      <KeyboardAvoidingView
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
+        style={styles.flex}>
+        <AdminPage
+          eyebrow="Comunicação"
+          title="Barra de informações"
+          description="Edite os comunicados exibidos no início da loja, junto com as informações automáticas de clima."
+          actions={
+            <AdminToolbarButton
+              label={
+                saving
+                  ? 'Salvando...'
+                  : 'Salvar alterações'
+              }
+              icon="save-outline"
+              variant="primary"
+              disabled={saving}
+              onPress={() =>
+                void handleSave()
+              }
+            />
+          }>
+          <View style={styles.metrics}>
+            <AdminStatCard
+              compact
+              icon="chatbubble-ellipses-outline"
+              label="Mensagens"
+              value={String(
+                previewMessages.length,
+              )}
+              helper={`Limite de ${MAX_MESSAGES}`}
+            />
 
-            <View style={styles.card}>
-              <Field
-                label="Mensagens da faixa"
+            <AdminStatCard
+              compact
+              icon="sparkles-outline"
+              label="Destaques"
+              value={String(
+                highlightedMessages,
+              )}
+              helper="Mensagens entre parênteses"
+              tone="warning"
+            />
+
+            <AdminStatCard
+              compact
+              icon="add-circle-outline"
+              label="Espaços disponíveis"
+              value={String(
+                Math.max(
+                  remainingMessages,
+                  0,
+                ),
+              )}
+              helper="Mensagens que ainda podem ser adicionadas"
+              tone={
+                remainingMessages > 0
+                  ? 'success'
+                  : 'danger'
+              }
+            />
+          </View>
+
+          <AdminCard
+            compact
+            icon="information-circle-outline"
+            title="Informações automáticas"
+            description="O clima de Rosário do Catete, Aracaju, Santo Amaro, Maruim e Carmópolis entra automaticamente entre os comunicados. Sem mensagens cadastradas, a faixa mostra somente o clima."
+          />
+
+          <AdminSection
+            title="Mensagens da faixa"
+            description="Separe cada mensagem usando o caractere !. Para dar mais destaque, coloque a mensagem inteira entre parênteses.">
+            <AdminCard>
+              <AdminField
+                label="Conteúdo"
                 value={value}
                 onChangeText={setValue}
                 placeholder="Promoção de bolsas até sábado ! (Último dia da promoção)"
                 multiline
-                style={styles.messageField}
-                maxLength={MAX_MESSAGES * (MAX_MESSAGE_LENGTH + 3)}
+                fullWidth
+                maxLength={
+                  MAX_MESSAGES *
+                  (MAX_MESSAGE_LENGTH + 3)
+                }
+                helper={`${previewMessages.length}/${MAX_MESSAGES} mensagens cadastradas. Máximo de ${MAX_MESSAGE_LENGTH} caracteres por mensagem.`}
+                containerStyle={
+                  styles.messageField
+                }
               />
-              <Text style={styles.helper}>
-                Separe cada mensagem usando !. Para dar destaque maior, coloque toda a mensagem entre parênteses: (Mensagem importante). Os parênteses não aparecerão na faixa. {previewMessages.length}/{MAX_MESSAGES} cadastradas.
-              </Text>
-            </View>
 
-            <Text style={styles.previewTitle}>Prévia da faixa</Text>
-            <View style={styles.preview}>
-              <AnnouncementTicker messages={previewMessages} />
-            </View>
+              <AdminFormActions>
+                <AdminToolbarButton
+                  label={
+                    saving
+                      ? 'Salvando...'
+                      : 'Salvar e publicar'
+                  }
+                  icon="save-outline"
+                  variant="primary"
+                  disabled={saving}
+                  onPress={() =>
+                    void handleSave()
+                  }
+                />
+              </AdminFormActions>
+            </AdminCard>
+          </AdminSection>
 
-            <Button icon="save-outline" loading={saving} onPress={handleSave}>
-              Salvar e mostrar no início
-            </Button>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Screen>
+          <AdminSection
+            title="Prévia da faixa"
+            description="A visualização abaixo mostra como os comunicados aparecerão para os clientes.">
+            <View style={styles.previewFrame}>
+              <View style={styles.previewHeader}>
+                <Ionicons
+                  name="eye-outline"
+                  size={16}
+                  color="#9D5F1D"
+                />
+
+                <Text
+                  style={
+                    styles.previewHeaderText
+                  }>
+                  Prévia ao vivo
+                </Text>
+              </View>
+
+              <View style={styles.preview}>
+                <AnnouncementTicker
+                  messages={
+                    previewMessages
+                  }
+                />
+              </View>
+            </View>
+          </AdminSection>
+        </AdminPage>
+      </KeyboardAvoidingView>
     </AdminGuard>
   );
 }
@@ -122,52 +293,44 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  content: {
-    width: '100%',
-    maxWidth: 900,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    alignSelf: 'center',
-    gap: spacing.lg,
-  },
-  infoCard: {
-    padding: spacing.lg,
-    borderRadius: radii.medium,
+
+  metrics: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    backgroundColor: colors.infoSoft,
-  },
-  infoText: {
-    flex: 1,
-    color: colors.info,
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: '700',
-  },
-  card: {
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    flexWrap: 'wrap',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
   },
+
   messageField: {
-    minHeight: 180,
+    flexBasis: '100%',
   },
-  helper: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
+
+  previewFrame: {
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DED2C7',
+    borderRadius: radii.medium,
+    backgroundColor: '#FFFDFC',
   },
-  previewTitle: {
-    color: colors.text,
-    fontSize: 16,
+
+  previewHeader: {
+    minHeight: 42,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9DFD5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#F6ECE0',
+  },
+
+  previewHeaderText: {
+    color: '#493A30',
+    fontSize: 10,
     fontWeight: '900',
   },
+
   preview: {
     overflow: 'hidden',
-    borderRadius: radii.small,
+    backgroundColor: colors.surface,
   },
 });

@@ -1,22 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
 
+import {
+  AdminCard,
+  AdminPage,
+  AdminSection,
+  AdminStatCard,
+  AdminSwitchField,
+  AdminTable,
+  AdminTableBadge,
+  AdminTableText,
+  AdminToolbarButton,
+  type AdminTableColumn,
+} from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
-import { AppHeader } from '@/src/components/app-header';
-import { Screen } from '@/src/components/screen';
-import { Button, EmptyState } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { campaignStatusLabel } from '@/src/features/marketing/admin';
 import { getCampaignSituation } from '@/src/features/marketing/foundation';
@@ -28,36 +34,45 @@ import {
   loadMarketingSettings,
   updateMarketingSettings,
 } from '@/src/features/marketing/service';
-import {
+import type {
   MarketingCampaignBundle,
   MarketingSettings,
 } from '@/src/features/marketing/types';
-import { colors, radii, shadow, spacing } from '@/src/theme';
+import { colors, radii, spacing } from '@/src/theme';
 import { formatMaceioDate } from '@/src/utils/fields';
+
+type CampaignSituation = ReturnType<typeof getCampaignSituation>;
 
 export default function AdminCampaignsScreen() {
   const { refreshStore } = useStore();
 
-  const [campaigns, setCampaigns] = useState<MarketingCampaignBundle[]>([]);
-  const [settings, setSettings] = useState<MarketingSettings | null>(null);
+  const [campaigns, setCampaigns] = useState<
+    MarketingCampaignBundle[]
+  >([]);
+
+  const [settings, setSettings] =
+    useState<MarketingSettings | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] =
+    useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
 
     try {
-      const [nextCampaigns, nextSettings] = await Promise.all([
-        loadAdminMarketingCampaigns(),
-        loadMarketingSettings(),
-      ]);
+      const [nextCampaigns, nextSettings] =
+        await Promise.all([
+          loadAdminMarketingCampaigns(),
+          loadMarketingSettings(),
+        ]);
 
       setCampaigns(nextCampaigns);
       setSettings(nextSettings);
 
       void cleanupExpiredMarketingAssets().catch(() => {
-        // A falha fica registrada pelo banco e não impede o uso do painel.
+        // A limpeza não bloqueia o uso do painel.
       });
     } catch (error) {
       Alert.alert(
@@ -75,21 +90,56 @@ export default function AdminCampaignsScreen() {
     }, [load]),
   );
 
+  const metrics = useMemo(() => {
+    const published = campaigns.filter(
+      (campaign) => campaign.status === 'published',
+    ).length;
+
+    const drafts = campaigns.filter(
+      (campaign) => campaign.status === 'draft',
+    ).length;
+
+    const active = campaigns.filter(
+      (campaign) =>
+        getCampaignSituation(campaign) === 'active',
+    ).length;
+
+    const withPriceRules = campaigns.filter(
+      (campaign) => campaign.priceRules.length > 0,
+    ).length;
+
+    return {
+      total: campaigns.length,
+      published,
+      drafts,
+      active,
+      withPriceRules,
+    };
+  }, [campaigns]);
+
   async function createCampaign() {
+    if (creating) {
+      return;
+    }
+
     setCreating(true);
 
     try {
-      const campaign = await createMarketingCampaign({
-        name: `Nova campanha ${campaigns.length + 1}`,
-        priority: 0,
-      });
+      const campaign =
+        await createMarketingCampaign({
+          name: `Nova campanha ${campaigns.length + 1}`,
+          priority: 0,
+        });
 
       router.push({
         pathname: '/admin/campaign/[id]',
         params: { id: campaign.id },
       });
     } catch (error) {
-      Alert.alert('Não foi possível criar', errorMessage(error));
+      Alert.alert(
+        'Não foi possível criar',
+        errorMessage(error),
+      );
     } finally {
       setCreating(false);
     }
@@ -99,36 +149,54 @@ export default function AdminCampaignsScreen() {
     field: 'enabled' | 'pricingEnabled',
     value: boolean,
   ) {
-    if (!settings) return;
+    if (!settings || savingSettings) {
+      return;
+    }
 
     setSavingSettings(true);
 
     try {
-      const updated = await updateMarketingSettings(settings, {
-        enabled: field === 'enabled' ? value : settings.enabled,
-        pricingEnabled:
-          field === 'pricingEnabled'
-            ? value
-            : settings.pricingEnabled,
-      });
+      const updated =
+        await updateMarketingSettings(settings, {
+          enabled:
+            field === 'enabled'
+              ? value
+              : settings.enabled,
+          pricingEnabled:
+            field === 'pricingEnabled'
+              ? value
+              : settings.pricingEnabled,
+        });
 
       setSettings(updated);
       await refreshStore();
     } catch (error) {
-      Alert.alert('Não foi possível alterar', errorMessage(error));
+      Alert.alert(
+        'Não foi possível alterar',
+        errorMessage(error),
+      );
     } finally {
       setSavingSettings(false);
     }
   }
 
-  async function deleteCampaign(campaign: MarketingCampaignBundle) {
-    if (!(await confirmDeleteDraft())) return;
+  async function deleteCampaign(
+    campaign: MarketingCampaignBundle,
+  ) {
+    if (!(await confirmDeleteDraft())) {
+      return;
+    }
 
     try {
-      const result = await deleteDraftMarketingCampaign(campaign.id);
+      const result =
+        await deleteDraftMarketingCampaign(
+          campaign.id,
+        );
 
       setCampaigns((current) =>
-        current.filter((item) => item.id !== campaign.id),
+        current.filter(
+          (item) => item.id !== campaign.id,
+        ),
       );
 
       Alert.alert(
@@ -138,365 +206,446 @@ export default function AdminCampaignsScreen() {
           : 'O rascunho e seus registros exclusivos foram removidos.',
       );
     } catch (error) {
-      Alert.alert('Não foi possível excluir', errorMessage(error));
+      Alert.alert(
+        'Não foi possível excluir',
+        errorMessage(error),
+      );
     }
   }
 
+  function openCampaign(
+    campaign: MarketingCampaignBundle,
+  ) {
+    router.push({
+      pathname: '/admin/campaign/[id]',
+      params: { id: campaign.id },
+    });
+  }
+
+  const columns = useMemo<
+    AdminTableColumn<MarketingCampaignBundle>[]
+  >(
+    () => [
+      {
+        key: 'campaign',
+        label: 'Campanha',
+        minWidth: 250,
+        flex: 1,
+        render: (campaign) => (
+          <View style={styles.campaignCell}>
+            <AdminTableText bold>
+              {campaign.name}
+            </AdminTableText>
+
+            <AdminTableText
+              muted
+              numberOfLines={2}>
+              {campaignSummary(campaign)}
+            </AdminTableText>
+          </View>
+        ),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        width: 125,
+        align: 'center',
+        render: (campaign) => (
+          <AdminTableBadge
+            label={campaignStatusLabel(
+              campaign.status,
+            )}
+            tone={statusTone(campaign.status)}
+          />
+        ),
+      },
+      {
+        key: 'situation',
+        label: 'Situação',
+        width: 125,
+        align: 'center',
+        render: (campaign) => {
+          const situation =
+            getCampaignSituation(campaign);
+
+          return (
+            <AdminTableBadge
+              label={
+                situationLabels[situation]
+              }
+              tone={situationTone(situation)}
+            />
+          );
+        },
+      },
+      {
+        key: 'audience',
+        label: 'Público',
+        minWidth: 150,
+        render: (campaign) => (
+          <AdminTableText>
+            {campaignAudience(campaign)}
+          </AdminTableText>
+        ),
+      },
+      {
+        key: 'period',
+        label: 'Período',
+        minWidth: 190,
+        render: (campaign) => (
+          <AdminTableText
+            numberOfLines={2}>
+            {campaignPeriod(campaign)}
+          </AdminTableText>
+        ),
+      },
+      {
+        key: 'actions',
+        label: 'Ações',
+        width: 115,
+        align: 'center',
+        render: (campaign) => {
+          const canDelete =
+            campaign.status === 'draft' &&
+            !campaign.publishedAt;
+
+          return (
+            <View style={styles.actions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Editar ${campaign.name}`}
+                onPress={() =>
+                  openCampaign(campaign)
+                }
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && styles.pressed,
+                ]}>
+                <Ionicons
+                  name="create-outline"
+                  size={16}
+                  color="#8B541B"
+                />
+              </Pressable>
+
+              {canDelete ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Excluir rascunho ${campaign.name}`}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void deleteCampaign(campaign);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    styles.deleteButton,
+                    pressed && styles.pressed,
+                  ]}>
+                  <Ionicons
+                    name="trash-outline"
+                    size={16}
+                    color={colors.danger}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
+          );
+        },
+      },
+    ],
+    [],
+  );
+
   return (
     <AdminGuard>
-      <Screen>
-        <AppHeader
-          compact
-          title="Marketing"
-          showBack
-          showStoreHome
-        />
+      <AdminPage
+        eyebrow="Marketing"
+        title="Campanhas"
+        description="Gerencie campanhas visuais, banners, selos, públicos e regras promocionais."
+        actions={
+          <>
+            <AdminToolbarButton
+              label="Atualizar"
+              icon="refresh-outline"
+              disabled={loading}
+              onPress={() => void load()}
+            />
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.moduleHeader}>
-            <Text style={styles.moduleTitle}>
-              Central de Marketing
+            <AdminToolbarButton
+              label={
+                creating
+                  ? 'Criando...'
+                  : 'Nova campanha'
+              }
+              icon="add"
+              variant="primary"
+              disabled={creating}
+              onPress={() =>
+                void createCampaign()
+              }
+            />
+          </>
+        }>
+        <View style={styles.metrics}>
+          <AdminStatCard
+            compact
+            icon="megaphone-outline"
+            label="Campanhas"
+            value={String(metrics.total)}
+            helper="Total cadastrado"
+          />
+
+          <AdminStatCard
+            compact
+            icon="document-text-outline"
+            label="Rascunhos"
+            value={String(metrics.drafts)}
+            helper="Ainda não publicados"
+            tone={
+              metrics.drafts > 0
+                ? 'warning'
+                : 'success'
+            }
+          />
+
+          <AdminStatCard
+            compact
+            icon="radio-outline"
+            label="Ativas agora"
+            value={String(metrics.active)}
+            helper={`${metrics.published} publicada(s)`}
+            tone="success"
+          />
+
+          <AdminStatCard
+            compact
+            icon="cash-outline"
+            label="Com regra de preço"
+            value={String(
+              metrics.withPriceRules,
+            )}
+            helper="Campanhas que alteram preços"
+            tone="info"
+          />
+        </View>
+
+        <View style={styles.modulesGrid}>
+          <AdminCard
+            compact
+            icon="pricetag-outline"
+            title="Promoções"
+            description="Gerencie preços promocionais, selos e períodos."
+            onPress={() =>
+              router.push(
+                '/admin/promotions' as never,
+              )
+            }
+          />
+
+          <AdminCard
+            compact
+            icon="desktop-outline"
+            title="Preview geral"
+            description="Visualize como a loja será exibida."
+            onPress={() =>
+              router.push(
+                '/admin/marketing-preview' as never,
+              )
+            }
+          />
+        </View>
+
+        <View style={styles.safetyCard}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={21}
+            color={colors.success}
+          />
+
+          <View style={styles.safetyCopy}>
+            <Text style={styles.safetyTitle}>
+              Publicação controlada
             </Text>
 
-            <Text style={styles.moduleSubtitle}>
-              Gerencie promoções, campanhas e visualize como a loja será
-              exibida.
+            <Text style={styles.safetyText}>
+              As campanhas são criadas como
+              rascunho. Banners e selos só aparecem
+              quando o módulo visual está ativo, e os
+              preços promocionais possuem ativação
+              independente.
             </Text>
           </View>
+        </View>
 
-          <View style={styles.modulesGrid}>
-            <ModuleCard
-              icon="pricetag-outline"
-              title="Promoções"
-              description="Gerencie preços promocionais, selos e períodos."
-              onPress={() =>
-                router.push('/admin/promotions' as never)
-              }
-            />
-
-            <ModuleCard
-              icon="color-wand-outline"
-              title="Campanhas"
-              description="Gerencie banners e campanhas visuais."
-              onPress={() =>
-                router.push('/admin/campaigns-list' as never)
-              }
-            />
-
-            <ModuleCard
-              icon="desktop-outline"
-              title="Preview Geral"
-              description="Visualize exatamente como a loja será exibida."
-              onPress={() =>
-                router.push('/admin/marketing-preview' as never)
-              }
-            />
-          </View>
-
-          <View style={styles.safetyCard}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={23}
-              color={colors.success}
-            />
-
-            <View style={styles.safetyCopy}>
-              <Text style={styles.safetyTitle}>
-                Publicação controlada
-              </Text>
-
-              <Text style={styles.safetyText}>
-                Campanhas são criadas como rascunho. A loja só usa o
-                módulo quando o interruptor visual está ligado; preços
-                possuem ativação independente.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.settingsCard}>
-            <SettingRow
-              title="Campanhas visuais"
-              description="Exibir banners e selos publicados na loja"
+        <AdminSection
+          title="Configurações do módulo"
+          description="Controle separadamente a exibição visual e a aplicação dos preços promocionais.">
+          <View style={styles.settingsGrid}>
+            <AdminSwitchField
+              icon="images-outline"
+              label="Campanhas visuais"
+              description="Exibir banners e selos publicados na loja."
               value={settings?.enabled ?? false}
-              disabled={!settings || savingSettings}
-              onValueChange={(value) =>
-                void toggleSetting('enabled', value)
+              disabled={
+                !settings || savingSettings
+              }
+              onChange={(value) =>
+                void toggleSetting(
+                  'enabled',
+                  value,
+                )
               }
             />
 
-            <View style={styles.divider} />
-
-            <SettingRow
-              title="Preços promocionais"
-              description="Aplicar preços calculados e validados pelo banco"
-              value={settings?.pricingEnabled ?? false}
-              disabled={!settings || savingSettings}
-              onValueChange={(value) =>
-                void toggleSetting('pricingEnabled', value)
+            <AdminSwitchField
+              icon="cash-outline"
+              label="Preços promocionais"
+              description="Aplicar preços calculados e validados pelo banco."
+              value={
+                settings?.pricingEnabled ??
+                false
+              }
+              disabled={
+                !settings || savingSettings
+              }
+              onChange={(value) =>
+                void toggleSetting(
+                  'pricingEnabled',
+                  value,
+                )
               }
             />
           </View>
+        </AdminSection>
 
-          <View style={styles.headerRow}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.sectionTitle}>
-                Campanhas
-              </Text>
+        <AdminSection
+          title="Campanhas cadastradas"
+          description="Horários exibidos no fuso America/Maceió.">
+          <AdminTable
+            columns={columns}
+            data={campaigns}
+            loading={loading}
+            keyExtractor={(campaign) =>
+              campaign.id
+            }
+            onPressRow={openCampaign}
+            emptyIcon="megaphone-outline"
+            emptyTitle="Nenhuma campanha cadastrada"
+            emptyDescription="Crie um rascunho para preparar banners, público e promoção antes de publicar."
+          />
 
-              <Text style={styles.sectionSubtitle}>
-                Horários exibidos em America/Maceió
-              </Text>
+          {!loading && !campaigns.length ? (
+            <View style={styles.emptyAction}>
+              <AdminToolbarButton
+                label="Criar primeira campanha"
+                icon="add"
+                variant="primary"
+                disabled={creating}
+                onPress={() =>
+                  void createCampaign()
+                }
+              />
             </View>
-
-            <Button
-              icon="add-outline"
-              loading={creating}
-              onPress={() => void createCampaign()}>
-              Nova
-            </Button>
-          </View>
-
-          {loading ? (
-            <View style={styles.loading}>
-              <ActivityIndicator color={colors.primary} />
-
-              <Text style={styles.muted}>
-                Carregando campanhas...
-              </Text>
-            </View>
-          ) : !campaigns.length ? (
-            <EmptyState
-              icon="megaphone-outline"
-              title="Nenhuma campanha"
-              message="Crie um rascunho para preparar banners, público e promoção antes de publicar."
-              actionLabel="Criar primeira campanha"
-              onAction={() => void createCampaign()}
-            />
-          ) : (
-            <View style={styles.list}>
-              {campaigns.map((campaign) => {
-                const situation = getCampaignSituation(campaign);
-
-                const productCount = campaign.targets.filter(
-                  (target) => target.targetType === 'product',
-                ).length;
-
-                const categoryCount = campaign.targets.filter(
-                  (target) => target.targetType === 'category',
-                ).length;
-
-                const period = campaign.startAt
-                  ? `${formatMaceioDate(campaign.startAt)}${
-                      campaign.endAt
-                        ? ` até ${formatMaceioDate(campaign.endAt)}`
-                        : ' sem término'
-                    }`
-                  : 'Período ainda não informado';
-
-                const summary = [
-                  productCount
-                    ? `${productCount} produto(s)`
-                    : null,
-                  categoryCount
-                    ? `${categoryCount} categoria(s)`
-                    : null,
-                  campaign.targets.some(
-                    (target) => target.targetType === 'store',
-                  )
-                    ? 'Loja inteira'
-                    : null,
-                  campaign.placements.length
-                    ? `${campaign.placements.length} banner(es)`
-                    : 'Sem banner',
-                  campaign.priceRules.length
-                    ? 'Alteração de preço'
-                    : 'Sem alteração de preço',
-                  campaign.badge ? 'Com selo' : 'Sem selo',
-                ]
-                  .filter(Boolean)
-                  .join(' · ');
-
-                const canDelete =
-                  campaign.status === 'draft' &&
-                  !campaign.publishedAt;
-
-                return (
-                  <View
-                    key={campaign.id}
-                    style={styles.campaignCard}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() =>
-                        router.push({
-                          pathname: '/admin/campaign/[id]',
-                          params: { id: campaign.id },
-                        })
-                      }
-                      style={({ pressed }) => [
-                        styles.campaignMain,
-                        pressed && styles.pressed,
-                      ]}>
-                      <View style={styles.campaignCopy}>
-                        <View style={styles.badges}>
-                          <Text
-                            style={[
-                              styles.status,
-                              statusColors[campaign.status],
-                            ]}>
-                            {campaignStatusLabel(
-                              campaign.status,
-                            )}
-                          </Text>
-
-                          {campaign.status === 'published' ? (
-                            <Text style={styles.situation}>
-                              {situationLabel[situation]}
-                            </Text>
-                          ) : null}
-                        </View>
-
-                        <Text style={styles.campaignName}>
-                          {campaign.name}
-                        </Text>
-
-                        <Text style={styles.campaignMeta}>
-                          {summary}
-                        </Text>
-
-                        <Text style={styles.campaignPeriod}>
-                          {period}
-                        </Text>
-                      </View>
-
-                      <Ionicons
-                        name="chevron-forward"
-                        size={21}
-                        color={colors.textMuted}
-                      />
-                    </Pressable>
-
-                    {canDelete ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Excluir rascunho ${campaign.name}`}
-                        onPress={() =>
-                          void deleteCampaign(campaign)
-                        }
-                        style={({ pressed }) => [
-                          styles.deleteAction,
-                          pressed && styles.pressed,
-                        ]}>
-                        <Ionicons
-                          name="trash-outline"
-                          size={17}
-                          color={colors.danger}
-                        />
-
-                        <Text style={styles.deleteText}>
-                          Excluir rascunho
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </ScrollView>
-      </Screen>
+          ) : null}
+        </AdminSection>
+      </AdminPage>
     </AdminGuard>
   );
 }
 
-type ModuleCardProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  onPress: () => void;
-};
+function campaignSummary(
+  campaign: MarketingCampaignBundle,
+) {
+  const productCount = campaign.targets.filter(
+    (target) =>
+      target.targetType === 'product',
+  ).length;
 
-function ModuleCard({
-  icon,
-  title,
-  description,
-  onPress,
-}: ModuleCardProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Abrir ${title}`}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.moduleCard,
-        pressed && styles.moduleCardPressed,
-      ]}>
-      <View style={styles.moduleCardIcon}>
-        <Ionicons
-          name={icon}
-          size={27}
-          color={colors.primary}
-        />
-      </View>
+  const categoryCount =
+    campaign.targets.filter(
+      (target) =>
+        target.targetType === 'category',
+    ).length;
 
-      <View style={styles.moduleCardCopy}>
-        <Text style={styles.moduleCardTitle}>
-          {title}
-        </Text>
-
-        <Text style={styles.moduleCardDescription}>
-          {description}
-        </Text>
-      </View>
-
-      <Ionicons
-        name="chevron-forward"
-        size={22}
-        color={colors.textMuted}
-      />
-    </Pressable>
-  );
+  return [
+    productCount
+      ? `${productCount} produto(s)`
+      : null,
+    categoryCount
+      ? `${categoryCount} categoria(s)`
+      : null,
+    campaign.targets.some(
+      (target) =>
+        target.targetType === 'store',
+    )
+      ? 'Loja inteira'
+      : null,
+    campaign.placements.length
+      ? `${campaign.placements.length} banner(es)`
+      : 'Sem banner',
+    campaign.priceRules.length
+      ? 'Alteração de preço'
+      : 'Sem alteração de preço',
+    campaign.badge ? 'Com selo' : 'Sem selo',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
-function SettingRow({
-  title,
-  description,
-  value,
-  disabled,
-  onValueChange,
-}: {
-  title: string;
-  description: string;
-  value: boolean;
-  disabled: boolean;
-  onValueChange: (value: boolean) => void;
-}) {
-  return (
-    <View style={styles.settingRow}>
-      <View style={styles.settingCopy}>
-        <Text style={styles.settingTitle}>
-          {title}
-        </Text>
-
-        <Text style={styles.settingDescription}>
-          {description}
-        </Text>
-      </View>
-
-      <Switch
-        accessibilityLabel={title}
-        value={value}
-        disabled={disabled}
-        onValueChange={onValueChange}
-        trackColor={{
-          false: colors.border,
-          true: colors.primarySoft,
-        }}
-        thumbColor={
-          value ? colors.primary : colors.textMuted
-        }
-      />
-    </View>
+function campaignAudience(
+  campaign: MarketingCampaignBundle,
+) {
+  const hasStore = campaign.targets.some(
+    (target) =>
+      target.targetType === 'store',
   );
+
+  if (hasStore) {
+    return 'Loja inteira';
+  }
+
+  const productCount = campaign.targets.filter(
+    (target) =>
+      target.targetType === 'product',
+  ).length;
+
+  const categoryCount =
+    campaign.targets.filter(
+      (target) =>
+        target.targetType === 'category',
+    ).length;
+
+  if (productCount && categoryCount) {
+    return `${productCount} produto(s) e ${categoryCount} categoria(s)`;
+  }
+
+  if (productCount) {
+    return `${productCount} produto(s)`;
+  }
+
+  if (categoryCount) {
+    return `${categoryCount} categoria(s)`;
+  }
+
+  return 'Não definido';
+}
+
+function campaignPeriod(
+  campaign: MarketingCampaignBundle,
+) {
+  if (!campaign.startAt) {
+    return 'Período ainda não informado';
+  }
+
+  return `${formatMaceioDate(
+    campaign.startAt,
+  )}${
+    campaign.endAt
+      ? ` até ${formatMaceioDate(
+          campaign.endAt,
+        )}`
+      : ' sem término'
+  }`;
 }
 
 function errorMessage(error: unknown) {
@@ -509,7 +658,10 @@ async function confirmDeleteDraft() {
   const message =
     'Excluir esta campanha em rascunho? Esta ação é permanente e não poderá ser desfeita.';
 
-  if (Platform.OS === 'web') {
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined'
+  ) {
     return window.confirm(message);
   }
 
@@ -537,7 +689,10 @@ async function confirmDeleteDraft() {
   );
 }
 
-const situationLabel = {
+const situationLabels: Record<
+  CampaignSituation,
+  string
+> = {
   draft: 'Em preparação',
   scheduled: 'Agendada',
   active: 'Ativa agora',
@@ -546,287 +701,144 @@ const situationLabel = {
   archived: 'Arquivada',
 };
 
-const statusColors = StyleSheet.create({
-  draft: {
-    color: colors.info,
-    backgroundColor: colors.infoSoft,
-  },
+function statusTone(
+  status: MarketingCampaignBundle['status'],
+):
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'default' {
+  if (status === 'published') {
+    return 'success';
+  }
 
-  published: {
-    color: colors.success,
-    backgroundColor: colors.successSoft,
-  },
+  if (status === 'paused') {
+    return 'warning';
+  }
 
-  paused: {
-    color: colors.warning,
-    backgroundColor: colors.warningSoft,
-  },
+  if (status === 'archived') {
+    return 'default';
+  }
 
-  archived: {
-    color: colors.textMuted,
-    backgroundColor: colors.border,
-  },
-});
+  return 'info';
+}
+
+function situationTone(
+  situation: CampaignSituation,
+):
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'default' {
+  if (situation === 'active') {
+    return 'success';
+  }
+
+  if (
+    situation === 'scheduled' ||
+    situation === 'paused'
+  ) {
+    return 'warning';
+  }
+
+  if (situation === 'ended') {
+    return 'danger';
+  }
+
+  if (situation === 'archived') {
+    return 'default';
+  }
+
+  return 'info';
+}
 
 const styles = StyleSheet.create({
-  content: {
-    width: '100%',
-    maxWidth: 980,
-    alignSelf: 'center',
-    padding: spacing.lg,
-    paddingBottom: 80,
-    gap: spacing.xl,
-  },
-
-  moduleHeader: {
-    paddingBottom: spacing.xs,
-  },
-
-  moduleTitle: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-
-  moduleSubtitle: {
-    marginTop: spacing.xs,
-    maxWidth: 680,
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  modulesGrid: {
-    gap: spacing.md,
-  },
-
-  moduleCard: {
-    minHeight: 92,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    ...shadow,
-  },
-
-  moduleCardPressed: {
-    opacity: 0.72,
-    transform: [{ scale: 0.99 }],
-  },
-
-  moduleCardIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceWarm,
-  },
-
-  moduleCardCopy: {
-    flex: 1,
-  },
-
-  moduleCardTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-
-  moduleCardDescription: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
-  safetyCard: {
-    padding: spacing.lg,
-    borderRadius: radii.medium,
-    flexDirection: 'row',
-    gap: spacing.md,
-    backgroundColor: colors.successSoft,
-  },
-
-  safetyCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-
-  safetyTitle: {
-    color: colors.success,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  safetyText: {
-    color: colors.text,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-
-  settingsCard: {
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surface,
-    ...shadow,
-  },
-
-  settingRow: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-
-  settingCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-
-  settingTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-
-  settingDescription: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-
-  divider: {
-    height: 1,
-    marginVertical: spacing.md,
-    backgroundColor: colors.border,
-  },
-
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-
-  headerCopy: {
-    flex: 1,
-  },
-
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
-  },
-
-  sectionSubtitle: {
-    marginTop: spacing.xs,
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-
-  loading: {
-    padding: spacing.xxl,
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-
-  muted: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-
-  list: {
-    gap: spacing.md,
-  },
-
-  campaignCard: {
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surface,
-    ...shadow,
-  },
-
-  campaignMain: {
-    padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-
-  campaignCopy: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-
-  badges: {
+  metrics: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
 
-  status: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-    fontSize: 10,
+  modulesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  safetyCard: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor:
+      'rgba(37,132,82,0.22)',
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    backgroundColor:
+      colors.successSoft,
+  },
+
+  safetyCopy: {
+    minWidth: 0,
+    flex: 1,
+  },
+
+  safetyTitle: {
+    color: colors.success,
+    fontSize: 12,
     fontWeight: '900',
   },
 
-  situation: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-    color: colors.textMuted,
-    backgroundColor: colors.surfaceWarm,
+  safetyText: {
+    marginTop: 3,
+    color: '#493A30',
     fontSize: 10,
-    fontWeight: '800',
+    lineHeight: 15,
   },
 
-  campaignName: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '900',
+  settingsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
 
-  campaignMeta: {
-    color: colors.textMuted,
-    fontSize: 12,
+  campaignCell: {
+    minWidth: 0,
+    gap: 3,
   },
 
-  campaignPeriod: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  deleteAction: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.dangerSoft,
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-    backgroundColor: colors.dangerSoft,
+    justifyContent: 'center',
+    gap: 5,
   },
 
-  deleteText: {
-    color: colors.danger,
-    fontSize: 12,
-    fontWeight: '900',
+  actionButton: {
+    width: 31,
+    height: 31,
+    borderWidth: 1,
+    borderColor: '#E0D3C6',
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F7EEE5',
+  },
+
+  deleteButton: {
+    borderColor:
+      'rgba(188,72,72,0.2)',
+    backgroundColor:
+      colors.dangerSoft,
+  },
+
+  emptyAction: {
+    alignItems: 'center',
   },
 
   pressed: {
-    opacity: 0.78,
+    opacity: 0.58,
   },
 });

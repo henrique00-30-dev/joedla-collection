@@ -2,17 +2,30 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import {
+  AdminCard,
+  AdminPage,
+  AdminSection,
+  AdminStatCard,
+  AdminToolbarButton,
+} from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
-import { AppHeader } from '@/src/components/app-header';
-import { Screen } from '@/src/components/screen';
-import { Button, Field } from '@/src/components/ui';
 import { StructuredField } from '@/src/components/structured-field';
+import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
-import { Banner, StoreSettings } from '@/src/types';
+import type { Banner, StoreSettings } from '@/src/types';
 import {
   brazilDateToIsoDate,
   isValidBrazilDate,
@@ -22,212 +35,398 @@ import {
 } from '@/src/utils/fields';
 
 export default function AdminAppearanceScreen() {
-  const { settings, updateSettings, uploadProductImage } = useStore();
+  const {
+    settings,
+    products,
+    categories,
+    updateSettings,
+    uploadProductImage,
+  } = useStore();
+
   const [form, setForm] = useState(() => ({
     ...settings,
-    bannerStartAt: settings.bannerStartAt ? isoDateToBrazilDate(settings.bannerStartAt) : '',
-    bannerEndAt: settings.bannerEndAt ? isoDateToBrazilDate(settings.bannerEndAt) : '',
+    bannerStartAt: settings.bannerStartAt
+      ? isoDateToBrazilDate(settings.bannerStartAt)
+      : '',
+    bannerEndAt: settings.bannerEndAt
+      ? isoDateToBrazilDate(settings.bannerEndAt)
+      : '',
     banners: settings.banners.map((banner) => ({
       ...banner,
-      startAt: banner.startAt ? isoDateToBrazilDate(banner.startAt) : '',
-      endAt: banner.endAt ? isoDateToBrazilDate(banner.endAt) : '',
+      startAt: banner.startAt
+        ? isoDateToBrazilDate(banner.startAt)
+        : '',
+      endAt: banner.endAt
+        ? isoDateToBrazilDate(banner.endAt)
+        : '',
     })),
   }));
+
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] =
+    useState(false);
 
-  function update<K extends keyof StoreSettings>(
-  field: K,
-  value: StoreSettings[K],
-) {
-  setForm((current) => ({
-    ...current,
-    [field]: value,
-  }));
-}
-function createEmptyBanner(): Banner {
-  return {
-    id: Crypto.randomUUID(),
-    title: '',
-    subtitle: '',
-    imageUrl: '',
-    buttonLabel: '',
-    link: '',
-    startAt: '',
-    endAt: '',
-    order: form.banners.length,
-    active: true,
-  };
-}
-function addBanner() {
-  if (form.banners.length >= 4) {
-    Alert.alert(
-      'Limite de banners',
-      'Você pode manter no máximo 4 banners no carrossel.',
-    );
-    return;
-  }
-
-  update('banners', [
-    ...form.banners,
-    createEmptyBanner(),
-  ]);
-}
-function removeBanner(bannerId: string) {
-  const remove = () => {
-    update(
-      'banners',
-      form.banners
-        .filter((banner) => banner.id !== bannerId)
-        .map((banner, index) => ({
-          ...banner,
-          order: index,
-        })),
-    );
-  };
-
-  if (Platform.OS === 'web') {
-    if (window.confirm('Tem certeza que deseja remover este banner?')) {
-      remove();
-    }
-    return;
-  }
-
-  Alert.alert(
-    'Remover banner',
-    'Tem certeza de que deseja remover este banner?',
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover',
-        style: 'destructive',
-        onPress: remove,
-      },
-    ],
+  const activeBanners = useMemo(
+    () =>
+      form.banners.filter(
+        (banner) => banner.active,
+      ).length,
+    [form.banners],
   );
-}
 
+  const scheduledBanners = useMemo(
+    () =>
+      form.banners.filter(
+        (banner) =>
+          Boolean(
+            banner.startAt || banner.endAt,
+          ),
+      ).length,
+    [form.banners],
+  );
 
-function updateBanner(
-  bannerId: string,
-  changes: Partial<Banner>,
-) {
-  setForm((current) => ({
-    ...current,
-    banners: current.banners.map((banner) =>
-      banner.id === bannerId
-        ? { ...banner, ...changes }
-        : banner,
-    ),
-  }));
-}
+  function update<
+    K extends keyof StoreSettings,
+  >(
+    field: K,
+    value: StoreSettings[K],
+  ) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
 
-  async function chooseBanner() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permissão necessária', 'Autorize o acesso às fotos para escolher o banner.');
+  function createEmptyBanner(): Banner {
+    return {
+      id: Crypto.randomUUID(),
+      title: '',
+      subtitle: '',
+      imageUrl: '',
+      buttonLabel: '',
+      link: '',
+      startAt: '',
+      endAt: '',
+      order: form.banners.length,
+      active: true,
+    };
+  }
+
+  function addBanner() {
+    if (form.banners.length >= 4) {
+      Alert.alert(
+        'Limite de banners',
+        'Você pode manter no máximo 4 banners no carrossel.',
+      );
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.88 });
-    if (result.canceled) return;
+
+    update('banners', [
+      ...form.banners,
+      createEmptyBanner(),
+    ]);
+  }
+
+  function removeBanner(bannerId: string) {
+    const remove = () => {
+      update(
+        'banners',
+        form.banners
+          .filter(
+            (banner) =>
+              banner.id !== bannerId,
+          )
+          .map((banner, index) => ({
+            ...banner,
+            order: index,
+          })),
+      );
+    };
+
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined'
+    ) {
+      if (
+        window.confirm(
+          'Tem certeza que deseja remover este banner?',
+        )
+      ) {
+        remove();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Remover banner',
+      'Tem certeza de que deseja remover este banner?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: remove,
+        },
+      ],
+    );
+  }
+
+  function updateBanner(
+    bannerId: string,
+    changes: Partial<Banner>,
+  ) {
+    setForm((current) => ({
+      ...current,
+      banners: current.banners.map(
+        (banner) =>
+          banner.id === bannerId
+            ? { ...banner, ...changes }
+            : banner,
+      ),
+    }));
+  }
+
+  async function chooseMainBanner() {
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Permissão necessária',
+        'Autorize o acesso às fotos para escolher o banner.',
+      );
+      return;
+    }
+
+    const result =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.88,
+      });
+
+    if (result.canceled) {
+      return;
+    }
+
     setUploading(true);
+
     try {
       const asset = result.assets[0];
-      const url = await uploadProductImage(asset.uri, asset.mimeType ?? 'image/jpeg');
-      setForm((current) => ({ ...current, bannerImageUrl: url }));
+      const url =
+        await uploadProductImage(
+          asset.uri,
+          asset.mimeType ??
+            'image/jpeg',
+        );
+
+      setForm((current) => ({
+        ...current,
+        bannerImageUrl: url,
+      }));
     } catch (error) {
-      Alert.alert('Não foi possível enviar', error instanceof Error ? error.message : 'Tente novamente.');
+      Alert.alert(
+        'Não foi possível enviar',
+        error instanceof Error
+          ? error.message
+          : 'Tente novamente.',
+      );
     } finally {
       setUploading(false);
     }
   }
-async function chooseBannerImage(bannerId: string) {
-  const permission =
-    await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  if (!permission.granted) {
-    Alert.alert(
-      'Permissão necessária',
-      'Autorize o acesso às fotos para escolher o banner.',
-    );
-    return;
+  async function chooseBannerImage(
+    bannerId: string,
+  ) {
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Permissão necessária',
+        'Autorize o acesso às fotos para escolher o banner.',
+      );
+      return;
+    }
+
+    const result =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.88,
+      });
+
+    if (result.canceled) {
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const asset = result.assets[0];
+      const url =
+        await uploadProductImage(
+          asset.uri,
+          asset.mimeType ??
+            'image/jpeg',
+        );
+
+      updateBanner(bannerId, {
+        imageUrl: url,
+      });
+    } catch (error) {
+      Alert.alert(
+        'Não foi possível enviar',
+        error instanceof Error
+          ? error.message
+          : 'Tente novamente.',
+      );
+    } finally {
+      setUploading(false);
+    }
   }
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    quality: 0.88,
-  });
-
-  if (result.canceled) return;
-
-  setUploading(true);
-
-  try {
-    const asset = result.assets[0];
-
-    const url = await uploadProductImage(
-      asset.uri,
-      asset.mimeType ?? 'image/jpeg',
-    );
-
-    updateBanner(bannerId, {
-      imageUrl: url,
-    });
-  } catch (error) {
-    Alert.alert(
-      'Não foi possível enviar',
-      error instanceof Error
-        ? error.message
-        : 'Tente novamente.',
-    );
-  } finally {
-    setUploading(false);
-  }
-}
 
   async function save() {
-    if (!form.bannerTitle.trim() || !form.bannerButtonLabel.trim() || !form.bannerImageUrl.trim()) {
-      Alert.alert('Banner incompleto', 'Informe título, texto do botão e imagem.');
+    if (
+      !form.bannerTitle.trim() ||
+      !form.bannerButtonLabel.trim() ||
+      !form.bannerImageUrl.trim()
+    ) {
+      Alert.alert(
+        'Banner incompleto',
+        'Informe título, texto do botão e imagem.',
+      );
       return;
     }
+
     const dates = [
-      ...(form.bannerStartAt ? [form.bannerStartAt] : []),
-      ...(form.bannerEndAt ? [form.bannerEndAt] : []),
-      ...form.banners.flatMap((banner) => [banner.startAt, banner.endAt].filter(Boolean)),
+      ...(form.bannerStartAt
+        ? [form.bannerStartAt]
+        : []),
+      ...(form.bannerEndAt
+        ? [form.bannerEndAt]
+        : []),
+      ...form.banners.flatMap((banner) =>
+        [
+          banner.startAt,
+          banner.endAt,
+        ].filter(Boolean),
+      ),
     ];
-    if (dates.some((date) => !isValidBrazilDate(date))) {
-      Alert.alert('Data inválida', 'Informe as datas no formato dia/mês/ano.');
+
+    if (
+      dates.some(
+        (date) =>
+          !isValidBrazilDate(date),
+      )
+    ) {
+      Alert.alert(
+        'Data inválida',
+        'Informe as datas no formato dia/mês/ano.',
+      );
       return;
     }
+
     const textValues = [
-      [form.bannerTitle, 120], [form.bannerSubtitle, 240], [form.bannerButtonLabel, 40],
-      ...form.banners.flatMap((banner) => [[banner.title, 120], [banner.subtitle, 240], [banner.buttonLabel, 40]] as [string, number][]),
+      [form.bannerTitle, 120],
+      [form.bannerSubtitle, 240],
+      [form.bannerButtonLabel, 40],
+      ...form.banners.flatMap(
+        (banner) =>
+          [
+            [banner.title, 120],
+            [banner.subtitle, 240],
+            [banner.buttonLabel, 40],
+          ] as [string, number][],
+      ),
     ] as [string, number][];
-    if (textValues.some(([value, maximum]) => validatePlainText(value, { maximum }))) {
-      Alert.alert('Texto inválido', 'Revise os textos e os limites dos banners.');
+
+    if (
+      textValues.some(
+        ([value, maximum]) =>
+          validatePlainText(value, {
+            maximum,
+          }),
+      )
+    ) {
+      Alert.alert(
+        'Texto inválido',
+        'Revise os textos e os limites dos banners.',
+      );
       return;
     }
+
     setSaving(true);
+
     try {
       await updateSettings({
         ...form,
-        bannerTitle: normalizePlainText(form.bannerTitle),
-        bannerSubtitle: normalizePlainText(form.bannerSubtitle),
-        bannerButtonLabel: normalizePlainText(form.bannerButtonLabel),
-        bannerStartAt: form.bannerStartAt ? brazilDateToIsoDate(form.bannerStartAt) ?? '' : '',
-        bannerEndAt: form.bannerEndAt ? brazilDateToIsoDate(form.bannerEndAt) ?? '' : '',
-        banners: form.banners.map((banner) => ({
-          ...banner,
-          title: normalizePlainText(banner.title),
-          subtitle: normalizePlainText(banner.subtitle),
-          buttonLabel: normalizePlainText(banner.buttonLabel),
-          startAt: banner.startAt ? brazilDateToIsoDate(banner.startAt) ?? '' : '',
-          endAt: banner.endAt ? brazilDateToIsoDate(banner.endAt) ?? '' : '',
-        })),
+        bannerTitle:
+          normalizePlainText(
+            form.bannerTitle,
+          ),
+        bannerSubtitle:
+          normalizePlainText(
+            form.bannerSubtitle,
+          ),
+        bannerButtonLabel:
+          normalizePlainText(
+            form.bannerButtonLabel,
+          ),
+        bannerStartAt:
+          form.bannerStartAt
+            ? brazilDateToIsoDate(
+                form.bannerStartAt,
+              ) ?? ''
+            : '',
+        bannerEndAt:
+          form.bannerEndAt
+            ? brazilDateToIsoDate(
+                form.bannerEndAt,
+              ) ?? ''
+            : '',
+        banners: form.banners.map(
+          (banner) => ({
+            ...banner,
+            title:
+              normalizePlainText(
+                banner.title,
+              ),
+            subtitle:
+              normalizePlainText(
+                banner.subtitle,
+              ),
+            buttonLabel:
+              normalizePlainText(
+                banner.buttonLabel,
+              ),
+            startAt: banner.startAt
+              ? brazilDateToIsoDate(
+                  banner.startAt,
+                ) ?? ''
+              : '',
+            endAt: banner.endAt
+              ? brazilDateToIsoDate(
+                  banner.endAt,
+                ) ?? ''
+              : '',
+          }),
+        ),
       });
-      Alert.alert('Visual publicado', 'O novo banner já está disponível na página inicial.');
+
+      Alert.alert(
+        'Visual publicado',
+        'O novo banner já está disponível na página inicial.',
+      );
     } catch (error) {
-      Alert.alert('Não foi possível publicar', error instanceof Error ? error.message : 'Tente novamente.');
+      Alert.alert(
+        'Não foi possível publicar',
+        error instanceof Error
+          ? error.message
+          : 'Tente novamente.',
+      );
     } finally {
       setSaving(false);
     }
@@ -235,158 +434,1134 @@ async function chooseBannerImage(bannerId: string) {
 
   return (
     <AdminGuard>
-      <Screen edges={['top', 'left', 'right', 'bottom']}>
-        <AppHeader compact title="Destaques e banner" showBack showStoreHome />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <View style={styles.info}>
-              <Ionicons name="color-palette-outline" size={22} color={colors.info} />
-              <Text style={styles.infoText}>Edite somente os textos e a imagem. Cores, fontes e proporções permanecem padronizadas para proteger o layout.</Text>
-            </View>
+      <KeyboardAvoidingView
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
+        style={styles.flex}>
+        <AdminPage
+          eyebrow="Configurações"
+          title="Aparência da loja"
+          description="Edite o banner principal e o carrossel exibido na página inicial."
+          actions={
+            <AdminToolbarButton
+              label={
+                saving
+                  ? 'Publicando...'
+                  : 'Salvar e publicar'
+              }
+              icon="save-outline"
+              variant="primary"
+              disabled={
+                saving || uploading
+              }
+              onPress={() => void save()}
+            />
+          }>
+          <View style={styles.metrics}>
+            <AdminStatCard
+              compact
+              icon="images-outline"
+              label="Banners"
+              value={String(
+                form.banners.length,
+              )}
+              helper="Máximo de 4"
+            />
 
-            <Text style={styles.sectionTitle}>Prévia ao vivo</Text>
+            <AdminStatCard
+              compact
+              icon="eye-outline"
+              label="Ativos"
+              value={String(
+                activeBanners,
+              )}
+              helper="Visíveis no carrossel"
+              tone="success"
+            />
+
+            <AdminStatCard
+              compact
+              icon="calendar-outline"
+              label="Agendados"
+              value={String(
+                scheduledBanners,
+              )}
+              helper="Com período definido"
+              tone="warning"
+            />
+          </View>
+
+          <AdminCard
+            compact
+            icon="color-palette-outline"
+            title="Layout protegido"
+            description="Edite apenas textos, imagens, links e datas. Cores, fontes e proporções permanecem padronizadas para manter a identidade da loja."
+          />
+
+          <AdminSection
+            title="Prévia ao vivo"
+            description="Visualização do banner principal usado como destaque da página inicial.">
             <View style={styles.preview}>
               <View style={styles.previewCopy}>
-                <Text style={styles.previewEyebrow}>CURADORIA JOEDLA</Text>
-                <Text numberOfLines={3} style={styles.previewTitle}>{form.bannerTitle || 'Título do banner'}</Text>
-                <Text numberOfLines={2} style={styles.previewSubtitle}>{form.bannerSubtitle}</Text>
-                <View style={styles.previewButton}><Text style={styles.previewButtonText}>{form.bannerButtonLabel || 'Botão'}</Text></View>
+                <Text
+                  style={
+                    styles.previewEyebrow
+                  }>
+                  CURADORIA JOEDLA
+                </Text>
+
+                <Text
+                  numberOfLines={3}
+                  style={styles.previewTitle}>
+                  {form.bannerTitle ||
+                    'Título do banner'}
+                </Text>
+
+                <Text
+                  numberOfLines={2}
+                  style={
+                    styles.previewSubtitle
+                  }>
+                  {form.bannerSubtitle}
+                </Text>
+
+                <View
+                  style={
+                    styles.previewButton
+                  }>
+                  <Text
+                    style={
+                      styles.previewButtonText
+                    }>
+                    {form.bannerButtonLabel ||
+                      'Botão'}
+                  </Text>
+                </View>
               </View>
-              <Image source={{ uri: form.bannerImageUrl }} contentFit="cover" style={styles.previewImage} />
+
+              {form.bannerImageUrl ? (
+                <Image
+                  source={{
+                    uri:
+                      form.bannerImageUrl,
+                  }}
+                  contentFit="cover"
+                  style={styles.previewImage}
+                />
+              ) : (
+                <View
+                  style={
+                    styles.previewImageEmpty
+                  }>
+                  <Ionicons
+                    name="image-outline"
+                    size={36}
+                    color={
+                      colors.textMuted
+                    }
+                  />
+                </View>
+              )}
             </View>
+          </AdminSection>
 
-            <Text style={styles.sectionTitle}>Conteúdo do banner</Text>
-            <Button
-  icon="add-outline"
-  onPress={addBanner}
-  disabled={form.banners.length >= 4}>
-  Adicionar banner
-</Button>
+          <AdminSection
+            title="Banner principal"
+            description="Conteúdo de destaque usado como fallback quando o carrossel não estiver ativo.">
+            <AdminCard>
+              <Field
+                label="Título"
+                value={form.bannerTitle}
+                onChangeText={(value) =>
+                  update(
+                    'bannerTitle',
+                    value,
+                  )
+                }
+                placeholder="Elegância para todos os momentos"
+                maxLength={120}
+              />
 
-<Text style={{ marginTop: 8 }}>
-  {form.banners.length} de 4 banners cadastrados
-</Text>
-{form.banners.map((banner, index) => (
-  <View
-    key={banner.id}
-    style={{
-      marginTop: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.medium,
-      backgroundColor: colors.surface,
-      gap: 12,
-    }}>
+              <Field
+                label="Subtítulo curto"
+                value={
+                  form.bannerSubtitle
+                }
+                onChangeText={(value) =>
+                  update(
+                    'bannerSubtitle',
+                    value,
+                  )
+                }
+                multiline
+                maxLength={240}
+              />
 
-    <Text style={{ fontWeight: '800', fontSize: 16 }}>
-      Banner {index + 1}
-    </Text>
+              <Field
+                label="Texto do botão"
+                value={
+                  form.bannerButtonLabel
+                }
+                onChangeText={(value) =>
+                  update(
+                    'bannerButtonLabel',
+                    value,
+                  )
+                }
+                maxLength={40}
+              />
 
-    <Field
-      label="Título"
-      value={banner.title}
-      onChangeText={(value) =>
-        updateBanner(banner.id, { title: value })
-      }
-      maxLength={120}
-    />
+              <BannerDestinationPicker
+                value={form.bannerLink}
+                categories={categories}
+                products={products}
+                onChange={(value) =>
+                  update('bannerLink', value)
+                }
+              />
 
-    <Field
-      label="Subtítulo"
-      value={banner.subtitle}
-      onChangeText={(value) =>
-        updateBanner(banner.id, { subtitle: value })
-      }
-      maxLength={240}
-    />
+              <View style={styles.inlineActions}>
+                <Button
+                  variant="secondary"
+                  icon="image-outline"
+                  loading={uploading}
+                  onPress={
+                    chooseMainBanner
+                  }>
+                  Trocar imagem
+                </Button>
+              </View>
 
-    <Field
-      label="Texto do botão"
-      value={banner.buttonLabel}
-      onChangeText={(value) =>
-        updateBanner(banner.id, { buttonLabel: value })
-      }
-      maxLength={40}
-    />
+              <View style={styles.dateGrid}>
+                <StructuredField
+                  kind="date"
+                  label="Data de início (opcional)"
+                  value={
+                    form.bannerStartAt
+                  }
+                  onChangeText={(value) =>
+                    update(
+                      'bannerStartAt',
+                      value,
+                    )
+                  }
+                  placeholder="DD/MM/AAAA"
+                />
 
-    <Field
-      label="Destino do botão"
-      value={banner.link}
-      onChangeText={(value) =>
-        updateBanner(banner.id, { link: value })
-      }
-      maxLength={500}
-    />
+                <StructuredField
+                  kind="date"
+                  label="Data de término (opcional)"
+                  value={
+                    form.bannerEndAt
+                  }
+                  onChangeText={(value) =>
+                    update(
+                      'bannerEndAt',
+                      value,
+                    )
+                  }
+                  placeholder="DD/MM/AAAA"
+                />
+              </View>
+            </AdminCard>
+          </AdminSection>
 
-    <StructuredField
-      kind="date"
-      label="Data de início (opcional)"
-      value={banner.startAt}
-      onChangeText={(value) =>
-        updateBanner(banner.id, { startAt: value })
-      }
-    />
+          <AdminSection
+            title="Carrossel de banners"
+            description={`${form.banners.length} de 4 banners cadastrados.`}
+            action={
+              <AdminToolbarButton
+                label="Adicionar banner"
+                icon="add"
+                variant="primary"
+                disabled={
+                  form.banners.length >=
+                    4 || uploading
+                }
+                onPress={addBanner}
+              />
+            }>
+            <View style={styles.bannerList}>
+              {form.banners.map(
+                (banner, index) => (
+                  <AdminCard
+                    key={banner.id}
+                    title={`Banner ${
+                      index + 1
+                    }`}
+                    description={
+                      banner.title ||
+                      'Preencha os dados deste banner.'
+                    }
+                    icon="image-outline"
+                    action={
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remover banner ${
+                          index + 1
+                        }`}
+                        onPress={() =>
+                          removeBanner(
+                            banner.id,
+                          )
+                        }
+                        style={({
+                          pressed,
+                        }) => [
+                          styles.removeButton,
+                          pressed &&
+                            styles.pressed,
+                        ]}>
+                        <Ionicons
+                          name="trash-outline"
+                          size={17}
+                          color={
+                            colors.danger
+                          }
+                        />
+                      </Pressable>
+                    }>
+                    <View
+                      style={
+                        styles.bannerEditor
+                      }>
+                      <View
+                        style={
+                          styles.bannerPreviewColumn
+                        }>
+                        {banner.imageUrl ? (
+                          <Image
+                            source={{
+                              uri:
+                                banner.imageUrl,
+                            }}
+                            contentFit="cover"
+                            style={
+                              styles.bannerPreviewImage
+                            }
+                          />
+                        ) : (
+                          <View
+                            style={
+                              styles.bannerPreviewEmpty
+                            }>
+                            <Ionicons
+                              name="image-outline"
+                              size={30}
+                              color={
+                                colors.textMuted
+                              }
+                            />
+                          </View>
+                        )}
 
-    <StructuredField
-      kind="date"
-      label="Data de término (opcional)"
-      value={banner.endAt}
-      onChangeText={(value) =>
-        updateBanner(banner.id, { endAt: value })
-      }
-    />
+                        <Button
+                          variant="secondary"
+                          icon="image-outline"
+                          disabled={
+                            uploading
+                          }
+                          onPress={() =>
+                            void chooseBannerImage(
+                              banner.id,
+                            )
+                          }>
+                          Trocar imagem
+                        </Button>
+                      </View>
 
-    <Button
-      variant="secondary"
-      icon="image-outline"
-      onPress={() => chooseBannerImage(banner.id)}
-      disabled={uploading}>
-      Trocar imagem
-    </Button>
+                      <View
+                        style={
+                          styles.bannerFields
+                        }>
+                        <Field
+                          label="Título"
+                          value={
+                            banner.title
+                          }
+                          onChangeText={(
+                            value,
+                          ) =>
+                            updateBanner(
+                              banner.id,
+                              {
+                                title:
+                                  value,
+                              },
+                            )
+                          }
+                          maxLength={120}
+                        />
 
-    <Button
-      variant="secondary"
-      icon="trash-outline"
-      onPress={() => removeBanner(banner.id)}>
-      Remover banner
-    </Button>
-  </View>
-))}
-            <View style={styles.card}>
-              <Field label="Título" value={form.bannerTitle} onChangeText={(value) => update('bannerTitle', value)} placeholder="Elegância para todos os momentos" maxLength={120} />
-              <Field label="Subtítulo curto" value={form.bannerSubtitle} onChangeText={(value) => update('bannerSubtitle', value)} multiline maxLength={240} />
-              <Field label="Texto do botão" value={form.bannerButtonLabel} onChangeText={(value) => update('bannerButtonLabel', value)} maxLength={40} />
-              <Field label="Destino do botão" value={form.bannerLink} onChangeText={(value) => update('bannerLink', value)} placeholder="/(tabs)/categories" autoCapitalize="none" maxLength={500} />
-              <Button variant="secondary" icon="image-outline" loading={uploading} onPress={chooseBanner}>Trocar imagem do banner</Button>
+                        <Field
+                          label="Subtítulo"
+                          value={
+                            banner.subtitle
+                          }
+                          onChangeText={(
+                            value,
+                          ) =>
+                            updateBanner(
+                              banner.id,
+                              {
+                                subtitle:
+                                  value,
+                              },
+                            )
+                          }
+                          multiline
+                          maxLength={240}
+                        />
+
+                        <View
+                          style={
+                            styles.fieldRow
+                          }>
+                          <View
+                            style={
+                              styles.fieldHalf
+                            }>
+                            <Field
+                              label="Texto do botão"
+                              value={
+                                banner.buttonLabel
+                              }
+                              onChangeText={(
+                                value,
+                              ) =>
+                                updateBanner(
+                                  banner.id,
+                                  {
+                                    buttonLabel:
+                                      value,
+                                  },
+                                )
+                              }
+                              maxLength={40}
+                            />
+                          </View>
+
+                          <View
+                            style={
+                              styles.fieldHalf
+                            }>
+                            <BannerDestinationPicker
+                              value={banner.link}
+                              categories={categories}
+                              products={products}
+                              onChange={(value) =>
+                                updateBanner(
+                                  banner.id,
+                                  { link: value },
+                                )
+                              }
+                            />
+                          </View>
+                        </View>
+
+                        <View
+                          style={
+                            styles.fieldRow
+                          }>
+                          <View
+                            style={
+                              styles.fieldHalf
+                            }>
+                            <StructuredField
+                              kind="date"
+                              label="Data de início"
+                              value={
+                                banner.startAt
+                              }
+                              onChangeText={(
+                                value,
+                              ) =>
+                                updateBanner(
+                                  banner.id,
+                                  {
+                                    startAt:
+                                      value,
+                                  },
+                                )
+                              }
+                            />
+                          </View>
+
+                          <View
+                            style={
+                              styles.fieldHalf
+                            }>
+                            <StructuredField
+                              kind="date"
+                              label="Data de término"
+                              value={
+                                banner.endAt
+                              }
+                              onChangeText={(
+                                value,
+                              ) =>
+                                updateBanner(
+                                  banner.id,
+                                  {
+                                    endAt:
+                                      value,
+                                  },
+                                )
+                              }
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </AdminCard>
+                ),
+              )}
+
+              {!form.banners.length ? (
+                <View style={styles.empty}>
+                  <Ionicons
+                    name="images-outline"
+                    size={30}
+                    color="#9D5F1D"
+                  />
+
+                  <Text
+                    style={styles.emptyTitle}>
+                    Nenhum banner no
+                    carrossel
+                  </Text>
+
+                  <Text
+                    style={styles.emptyText}>
+                    Adicione banners para
+                    criar uma sequência de
+                    destaques na página
+                    inicial.
+                  </Text>
+                </View>
+              ) : null}
             </View>
+          </AdminSection>
 
-            <Text style={styles.sectionTitle}>Agendamento opcional</Text>
-            <View style={styles.card}>
-              <StructuredField kind="date" label="Data de início (opcional)" value={form.bannerStartAt} onChangeText={(value) => update('bannerStartAt', value)} placeholder="DD/MM/AAAA" />
-              <StructuredField kind="date" label="Data de término (opcional)" value={form.bannerEndAt} onChangeText={(value) => update('bannerEndAt', value)} placeholder="DD/MM/AAAA" />
-            </View>
-            <Button loading={saving} onPress={save}>Salvar e publicar</Button>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Screen>
+          <View style={styles.footerActions}>
+            <AdminToolbarButton
+              label={
+                saving
+                  ? 'Publicando...'
+                  : 'Salvar e publicar'
+              }
+              icon="save-outline"
+              variant="primary"
+              disabled={
+                saving || uploading
+              }
+              onPress={() => void save()}
+            />
+          </View>
+        </AdminPage>
+      </KeyboardAvoidingView>
     </AdminGuard>
   );
 }
 
+
+type DestinationCategory = {
+  slug: string;
+  name: string;
+};
+
+type DestinationProduct = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
+type DestinationKind =
+  | 'home'
+  | 'categories'
+  | 'category'
+  | 'product';
+
+function BannerDestinationPicker({
+  value,
+  categories,
+  products,
+  onChange,
+}: {
+  value: string;
+  categories: DestinationCategory[];
+  products: DestinationProduct[];
+  onChange: (value: string) => void;
+}) {
+  const kind = getDestinationKind(value);
+
+  const selectedCategorySlug =
+    kind === 'category'
+      ? extractRouteValue(value, '/category/')
+      : '';
+
+  const selectedProductId =
+    kind === 'product'
+      ? extractRouteValue(value, '/product/')
+      : '';
+
+  function chooseKind(nextKind: DestinationKind) {
+    if (nextKind === 'home') {
+      onChange('/');
+      return;
+    }
+
+    if (nextKind === 'categories') {
+      onChange('/(tabs)/categories');
+      return;
+    }
+
+    if (nextKind === 'category') {
+      const firstCategory = categories[0];
+
+      onChange(
+        firstCategory
+          ? `/category/${firstCategory.slug}`
+          : '/(tabs)/categories',
+      );
+      return;
+    }
+
+    const firstProduct = products.find(
+      (product) => product.active,
+    );
+
+    onChange(
+      firstProduct
+        ? `/product/${firstProduct.id}`
+        : '/(tabs)/categories',
+    );
+  }
+
+  return (
+    <View style={styles.destinationField}>
+      <Text style={styles.destinationLabel}>
+        Destino do botão
+      </Text>
+
+      <Text style={styles.destinationHelper}>
+        Escolha para onde o cliente será enviado. A rota é criada automaticamente.
+      </Text>
+
+      <View style={styles.destinationKinds}>
+        <DestinationChip
+          label="Início"
+          icon="home-outline"
+          active={kind === 'home'}
+          onPress={() => chooseKind('home')}
+        />
+
+        <DestinationChip
+          label="Todos os produtos"
+          icon="grid-outline"
+          active={kind === 'categories'}
+          onPress={() =>
+            chooseKind('categories')
+          }
+        />
+
+        <DestinationChip
+          label="Categoria"
+          icon="albums-outline"
+          active={kind === 'category'}
+          onPress={() =>
+            chooseKind('category')
+          }
+        />
+
+        <DestinationChip
+          label="Produto"
+          icon="bag-handle-outline"
+          active={kind === 'product'}
+          onPress={() =>
+            chooseKind('product')
+          }
+        />
+      </View>
+
+      {kind === 'category' ? (
+        <View style={styles.destinationOptions}>
+          <Text style={styles.destinationOptionTitle}>
+            Escolha a categoria
+          </Text>
+
+          <View style={styles.destinationOptionList}>
+            {categories.map((category) => (
+              <DestinationChip
+                key={category.slug}
+                label={category.name}
+                active={
+                  selectedCategorySlug ===
+                  category.slug
+                }
+                onPress={() =>
+                  onChange(
+                    `/category/${category.slug}`,
+                  )
+                }
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {kind === 'product' ? (
+        <View style={styles.destinationOptions}>
+          <Text style={styles.destinationOptionTitle}>
+            Escolha o produto
+          </Text>
+
+          <View style={styles.destinationOptionList}>
+            {products
+              .filter((product) => product.active)
+              .map((product) => (
+                <DestinationChip
+                  key={product.id}
+                  label={product.name}
+                  active={
+                    selectedProductId ===
+                    product.id
+                  }
+                  onPress={() =>
+                    onChange(
+                      `/product/${product.id}`,
+                    )
+                  }
+                />
+              ))}
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.destinationResult}>
+        <Ionicons
+          name="checkmark-circle-outline"
+          size={16}
+          color={colors.success}
+        />
+
+        <Text
+          numberOfLines={1}
+          style={styles.destinationResultText}>
+          {getDestinationLabel(
+            value,
+            categories,
+            products,
+          )}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function DestinationChip({
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.destinationChip,
+        active && styles.destinationChipActive,
+        pressed && styles.pressed,
+      ]}>
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={14}
+          color={
+            active
+              ? colors.white
+              : '#7D4D1E'
+          }
+        />
+      ) : null}
+
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.destinationChipText,
+          active &&
+            styles.destinationChipTextActive,
+        ]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function getDestinationKind(
+  value: string,
+): DestinationKind {
+  if (value.startsWith('/category/')) {
+    return 'category';
+  }
+
+  if (value.startsWith('/product/')) {
+    return 'product';
+  }
+
+  if (
+    value === '/(tabs)/categories' ||
+    value === '/categories'
+  ) {
+    return 'categories';
+  }
+
+  return 'home';
+}
+
+function extractRouteValue(
+  value: string,
+  prefix: string,
+) {
+  return value.startsWith(prefix)
+    ? value.slice(prefix.length)
+    : '';
+}
+
+function getDestinationLabel(
+  value: string,
+  categories: DestinationCategory[],
+  products: DestinationProduct[],
+) {
+  const kind = getDestinationKind(value);
+
+  if (kind === 'home') {
+    return 'Destino selecionado: página inicial';
+  }
+
+  if (kind === 'categories') {
+    return 'Destino selecionado: todos os produtos';
+  }
+
+  if (kind === 'category') {
+    const slug = extractRouteValue(
+      value,
+      '/category/',
+    );
+
+    const category = categories.find(
+      (item) => item.slug === slug,
+    );
+
+    return `Destino selecionado: ${
+      category?.name ?? 'categoria'
+    }`;
+  }
+
+  const productId = extractRouteValue(
+    value,
+    '/product/',
+  );
+
+  const product = products.find(
+    (item) => item.id === productId,
+  );
+
+  return `Destino selecionado: ${
+    product?.name ?? 'produto'
+  }`;
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  content: { width: '100%', maxWidth: 900, padding: spacing.lg, paddingBottom: spacing.xxl, alignSelf: 'center', gap: spacing.md },
-  info: { padding: spacing.lg, borderRadius: radii.medium, flexDirection: 'row', gap: spacing.md, backgroundColor: colors.infoSoft },
-  infoText: { flex: 1, color: colors.info, fontSize: 12, lineHeight: 18 },
-  sectionTitle: { marginTop: spacing.sm, color: colors.text, fontSize: 16, fontWeight: '900' },
-  card: { padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, gap: spacing.lg, backgroundColor: colors.surface },
-  preview: { minHeight: 260, overflow: 'hidden', borderRadius: radii.large, flexDirection: 'row', backgroundColor: '#F2E4D2' },
-  previewCopy: { zIndex: 2, width: '58%', padding: spacing.xl, justifyContent: 'center' },
-  previewEyebrow: { color: colors.primary, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
-  previewTitle: { marginTop: spacing.sm, fontFamily: fonts.display, color: colors.primaryDark, fontSize: 25, lineHeight: 29, fontWeight: '800' },
-  previewSubtitle: { marginTop: spacing.sm, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
-  previewButton: { alignSelf: 'flex-start', marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: 9, borderRadius: radii.pill, backgroundColor: colors.primary },
-  previewButtonText: { color: colors.white, fontSize: 9, fontWeight: '900' },
-  previewImage: { width: '48%', marginLeft: '-6%' },
+
+  destinationField: {
+    gap: spacing.sm,
+  },
+
+  destinationLabel: {
+    color: '#493A30',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  destinationHelper: {
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 15,
+  },
+
+  destinationKinds: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  destinationChip: {
+    minHeight: 36,
+    maxWidth: '100%',
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: '#D8C8B7',
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#FFFDFC',
+  },
+
+  destinationChipActive: {
+    borderColor: '#9D5F1D',
+    backgroundColor: '#9D5F1D',
+  },
+
+  destinationChipText: {
+    maxWidth: 210,
+    color: '#7D4D1E',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  destinationChipTextActive: {
+    color: colors.white,
+  },
+
+  destinationOptions: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E3D6CA',
+    borderRadius: radii.medium,
+    gap: spacing.sm,
+    backgroundColor: '#F8F3ED',
+  },
+
+  destinationOptionTitle: {
+    color: '#493A30',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+
+  destinationOptionList: {
+    maxHeight: 170,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  destinationResult: {
+    minHeight: 38,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.small,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.successSoft,
+  },
+
+  destinationResultText: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.success,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  flex: {
+    flex: 1,
+  },
+
+  metrics: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  preview: {
+    minHeight: 250,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DED2C7',
+    borderRadius: radii.large,
+    flexDirection: 'row',
+    backgroundColor: '#F2E4D2',
+  },
+
+  previewCopy: {
+    zIndex: 2,
+    width: '58%',
+    padding: spacing.xl,
+    justifyContent: 'center',
+  },
+
+  previewEyebrow: {
+    color: colors.primary,
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.3,
+  },
+
+  previewTitle: {
+    marginTop: spacing.sm,
+    fontFamily: fonts.display,
+    color: colors.primaryDark,
+    fontSize: 25,
+    lineHeight: 29,
+    fontWeight: '800',
+  },
+
+  previewSubtitle: {
+    marginTop: spacing.sm,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+
+  previewButton: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+  },
+
+  previewButtonText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '900',
+  },
+
+  previewImage: {
+    width: '48%',
+    marginLeft: '-6%',
+  },
+
+  previewImageEmpty: {
+    width: '48%',
+    marginLeft: '-6%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E7D5C0',
+  },
+
+  inlineActions: {
+    alignItems: 'flex-start',
+  },
+
+  dateGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+
+  bannerList: {
+    gap: spacing.md,
+  },
+
+  bannerEditor: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: spacing.lg,
+  },
+
+  bannerPreviewColumn: {
+    width: 190,
+    gap: spacing.sm,
+  },
+
+  bannerPreviewImage: {
+    width: 190,
+    height: 120,
+    borderRadius: radii.medium,
+    backgroundColor: '#F4ECE3',
+  },
+
+  bannerPreviewEmpty: {
+    width: 190,
+    height: 120,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#D8C8B7',
+    borderRadius: radii.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F3ED',
+  },
+
+  bannerFields: {
+    minWidth: 280,
+    flex: 1,
+    gap: spacing.md,
+  },
+
+  fieldRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+
+  fieldHalf: {
+    minWidth: 220,
+    flex: 1,
+  },
+
+  removeButton: {
+    width: 34,
+    height: 34,
+    borderWidth: 1,
+    borderColor:
+      'rgba(188,72,72,0.22)',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor:
+      colors.dangerSoft,
+  },
+
+  empty: {
+    minHeight: 170,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#D8C8B7',
+    borderRadius: radii.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFDFC',
+  },
+
+  emptyTitle: {
+    marginTop: spacing.sm,
+    color: '#2C211A',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+
+  emptyText: {
+    maxWidth: 420,
+    marginTop: spacing.xs,
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 15,
+    textAlign: 'center',
+  },
+
+  footerActions: {
+    alignItems: 'flex-end',
+  },
+
+  pressed: {
+    opacity: 0.58,
+  },
 });

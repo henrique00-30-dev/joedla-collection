@@ -1,21 +1,63 @@
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { colors, radii, shadow, spacing } from '@/src/theme';
 import { Category } from '@/src/types';
-import { colors, radii, spacing } from '@/src/theme';
 
 type CategoryTileProps = {
   category: Category;
   onPress: () => void;
 };
 
-export function CategoryTile({ category, onPress }: CategoryTileProps) {
+export function CategoryTile({
+  category,
+  onPress,
+}: CategoryTileProps) {
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
-      <View style={styles.imageFrame}>
-        <Image source={{ uri: category.imageUrl }} contentFit="cover" style={styles.image} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir categoria ${category.name}`}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed }) => [
+        styles.container,
+        hovered && styles.containerHovered,
+        pressed && styles.pressed,
+      ]}>
+      <View
+        style={[
+          styles.imageFrame,
+          hovered && styles.imageFrameHovered,
+        ]}>
+        <View style={styles.imageClip}>
+          <Image
+            source={{ uri: category.imageUrl }}
+            contentFit="cover"
+            transition={220}
+            style={[
+              styles.image,
+              hovered && styles.imageHovered,
+            ]}
+          />
+        </View>
       </View>
-      <Text numberOfLines={1} style={styles.label}>
+
+      <Text
+        numberOfLines={2}
+        style={[
+          styles.label,
+          hovered && styles.labelHovered,
+        ]}>
         {category.name}
       </Text>
     </Pressable>
@@ -24,32 +66,74 @@ export function CategoryTile({ category, onPress }: CategoryTileProps) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 82,
+    width: 126,
+    minHeight: 156,
+    paddingHorizontal: spacing.xs,
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'flex-start',
+    gap: spacing.md,
   },
+
+  containerHovered: {
+    transform: [{ translateY: -3 }],
+  },
+
   pressed: {
-    opacity: 0.7,
+    opacity: 0.76,
+    transform: [{ scale: 0.98 }],
   },
+
   imageFrame: {
-    width: 72,
-    height: 72,
-    padding: 3,
-    borderRadius: radii.pill,
+    width: 112,
+    height: 112,
+    padding: 5,
     borderWidth: 1,
-    borderColor: colors.primarySoft,
-    backgroundColor: colors.surface,
+    borderColor: 'rgba(111,76,56,0.14)',
+    borderRadius: radii.pill,
+    backgroundColor: '#FFFEFC',
+    ...shadow,
   },
-  image: {
+
+  imageFrameHovered: {
+    borderColor: colors.primary,
+    ...(Platform.OS === 'web'
+      ? {
+          shadowOpacity: 0.18,
+          shadowRadius: 16,
+          shadowOffset: {
+            width: 0,
+            height: 8,
+          },
+        }
+      : {}),
+  },
+
+  imageClip: {
     flex: 1,
+    overflow: 'hidden',
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceWarm,
   },
+
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+
+  imageHovered: {
+    transform: [{ scale: 1.06 }],
+  },
+
   label: {
-    maxWidth: 82,
+    maxWidth: 118,
     color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '800',
     textAlign: 'center',
+  },
+
+  labelHovered: {
+    color: colors.primary,
   },
 });

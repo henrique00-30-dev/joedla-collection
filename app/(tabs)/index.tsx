@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -16,7 +15,9 @@ import {
 
 import { AnnouncementTicker } from '@/src/components/announcement-ticker';
 import { AppHeader } from '@/src/components/app-header';
+import { BenefitsStrip } from '@/src/components/home/benefits-strip';
 import { CategoryTile } from '@/src/components/category-tile';
+import { HeroBannerPremium } from '@/src/components/home/hero-banner-premium';
 import { MarketingBanners } from '@/src/components/marketing-banners';
 import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
@@ -25,7 +26,7 @@ import { SectionHeader } from '@/src/components/section-header';
 import { StoreFooter } from '@/src/components/store-footer';
 import { useStore } from '@/src/context/store-context';
 import { activePlacements } from '@/src/features/marketing/storefront';
-import { colors, fonts, radii, spacing } from '@/src/theme';
+import { colors, spacing } from '@/src/theme';
 
 export default function HomeScreen() {
   const { products, categories, settings, marketing, loading, refreshStore } = useStore();
@@ -239,125 +240,25 @@ export default function HomeScreen() {
               </View>
             ) : shouldShowBanner ? (
               <View style={[styles.pageWidth, styles.horizontalPadding]}>
-                <View style={[styles.hero, desktop && styles.heroDesktop]}>
-                  <View style={styles.heroText}>
-                    <Text style={styles.heroEyebrow}>
-                      CURADORIA JOEDLA
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.heroTitle,
-                        desktop && styles.heroTitleDesktop,
-                      ]}>
-                      {bannerTitle}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.heroSubtitle,
-                        !desktop && styles.heroSubtitleMobile,
-                      ]}>
-                      {bannerSubtitle}
-                    </Text>
-
-                    {bannerButtonLabel.trim() && bannerLink.trim() ? (
-                      <Pressable
-                        onPress={openBannerDestination}
-                        style={({ pressed }) => [
-                          styles.heroButton,
-                          pressed && styles.heroButtonPressed,
-                        ]}>
-                        <Text style={styles.heroButtonText}>
-                          {bannerButtonLabel}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-
-                  {bannerImageUrl.trim() ? (
-                    <Image
-                      source={{ uri: bannerImageUrl }}
-                      contentFit="cover"
-                      style={styles.heroImage}
-                    />
-                  ) : (
-                    <View style={styles.heroImageFallback}>
-                      <Ionicons
-                        name="images-outline"
-                        size={42}
-                        color={colors.textMuted}
-                      />
-                    </View>
+                <HeroBannerPremium
+                  title={bannerTitle}
+                  subtitle={bannerSubtitle}
+                  imageUrl={bannerImageUrl}
+                  buttonLabel={bannerButtonLabel}
+                  showButton={Boolean(
+                    bannerButtonLabel.trim() && bannerLink.trim(),
                   )}
-
-                  {desktop && activeBanners.length > 1 ? (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Mostrar banner anterior"
-                        onPress={showPreviousBanner}
-                        style={styles.heroArrowLeft}>
-                        <Ionicons
-                          name="chevron-back"
-                          size={28}
-                          color="#6B4B3E"
-                        />
-                      </Pressable>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Mostrar próximo banner"
-                        onPress={showNextBanner}
-                        style={styles.heroArrowRight}>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={28}
-                          color="#6B4B3E"
-                        />
-                      </Pressable>
-                    </>
-                  ) : null}
-
-                  {activeBanners.length > 1 ? (
-                    <View style={styles.heroIndicators}>
-                      {activeBanners.map((banner, index) => (
-                        <Pressable
-                          key={banner.id}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Mostrar banner ${index + 1}`}
-                          onPress={() => setCurrentBannerIndex(index)}
-                          style={[
-                            styles.heroIndicator,
-                            index === currentBannerIndex &&
-                              styles.heroIndicatorActive,
-                          ]}
-                        />
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
+                  showNavigation={activeBanners.length > 1}
+                  currentIndex={currentBannerIndex}
+                  totalItems={activeBanners.length}
+                  onPress={openBannerDestination}
+                  onPrevious={showPreviousBanner}
+                  onNext={showNextBanner}
+                />
               </View>
             ) : null}
-
-            <View style={[styles.pageWidth, styles.benefits]}>
-              <Benefit
-                icon="shield-checkmark-outline"
-                title="Compra segura"
-                text="Atendimento direto com a loja"
-              />
-
-              <Benefit
-                icon="sparkles-outline"
-                title="Seleção especial"
-                text="Peças escolhidas com cuidado"
-              />
-
-              <Benefit
-                icon="logo-whatsapp"
-                title="Suporte próximo"
-                text="Dúvidas respondidas no WhatsApp"
-              />
+            <View style={[styles.pageWidth, styles.horizontalPadding]}>
+              <BenefitsStrip />
             </View>
 
             <View style={[styles.pageWidth, styles.section]}>
@@ -433,29 +334,6 @@ export default function HomeScreen() {
   );
 }
 
-function Benefit({
-  icon,
-  title,
-  text,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  text: string;
-}) {
-  return (
-    <View style={styles.benefit}>
-      <View style={styles.benefitIcon}>
-        <Ionicons name={icon} size={20} color={colors.primary} />
-      </View>
-
-      <View style={styles.benefitCopy}>
-        <Text style={styles.benefitTitle}>{title}</Text>
-        <Text style={styles.benefitText}>{text}</Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxl,
@@ -481,192 +359,6 @@ const styles = StyleSheet.create({
 
   searchArea: {
     paddingTop: spacing.md,
-  },
-
-  hero: {
-    minHeight: 450,
-    marginTop: spacing.lg,
-    overflow: 'hidden',
-    borderRadius: radii.large,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: '#F2E4D2',
-  },
-
-  heroDesktop: {
-    minHeight: 450,
-    borderRadius: 28,
-  },
-
-  heroText: {
-    zIndex: 2,
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-
-  heroEyebrow: {
-    marginBottom: spacing.sm,
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.4,
-  },
-
-  heroTitle: {
-    maxWidth: 560,
-    fontFamily: fonts.display,
-    color: colors.primaryDark,
-    fontSize: 46,
-    lineHeight: 52,
-    fontWeight: '700',
-  },
-
-  heroTitleDesktop: {
-    fontSize: 48,
-    lineHeight: 52,
-  },
-
-  heroSubtitle: {
-    maxWidth: 520,
-    marginTop: spacing.md,
-    color: colors.textMuted,
-    fontSize: 18,
-    lineHeight: 28,
-  },
-
-  heroSubtitleMobile: {
-    display: 'none',
-  },
-
-  heroButton: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 12,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primary,
-  },
-
-  heroButtonPressed: {
-    opacity: 0.82,
-  },
-
-  heroButtonText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-
-  heroImage: {
-    flex: 1,
-    height: '100%',
-    minHeight: 450,
-  },
-
-  heroImageFallback: {
-    flex: 1,
-    minHeight: 450,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceWarm,
-  },
-
-  heroIndicators: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: spacing.md,
-    zIndex: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-
-  heroIndicator: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: 'transparent',
-  },
-
-  heroIndicatorActive: {
-    width: 24,
-    backgroundColor: colors.primary,
-  },
-
-  heroArrowLeft: {
-    position: 'absolute',
-    left: 20,
-    top: '50%',
-    marginTop: -22,
-    zIndex: 20,
-    padding: 8,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.65)',
-  },
-
-  heroArrowRight: {
-    position: 'absolute',
-    right: 20,
-    top: '50%',
-    marginTop: -22,
-    zIndex: 20,
-    padding: 8,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.65)',
-  },
-
-  benefits: {
-    marginTop: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-
-  benefit: {
-    minWidth: 240,
-    flex: 1,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-  },
-
-  benefitIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceWarm,
-  },
-
-  benefitCopy: {
-    flex: 1,
-  },
-
-  benefitTitle: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  benefitText: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
   },
 
   section: {

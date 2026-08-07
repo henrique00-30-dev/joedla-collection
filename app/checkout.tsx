@@ -17,23 +17,23 @@ import {
 
 import { AppHeader } from '@/src/components/app-header';
 import { Screen } from '@/src/components/screen';
-import { Button, Field } from '@/src/components/ui';
 import { StructuredField } from '@/src/components/structured-field';
+import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
-import { colors, radii, spacing } from '@/src/theme';
+import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import {
   CustomerDetails,
   DeliveryMethod,
   Order,
   PaymentMethod,
 } from '@/src/types';
-import { formatCurrency } from '@/src/utils/format';
 import {
   isValidBrazilPhone,
   normalizeBrazilPhone,
   normalizePlainText,
   validatePlainText,
 } from '@/src/utils/fields';
+import { formatCurrency } from '@/src/utils/format';
 import { buildOrderMessage, openStoreWhatsApp } from '@/src/utils/whatsapp';
 
 const initialCustomer: CustomerDetails = {
@@ -190,7 +190,7 @@ export default function CheckoutScreen() {
   if (completedOrder) {
     return (
       <Screen edges={['top', 'left', 'right', 'bottom']}>
-        <AppHeader compact title="Pedido realizado" />
+        <AppHeader compact title="Pedido realizado" showStoreHome />
         <ScrollView
           contentContainerStyle={styles.successContent}
           showsVerticalScrollIndicator>
@@ -324,7 +324,7 @@ export default function CheckoutScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <AppHeader compact title="Finalizar pedido" showBack />
+      <AppHeader compact title="Finalizar pedido" showBack showStoreHome />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}>
@@ -546,266 +546,345 @@ function SelectionCard({
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+    backgroundColor: '#FBF8F4',
   },
+
   successContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    width: '100%',
+    maxWidth: 760,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: 72,
+    alignSelf: 'center',
     alignItems: 'stretch',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
+
   successIcon: {
-    width: 84,
-    height: 84,
-    marginTop: spacing.lg,
+    width: 92,
+    height: 92,
     marginBottom: spacing.sm,
     alignSelf: 'center',
-    borderRadius: 42,
+    borderRadius: 46,
+    borderWidth: 7,
+    borderColor: '#EAF5EE',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.success,
+    ...shadow,
   },
+
   notificationNotice: {
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.warning,
-    borderRadius: radii.medium,
+    borderColor: 'rgba(166,106,63,0.28)',
+    borderRadius: radii.large,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.warningSoft,
+    backgroundColor: '#FFF8EC',
   },
+
   notificationNoticeText: {
     flex: 1,
     color: colors.warning,
     fontSize: 13,
-    lineHeight: 19,
-    fontWeight: '700',
+    lineHeight: 20,
+    fontWeight: '800',
   },
+
   notificationNoticeTextSuccess: {
     color: colors.success,
   },
+
   successTitle: {
+    fontFamily: fonts.display,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 31,
+    lineHeight: 38,
+    fontWeight: '800',
     textAlign: 'center',
   },
+
   successSubtitle: {
+    maxWidth: 620,
     marginBottom: spacing.sm,
+    alignSelf: 'center',
     color: colors.textMuted,
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 22,
     textAlign: 'center',
   },
+
   codeCard: {
-    padding: spacing.lg,
-    borderRadius: radii.medium,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(111,76,56,0.12)',
+    borderRadius: radii.large,
     alignItems: 'center',
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: '#F7EFE6',
+    ...shadow,
   },
+
   codeLabel: {
     color: colors.textMuted,
-    fontSize: 11,
-  },
-  code: {
-    marginTop: spacing.xs,
-    color: colors.primary,
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
-  orderCardTitle: {
-    color: colors.text,
-    fontSize: 16,
+
+  code: {
+    marginTop: spacing.sm,
+    color: '#8B451C',
+    fontSize: 28,
     fontWeight: '900',
+    letterSpacing: 1.6,
   },
+
+  orderCardTitle: {
+    fontFamily: fonts.display,
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+
   itemName: {
     flex: 1,
     color: colors.textMuted,
     fontSize: 13,
+    lineHeight: 18,
   },
+
   itemValue: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
+
   divider: {
     height: 1,
     backgroundColor: colors.border,
   },
+
   orderTotalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+
   orderTotalLabel: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
-  },
-  orderTotalValue: {
-    color: colors.primary,
-    fontSize: 19,
     fontWeight: '900',
   },
+
+  orderTotalValue: {
+    color: '#8B451C',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+
   paymentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
+
   paymentText: {
     color: colors.textMuted,
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 20,
   },
+
   pixBox: {
     padding: spacing.md,
-    borderRadius: radii.small,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.medium,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: '#F7F1EA',
   },
+
   pixKey: {
     flex: 1,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
+
   copyButton: {
-    minWidth: 90,
+    minWidth: 96,
   },
+
   successActions: {
+    marginTop: spacing.sm,
     gap: spacing.sm,
   },
+
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
+    width: '100%',
+    maxWidth: 860,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: 120,
+    alignSelf: 'center',
+    gap: spacing.lg,
   },
+
   sectionTitle: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
+
   number: {
-    width: 27,
-    height: 27,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#8B451C',
+    ...shadow,
   },
+
   numberText: {
     color: colors.white,
     fontSize: 12,
     fontWeight: '900',
   },
+
   sectionTitleText: {
+    fontFamily: fonts.display,
     color: colors.text,
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 21,
+    fontWeight: '800',
   },
+
   card: {
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(111,76,56,0.12)',
+    borderRadius: 22,
+    gap: spacing.lg,
+    backgroundColor: '#FFFEFC',
+    ...shadow,
+  },
+
+  optionsColumn: {
+    gap: spacing.md,
+  },
+
+  selectionCard: {
+    minHeight: 86,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    gap: spacing.lg,
-    backgroundColor: colors.surface,
-  },
-  optionsColumn: {
-    gap: spacing.sm,
-  },
-  selectionCard: {
-    minHeight: 76,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    borderColor: 'rgba(111,76,56,0.14)',
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFEFC',
+    ...shadow,
   },
+
   selectionCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceWarm,
+    borderColor: '#9D6A2F',
+    backgroundColor: '#FFF7EA',
   },
+
   selectionIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.small,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceWarm,
   },
+
   selectionIconActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#8B451C',
   },
+
   selectionText: {
     flex: 1,
-    gap: 3,
+    gap: 4,
   },
+
   selectionTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
+
   selectionDescription: {
     color: colors.textMuted,
     fontSize: 11,
-    lineHeight: 16,
+    lineHeight: 17,
   },
+
   summary: {
     marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radii.medium,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(111,76,56,0.12)',
+    borderRadius: 22,
     gap: spacing.md,
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: '#F7EFE6',
   },
+
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+
   summaryLabel: {
     color: colors.textMuted,
     fontSize: 13,
   },
+
   summaryValue: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
   },
+
   free: {
     color: colors.success,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
   },
+
   totalRow: {
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.primarySoft,
+    borderTopColor: 'rgba(157,106,47,0.2)',
   },
+
   totalLabel: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  totalValue: {
-    color: colors.primary,
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '900',
   },
+
+  totalValue: {
+    color: '#8B451C',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+
   footer: {
-    minHeight: 84,
+    minHeight: 92,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
@@ -814,18 +893,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFEFC',
+    ...shadow,
   },
+
   footerLabel: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
+
   footerValue: {
-    color: colors.primary,
-    fontSize: 19,
+    color: '#8B451C',
+    fontSize: 22,
     fontWeight: '900',
   },
+
   finishButton: {
-    minWidth: 180,
+    minWidth: 190,
+    minHeight: 52,
   },
 });

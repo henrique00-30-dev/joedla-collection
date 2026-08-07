@@ -1,71 +1,202 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
-  Text,
-  View,
+  View
 } from 'react-native';
 
+import {
+  AdminCard,
+  AdminField,
+  AdminFormActions,
+  AdminPage,
+  AdminSection,
+  AdminStatCard,
+  AdminToolbarButton,
+} from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
-import { AppHeader } from '@/src/components/app-header';
-import { Screen } from '@/src/components/screen';
-import { Button, Field } from '@/src/components/ui';
 import { StructuredField } from '@/src/components/structured-field';
 import { useStore } from '@/src/context/store-context';
-import { colors, radii, spacing } from '@/src/theme';
-import { StoreSettings } from '@/src/types';
-import { isValidBrazilPhone, normalizeBrazilPhone, normalizePlainText, validatePlainText } from '@/src/utils/fields';
+import { spacing } from '@/src/theme';
+import type { StoreSettings } from '@/src/types';
+import {
+  isValidBrazilPhone,
+  normalizeBrazilPhone,
+  normalizePlainText,
+  validatePlainText,
+} from '@/src/utils/fields';
 
 export default function AdminSettingsScreen() {
   const { settings, updateSettings } = useStore();
-  const [form, setForm] = useState<StoreSettings>(settings);
+
+  const [form, setForm] = useState(settings);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [errors, setErrors] = useState<
+    Record<string, string>
+  >({});
+
+  const configuredChannels = useMemo(
+    () =>
+      [
+        form.whatsappNumber,
+        form.pixKey,
+        form.instagram,
+      ].filter(Boolean).length,
+    [
+      form.instagram,
+      form.pixKey,
+      form.whatsappNumber,
+    ],
+  );
 
   function update(
-    field: Exclude<keyof StoreSettings, 'tickerMessages'>,
+    field: Exclude<
+      keyof StoreSettings,
+      'tickerMessages'
+    >,
     value: string,
   ) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    if (errors[field]) {
+      setErrors((current) => {
+        const next = { ...current };
+        delete next[field];
+        return next;
+      });
+    }
   }
 
   async function handleSave() {
-    const nextErrors: Record<string, string> = {};
-    const storeNameError = validatePlainText(form.storeName, { minimum: 2, maximum: 120 });
-    const cityError = validatePlainText(form.city, { minimum: 2, maximum: 80 });
-    const deliveryError = validatePlainText(form.deliveryMessage, { maximum: 240 });
-    const pickupError = validatePlainText(form.pickupAddress, { maximum: 240, multiline: true });
-    if (storeNameError) nextErrors.storeName = storeNameError;
-    if (cityError) nextErrors.city = cityError;
-    if (deliveryError) nextErrors.deliveryMessage = deliveryError;
-    if (pickupError) nextErrors.pickupAddress = pickupError;
-    if (form.whatsappNumber && !isValidBrazilPhone(form.whatsappNumber, true)) {
-      nextErrors.whatsappNumber = 'Informe um celular com DDD e 11 números.';
+    const nextErrors: Record<
+      string,
+      string
+    > = {};
+
+    const storeNameError =
+      validatePlainText(form.storeName, {
+        minimum: 2,
+        maximum: 120,
+      });
+
+    const cityError =
+      validatePlainText(form.city, {
+        minimum: 2,
+        maximum: 80,
+      });
+
+    const deliveryError =
+      validatePlainText(
+        form.deliveryMessage,
+        {
+          maximum: 240,
+        },
+      );
+
+    const pickupError =
+      validatePlainText(
+        form.pickupAddress,
+        {
+          maximum: 240,
+          multiline: true,
+        },
+      );
+
+    if (storeNameError) {
+      nextErrors.storeName =
+        storeNameError;
     }
+
+    if (cityError) {
+      nextErrors.city = cityError;
+    }
+
+    if (deliveryError) {
+      nextErrors.deliveryMessage =
+        deliveryError;
+    }
+
+    if (pickupError) {
+      nextErrors.pickupAddress =
+        pickupError;
+    }
+
+    if (
+      form.whatsappNumber &&
+      !isValidBrazilPhone(
+        form.whatsappNumber,
+        true,
+      )
+    ) {
+      nextErrors.whatsappNumber =
+        'Informe um celular com DDD e 11 números.';
+    }
+
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) {
-      Alert.alert('Revise os campos', 'Corrija os campos destacados antes de salvar.');
+
+    if (
+      Object.keys(nextErrors).length
+    ) {
+      Alert.alert(
+        'Revise os campos',
+        'Corrija os campos destacados antes de salvar.',
+      );
       return;
     }
+
     setSaving(true);
+
     try {
       await updateSettings({
         ...form,
-        storeName: normalizePlainText(form.storeName),
-        city: normalizePlainText(form.city),
-        deliveryMessage: normalizePlainText(form.deliveryMessage),
-        whatsappNumber: normalizeBrazilPhone(form.whatsappNumber),
-        pixKey: normalizePlainText(form.pixKey),
-        instagram: normalizePlainText(form.instagram),
-        pickupAddress: normalizePlainText(form.pickupAddress, true),
+        storeName:
+          normalizePlainText(
+            form.storeName,
+          ),
+        city:
+          normalizePlainText(
+            form.city,
+          ),
+        deliveryMessage:
+          normalizePlainText(
+            form.deliveryMessage,
+          ),
+        whatsappNumber:
+          normalizeBrazilPhone(
+            form.whatsappNumber,
+          ),
+        pixKey:
+          normalizePlainText(
+            form.pixKey,
+          ),
+        instagram:
+          normalizePlainText(
+            form.instagram,
+          ),
+        pickupAddress:
+          normalizePlainText(
+            form.pickupAddress,
+            true,
+          ),
       });
-      Alert.alert('Configurações salvas', 'Os dados da loja foram atualizados.');
+
+      Alert.alert(
+        'Configurações salvas',
+        'Os dados da loja foram atualizados.',
+      );
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Tente novamente.');
+      Alert.alert(
+        'Erro',
+        error instanceof Error
+          ? error.message
+          : 'Tente novamente.',
+      );
     } finally {
       setSaving(false);
     }
@@ -73,96 +204,246 @@ export default function AdminSettingsScreen() {
 
   return (
     <AdminGuard>
-      <Screen edges={['top', 'left', 'right', 'bottom']}>
-        <AppHeader compact title="Configurações da loja" showBack showStoreHome />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.flex}>
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator>
-            <View style={styles.notice}>
-              <Ionicons name="information-circle-outline" size={22} color={colors.info} />
-              <Text style={styles.noticeText}>
-                WhatsApp e chave Pix aparecem para o cliente somente depois de serem cadastrados aqui.
-              </Text>
-            </View>
+      <KeyboardAvoidingView
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
+        style={styles.flex}>
+        <AdminPage
+          eyebrow="Configurações"
+          title="Dados da loja"
+          description="Atualize as informações de atendimento, entrega, pagamento e retirada."
+          actions={
+            <AdminToolbarButton
+              label={
+                saving
+                  ? 'Salvando...'
+                  : 'Salvar configurações'
+              }
+              icon="save-outline"
+              variant="primary"
+              disabled={saving}
+              onPress={() =>
+                void handleSave()
+              }
+            />
+          }>
+          <View style={styles.metrics}>
+            <AdminStatCard
+              compact
+              icon="business-outline"
+              label="Loja"
+              value={
+                form.storeName
+                  ? 'Configurada'
+                  : 'Pendente'
+              }
+              helper="Nome e cidade principal"
+              tone={
+                form.storeName &&
+                form.city
+                  ? 'success'
+                  : 'warning'
+              }
+            />
 
-            <Text style={styles.sectionTitle}>Dados principais</Text>
-            <View style={styles.card}>
-              <Field
+            <AdminStatCard
+              compact
+              icon="chatbubble-ellipses-outline"
+              label="Canais configurados"
+              value={String(
+                configuredChannels,
+              )}
+              helper="WhatsApp, Pix e Instagram"
+              tone="info"
+            />
+
+            <AdminStatCard
+              compact
+              icon="location-outline"
+              label="Retirada"
+              value={
+                form.pickupAddress
+                  ? 'Definida'
+                  : 'Pendente'
+              }
+              helper="Orientação para o cliente"
+              tone={
+                form.pickupAddress
+                  ? 'success'
+                  : 'warning'
+              }
+            />
+          </View>
+
+          <AdminCard
+            compact
+            icon="information-circle-outline"
+            title="Visibilidade dos dados"
+            description="WhatsApp e chave Pix aparecem para o cliente somente depois de serem cadastrados aqui."
+          />
+
+          <AdminSection
+            title="Dados principais"
+            description="Informações básicas exibidas na loja e nos pedidos.">
+            <AdminCard>
+              <AdminField
                 label="Nome da loja"
                 value={form.storeName}
-                onChangeText={(value) => update('storeName', value)}
+                onChangeText={(value) =>
+                  update(
+                    'storeName',
+                    value,
+                  )
+                }
                 maxLength={120}
-                error={errors.storeName}
+                error={
+                  errors.storeName
+                }
+                required
+                fullWidth
               />
-              <Field
+
+              <AdminField
                 label="Cidade principal"
                 value={form.city}
-                onChangeText={(value) => update('city', value)}
+                onChangeText={(value) =>
+                  update('city', value)
+                }
                 maxLength={80}
                 error={errors.city}
+                required
+                fullWidth
               />
-              <Field
+
+              <AdminField
                 label="Mensagem de entrega"
-                value={form.deliveryMessage}
-                onChangeText={(value) => update('deliveryMessage', value)}
+                value={
+                  form.deliveryMessage
+                }
+                onChangeText={(value) =>
+                  update(
+                    'deliveryMessage',
+                    value,
+                  )
+                }
                 placeholder="Entrega grátis em Rosário do Catete"
                 maxLength={240}
-                error={errors.deliveryMessage}
+                error={
+                  errors.deliveryMessage
+                }
+                fullWidth
               />
-            </View>
+            </AdminCard>
+          </AdminSection>
 
-            <Text style={styles.sectionTitle}>Atendimento e pagamento</Text>
-            <View style={styles.card}>
-              <StructuredField
-                kind="phone"
-                label="WhatsApp da loja com DDD"
-                value={form.whatsappNumber}
-                onChangeText={(value) => update('whatsappNumber', value)}
-                placeholder="(79) 99999-9999"
-                error={errors.whatsappNumber}
-              />
-              <Field
-                label="Chave Pix"
-                value={form.pixKey}
-                onChangeText={(value) => update('pixKey', value)}
-                placeholder="CPF, telefone, e-mail ou chave aleatória"
-                autoCapitalize="none"
-                maxLength={160}
-              />
-              <Field
+          <AdminSection
+            title="Atendimento e pagamento"
+            description="Dados usados para contato e finalização do pedido.">
+            <AdminCard>
+              <View style={styles.fieldGrid}>
+                <View
+                  style={styles.fieldHalf}>
+                  <StructuredField
+                    kind="phone"
+                    label="WhatsApp da loja com DDD"
+                    value={
+                      form.whatsappNumber
+                    }
+                    onChangeText={(value) =>
+                      update(
+                        'whatsappNumber',
+                        value,
+                      )
+                    }
+                    placeholder="(79) 99999-9999"
+                    error={
+                      errors.whatsappNumber
+                    }
+                  />
+                </View>
+
+                <View
+                  style={styles.fieldHalf}>
+                  <AdminField
+                    label="Chave Pix"
+                    value={form.pixKey}
+                    onChangeText={(value) =>
+                      update(
+                        'pixKey',
+                        value,
+                      )
+                    }
+                    placeholder="CPF, telefone, e-mail ou chave aleatória"
+                    autoCapitalize="none"
+                    maxLength={160}
+                    fullWidth
+                  />
+                </View>
+              </View>
+
+              <AdminField
                 label="Instagram (opcional)"
                 value={form.instagram}
-                onChangeText={(value) => update('instagram', value)}
+                onChangeText={(value) =>
+                  update(
+                    'instagram',
+                    value,
+                  )
+                }
                 placeholder="@joedlacollection"
                 autoCapitalize="none"
                 maxLength={80}
+                fullWidth
               />
-            </View>
+            </AdminCard>
+          </AdminSection>
 
-            <Text style={styles.sectionTitle}>Retirada</Text>
-            <View style={styles.card}>
-              <Field
+          <AdminSection
+            title="Retirada"
+            description="Endereço ou instrução informada ao cliente quando ele escolher retirar o pedido.">
+            <AdminCard>
+              <AdminField
                 label="Endereço ou orientação para retirada"
-                value={form.pickupAddress}
-                onChangeText={(value) => update('pickupAddress', value)}
+                value={
+                  form.pickupAddress
+                }
+                onChangeText={(value) =>
+                  update(
+                    'pickupAddress',
+                    value,
+                  )
+                }
                 placeholder="Endereço de retirada a combinar"
                 multiline
                 maxLength={240}
-                error={errors.pickupAddress}
+                error={
+                  errors.pickupAddress
+                }
+                fullWidth
               />
-            </View>
 
-            <Button loading={saving} onPress={handleSave}>
-              Salvar configurações
-            </Button>
-
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Screen>
+              <AdminFormActions>
+                <AdminToolbarButton
+                  label={
+                    saving
+                      ? 'Salvando...'
+                      : 'Salvar configurações'
+                  }
+                  icon="save-outline"
+                  variant="primary"
+                  disabled={saving}
+                  onPress={() =>
+                    void handleSave()
+                  }
+                />
+              </AdminFormActions>
+            </AdminCard>
+          </AdminSection>
+        </AdminPage>
+      </KeyboardAvoidingView>
     </AdminGuard>
   );
 }
@@ -171,39 +452,21 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  content: {
-    width: '100%',
-    maxWidth: 900,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    alignSelf: 'center',
-    gap: spacing.md,
-  },
-  notice: {
-    padding: spacing.lg,
-    borderRadius: radii.medium,
+
+  metrics: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  fieldGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.md,
-    backgroundColor: colors.infoSoft,
   },
-  noticeText: {
+
+  fieldHalf: {
+    minWidth: 240,
     flex: 1,
-    color: colors.info,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  sectionTitle: {
-    marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  card: {
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    gap: spacing.lg,
-    backgroundColor: colors.surface,
   },
 });

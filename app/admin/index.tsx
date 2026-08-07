@@ -1,14 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Href, router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { AdminGuard } from '@/src/components/admin-guard';
-import { AppHeader } from '@/src/components/app-header';
-import { Screen } from '@/src/components/screen';
 import { StatusBadge } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
-import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
+import { colors, radii, shadow } from '@/src/theme';
 import { formatCurrency } from '@/src/utils/format';
 
 export default function AdminDashboardScreen() {
@@ -17,30 +22,38 @@ export default function AdminDashboardScreen() {
     adminOrders,
     cloudEnabled,
     refreshAdminOrders,
-    logoutAdmin,
   } = useStore();
+
+  const { width } = useWindowDimensions();
+  const compact = width < 760;
 
   useEffect(() => {
     void refreshAdminOrders();
-    // A atualização deve ocorrer somente ao abrir o painel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const metrics = useMemo(() => {
     const activeProducts = products.filter((product) => product.active);
+
     const stock = activeProducts
       .filter((product) => product.availability === 'ready')
       .reduce((sum, product) => sum + product.stock, 0);
-    const pending = adminOrders.filter((order) => order.status === 'pending').length;
+
+    const pending = adminOrders.filter(
+      (order) => order.status === 'pending',
+    ).length;
+
     const customOrders = adminOrders.filter(
       (order) =>
         order.status !== 'completed' &&
         order.status !== 'cancelled' &&
         order.items.some((item) => item.availability === 'custom'),
     ).length;
+
     const revenue = adminOrders
       .filter((order) => order.status === 'completed')
       .reduce((sum, order) => sum + order.total, 0);
+
     return {
       activeProducts: activeProducts.length,
       stock,
@@ -50,157 +63,215 @@ export default function AdminDashboardScreen() {
     };
   }, [adminOrders, products]);
 
-  async function handleLogout() {
-    await logoutAdmin();
-    router.replace('/(tabs)/menu');
-  }
-
   return (
     <AdminGuard>
-      <Screen>
-        <AppHeader
-          compact
-          title="Painel da loja"
-          showStoreHome
-          rightAction={{ icon: 'log-out-outline', onPress: handleLogout, label: 'Sair' }}
-        />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
-          <View style={styles.welcome}>
-            <View>
-              <Text style={styles.eyebrow}>JOEDLA COLLECTION</Text>
-              <Text style={styles.title}>Visão geral</Text>
-            </View>
-            <View style={[styles.mode, cloudEnabled ? styles.modeCloud : styles.modeOffline]}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.content,
+          compact && styles.contentCompact,
+        ]}
+        showsVerticalScrollIndicator>
+        <View style={styles.topbar}>
+          <View>
+            <Text style={styles.pageTitle}>Painel da loja</Text>
+            <Text style={styles.pageSubtitle}>
+              Visão geral da Joedla Collection
+            </Text>
+          </View>
+
+          <View style={styles.topbarActions}>
+            <View
+              style={[
+                styles.connection,
+                cloudEnabled
+                  ? styles.connectionOnline
+                  : styles.connectionOffline,
+              ]}>
               <Ionicons
-                name={cloudEnabled ? 'cloud-done-outline' : 'cloud-offline-outline'}
-                size={15}
-                color={cloudEnabled ? colors.success : colors.danger}
+                name={
+                  cloudEnabled
+                    ? 'cloud-done-outline'
+                    : 'cloud-offline-outline'
+                }
+                size={14}
+                color={
+                  cloudEnabled ? colors.success : colors.danger
+                }
               />
-              <Text style={{ color: cloudEnabled ? colors.success : colors.danger, fontSize: 10, fontWeight: '900' }}>
+
+              <Text
+                style={[
+                  styles.connectionText,
+                  {
+                    color: cloudEnabled
+                      ? colors.success
+                      : colors.danger,
+                  },
+                ]}>
                 {cloudEnabled ? 'ONLINE' : 'SEM CONEXÃO'}
               </Text>
             </View>
-          </View>
 
-          <View style={styles.metrics}>
-            <MetricCard
-              icon="pricetags-outline"
-              label="Produtos"
-              value={String(metrics.activeProducts)}
-            />
-            <MetricCard icon="cube-outline" label="Em estoque" value={String(metrics.stock)} />
-            <MetricCard
-              icon="time-outline"
-              label="Pendentes"
-              value={String(metrics.pending)}
-              warning={metrics.pending > 0}
-            />
-            <MetricCard
-              icon="cash-outline"
-              label="Vendas concluídas"
-              value={formatCurrency(metrics.revenue)}
-              wide
-            />
-          </View>
-
-          <Text style={styles.sectionTitle}>Gerenciar</Text>
-          <View style={styles.actions}>
-            <ActionCard
-              icon="sparkles-outline"
-              title="Campanhas e promoções"
-              description="Agendar banners, selos, públicos e preços promocionais"
-              onPress={() => router.push('/admin/campaigns' as Href)}
-            />
-            <ActionCard
-              icon="color-palette-outline"
-              title="Destaques e banner"
-              description="Editar imagem e conteúdo principal da loja"
-              onPress={() => router.push('/admin/appearance' as Href)}
-            />
-            <ActionCard
-              icon="shirt-outline"
-              title="Produtos e estoque"
-              description="Cadastrar, editar e controlar quantidades"
-              onPress={() => router.push('/admin/products')}
-            />
-            <ActionCard
-              icon="grid-outline"
-              title="Categorias"
-              description="Criar, renomear e excluir abas do catálogo"
-              onPress={() => router.push('/admin/categories' as Href)}
-            />
-            <ActionCard
-              icon="analytics-outline"
-              title="Desempenho"
-              description="Acessos e produtos mais vistos e comprados"
-              onPress={() => router.push('/admin/analytics' as Href)}
-            />
-            <ActionCard
-              icon="megaphone-outline"
-              title="Promoções, clima e comunicados"
-              description="Editar a faixa de avisos exibida no início"
-              onPress={() => router.push('/admin/notices' as Href)}
-            />
-            <ActionCard
-              icon="receipt-outline"
-              title="Pedidos"
-              description="Confirmar pagamento e atualizar andamento"
-              badge={metrics.pending}
-              onPress={() => router.push('/admin/orders')}
-            />
-            <ActionCard
-              icon="time-outline"
-              title="Encomendas"
-              description="Ver nomes, WhatsApp e observações"
-              badge={metrics.customOrders}
-              onPress={() =>
-                router.push({
-                  pathname: '/admin/orders',
-                  params: { filter: 'custom' },
-                })
-              }
-            />
-            <ActionCard
-              icon="settings-outline"
-              title="Configurações"
-              description="WhatsApp, Pix, retirada e dados da loja"
-              onPress={() => router.push('/admin/settings')}
-            />
-          </View>
-
-          <View style={styles.recentHeader}>
-            <Text style={styles.sectionTitle}>Pedidos recentes</Text>
-            <Pressable onPress={() => router.push('/admin/orders')}>
-              <Text style={styles.link}>Ver todos</Text>
+            <Pressable
+              onPress={() => router.push('/')}
+              style={({ pressed }) => [
+                styles.storeButton,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name="storefront-outline"
+                size={15}
+                color="#8B541B"
+              />
+              <Text style={styles.storeButtonText}>Loja</Text>
             </Pressable>
           </View>
+        </View>
 
-          {!adminOrders.length ? (
-            <View style={styles.noOrders}>
-              <Ionicons name="receipt-outline" size={28} color={colors.primarySoft} />
-              <Text style={styles.noOrdersText}>Nenhum pedido recebido ainda.</Text>
-            </View>
-          ) : (
-            adminOrders.slice(0, 4).map((order) => (
-              <Pressable
-                key={order.id}
-                onPress={() =>
-                  router.push({ pathname: '/admin/order/[id]', params: { id: order.id } })
-                }
-                style={styles.orderCard}>
-                <View>
-                  <Text style={styles.orderCode}>{order.publicCode}</Text>
-                  <Text style={styles.customer}>{order.customer.name}</Text>
-                </View>
-                <View style={styles.orderRight}>
-                  <Text style={styles.orderTotal}>{formatCurrency(order.total)}</Text>
-                  <StatusBadge status={order.status} />
-                </View>
-              </Pressable>
-            ))
-          )}
-        </ScrollView>
-      </Screen>
+        <View style={styles.metrics}>
+          <MetricCard
+            icon="pricetags-outline"
+            label="Produtos"
+            value={String(metrics.activeProducts)}
+          />
+          <MetricCard
+            icon="cube-outline"
+            label="Em estoque"
+            value={String(metrics.stock)}
+          />
+          <MetricCard
+            icon="time-outline"
+            label="Pendentes"
+            value={String(metrics.pending)}
+            warning={metrics.pending > 0}
+          />
+          <MetricCard
+            icon="cash-outline"
+            label="Vendas concluídas"
+            value={formatCurrency(metrics.revenue)}
+            wide
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Gerenciar</Text>
+
+        <View style={styles.actions}>
+          <ActionCard
+            icon="sparkles-outline"
+            title="Campanhas e promoções"
+            description="Banners, selos e preços promocionais"
+            onPress={() => router.push('/admin/campaigns' as Href)}
+          />
+          <ActionCard
+            icon="color-palette-outline"
+            title="Destaques e banner"
+            description="Imagem e conteúdo principal da loja"
+            onPress={() => router.push('/admin/appearance' as Href)}
+          />
+          <ActionCard
+            icon="shirt-outline"
+            title="Produtos e estoque"
+            description="Cadastro, edição e quantidades"
+            onPress={() => router.push('/admin/products')}
+          />
+          <ActionCard
+            icon="grid-outline"
+            title="Categorias"
+            description="Organização das abas do catálogo"
+            onPress={() => router.push('/admin/categories' as Href)}
+          />
+          <ActionCard
+            icon="analytics-outline"
+            title="Desempenho"
+            description="Acessos e produtos mais vistos"
+            onPress={() => router.push('/admin/analytics' as Href)}
+          />
+          <ActionCard
+            icon="megaphone-outline"
+            title="Barra de informações"
+            description="Comunicados exibidos no início"
+            onPress={() => router.push('/admin/notices' as Href)}
+          />
+          <ActionCard
+            icon="receipt-outline"
+            title="Pedidos"
+            description="Pagamento e andamento"
+            badge={metrics.pending}
+            onPress={() => router.push('/admin/orders')}
+          />
+          <ActionCard
+            icon="time-outline"
+            title="Encomendas"
+            description="Itens produzidos sob demanda"
+            badge={metrics.customOrders}
+            onPress={() =>
+              router.push({
+                pathname: '/admin/orders',
+                params: { filter: 'custom' },
+              })
+            }
+          />
+          <ActionCard
+            icon="settings-outline"
+            title="Configurações"
+            description="WhatsApp, Pix e dados da loja"
+            onPress={() => router.push('/admin/settings')}
+          />
+        </View>
+
+        <View style={styles.recentHeader}>
+          <Text style={styles.sectionTitle}>Pedidos recentes</Text>
+
+          <Pressable onPress={() => router.push('/admin/orders')}>
+            <Text style={styles.link}>Ver todos</Text>
+          </Pressable>
+        </View>
+
+        {!adminOrders.length ? (
+          <View style={styles.noOrders}>
+            <Ionicons
+              name="receipt-outline"
+              size={26}
+              color="#B47A33"
+            />
+            <Text style={styles.noOrdersText}>
+              Nenhum pedido recebido ainda.
+            </Text>
+          </View>
+        ) : (
+          adminOrders.slice(0, 4).map((order) => (
+            <Pressable
+              key={order.id}
+              onPress={() =>
+                router.push({
+                  pathname: '/admin/order/[id]',
+                  params: { id: order.id },
+                })
+              }
+              style={({ pressed }) => [
+                styles.orderCard,
+                pressed && styles.pressed,
+              ]}>
+              <View>
+                <Text style={styles.orderCode}>
+                  {order.publicCode}
+                </Text>
+                <Text style={styles.customer}>
+                  {order.customer.name}
+                </Text>
+              </View>
+
+              <View style={styles.orderRight}>
+                <Text style={styles.orderTotal}>
+                  {formatCurrency(order.total)}
+                </Text>
+                <StatusBadge status={order.status} />
+              </View>
+            </Pressable>
+          ))
+        )}
+      </ScrollView>
     </AdminGuard>
   );
 }
@@ -220,9 +291,18 @@ function MetricCard({
 }) {
   return (
     <View style={[styles.metricCard, wide && styles.metricWide]}>
-      <View style={[styles.metricIcon, warning && styles.metricIconWarning]}>
-        <Ionicons name={icon} size={20} color={warning ? colors.warning : colors.primary} />
+      <View
+        style={[
+          styles.metricIcon,
+          warning && styles.metricIconWarning,
+        ]}>
+        <Ionicons
+          name={icon}
+          size={18}
+          color={warning ? colors.warning : '#9D5F1D'}
+        />
       </View>
+
       <Text numberOfLines={1} style={styles.metricValue}>
         {value}
       </Text>
@@ -245,227 +325,309 @@ function ActionCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionCard,
+        pressed && styles.pressed,
+      ]}>
       <View style={styles.actionIcon}>
-        <Ionicons name={icon} size={23} color={colors.primary} />
+        <Ionicons name={icon} size={20} color="#9D5F1D" />
       </View>
+
       <View style={styles.actionText}>
         <Text style={styles.actionTitle}>{title}</Text>
         <Text style={styles.actionDescription}>{description}</Text>
       </View>
+
       {badge > 0 ? (
         <View style={styles.actionBadge}>
           <Text style={styles.actionBadgeText}>{badge}</Text>
         </View>
       ) : (
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        <Ionicons
+          name="chevron-forward"
+          size={17}
+          color="#95867B"
+        />
       )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#F4F0EA',
+  },
+
   content: {
     width: '100%',
-    maxWidth: 1180,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    maxWidth: 1320,
+    padding: 16,
+    paddingBottom: 32,
     alignSelf: 'center',
   },
-  welcome: {
+
+  contentCompact: {
+    padding: 12,
+  },
+
+  topbar: {
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 9,
+
+  pageTitle: {
+    color: '#2C211A',
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 1.4,
   },
-  title: {
-    marginTop: 4,
-    fontFamily: fonts.display,
-    color: colors.text,
-    fontSize: 27,
-    fontWeight: '700',
+
+  pageSubtitle: {
+    marginTop: 2,
+    color: '#88776B',
+    fontSize: 10,
   },
-  mode: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+
+  topbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  connection: {
+    minHeight: 30,
+    paddingHorizontal: 10,
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  modeCloud: {
+
+  connectionOnline: {
     backgroundColor: colors.successSoft,
   },
-  modeOffline: {
+
+  connectionOffline: {
     backgroundColor: colors.dangerSoft,
   },
+
+  connectionText: {
+    fontSize: 9,
+    fontWeight: '900',
+  },
+
+  storeButton: {
+    minHeight: 32,
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderColor: '#D7C8B8',
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFDFC',
+  },
+
+  storeButtonText: {
+    color: '#47372C',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
   metrics: {
-    marginTop: spacing.lg,
+    marginTop: 12,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: 10,
   },
+
   metricCard: {
     flexBasis: '30%',
     flexGrow: 1,
-    minWidth: 100,
-    padding: spacing.md,
+    minWidth: 120,
+    minHeight: 100,
+    padding: 11,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surface,
+    borderColor: '#DED2C7',
+    borderRadius: 13,
+    backgroundColor: '#FFFDFC',
     ...shadow,
   },
+
   metricWide: {
     flexBasis: '100%',
   },
+
   metricIcon: {
-    width: 34,
-    height: 34,
-    marginBottom: spacing.sm,
-    borderRadius: radii.small,
+    width: 30,
+    height: 30,
+    marginBottom: 7,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: '#F6ECE0',
   },
+
   metricIconWarning: {
     backgroundColor: colors.warningSoft,
   },
+
   metricValue: {
-    color: colors.text,
-    fontSize: 18,
+    color: '#2C211A',
+    fontSize: 17,
     fontWeight: '900',
   },
+
   metricLabel: {
     marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 10,
+    color: '#88776B',
+    fontSize: 9,
   },
+
   sectionTitle: {
-    marginTop: spacing.xl,
-    color: colors.text,
-    fontSize: 18,
+    marginTop: 17,
+    color: '#2C211A',
+    fontSize: 16,
     fontWeight: '900',
   },
+
   actions: {
-    marginTop: spacing.md,
+    marginTop: 9,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 8,
   },
+
   actionCard: {
-    minWidth: 300,
+    minWidth: 240,
     flexBasis: '31%',
     flexGrow: 1,
-    minHeight: 78,
-    padding: spacing.md,
+    minHeight: 64,
+    padding: 9,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    borderColor: '#DED2C7',
+    borderRadius: 11,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
+    gap: 9,
+    backgroundColor: '#FFFDFC',
   },
+
   pressed: {
-    opacity: 0.76,
+    opacity: 0.72,
   },
+
   actionIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.medium,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: '#F6ECE0',
   },
+
   actionText: {
     flex: 1,
-    gap: 3,
+    gap: 2,
   },
+
   actionTitle: {
-    color: colors.text,
-    fontSize: 14,
+    color: '#2C211A',
+    fontSize: 12,
     fontWeight: '800',
   },
+
   actionDescription: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
+    color: '#88776B',
+    fontSize: 9,
+    lineHeight: 13,
   },
+
   actionBadge: {
-    minWidth: 25,
-    height: 25,
-    paddingHorizontal: 6,
-    borderRadius: 13,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 5,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.warning,
+    backgroundColor: '#A66A27',
   },
+
   actionBadgeText: {
-    color: colors.white,
-    fontSize: 11,
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: '900',
   },
+
   recentHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
+
   link: {
-    color: colors.primary,
-    fontSize: 12,
+    color: '#9D5F1D',
+    fontSize: 10,
     fontWeight: '800',
   },
+
   noOrders: {
-    minHeight: 120,
-    marginTop: spacing.md,
+    minHeight: 96,
+    marginTop: 9,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    borderColor: '#DED2C7',
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
+    gap: 7,
+    backgroundColor: '#FFFDFC',
   },
+
   noOrdersText: {
-    color: colors.textMuted,
-    fontSize: 12,
+    color: '#88776B',
+    fontSize: 10,
   },
+
   orderCard: {
-    minHeight: 76,
-    marginTop: spacing.sm,
-    padding: spacing.md,
+    minHeight: 60,
+    marginTop: 7,
+    padding: 9,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    borderColor: '#DED2C7',
+    borderRadius: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
+    gap: 9,
+    backgroundColor: '#FFFDFC',
   },
+
   orderCode: {
-    color: colors.text,
-    fontSize: 13,
+    color: '#2C211A',
+    fontSize: 11,
     fontWeight: '900',
   },
+
   customer: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 11,
+    marginTop: 2,
+    color: '#88776B',
+    fontSize: 9,
   },
+
   orderRight: {
     alignItems: 'flex-end',
-    gap: 5,
+    gap: 4,
   },
+
   orderTotal: {
-    color: colors.primary,
-    fontSize: 13,
+    color: '#9D5F1D',
+    fontSize: 11,
     fontWeight: '900',
   },
 });

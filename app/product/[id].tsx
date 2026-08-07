@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
-import { MarketingBadge } from '@/src/components/marketing-badge';
 import { ProductGrid } from '@/src/components/product-grid';
-import { ProductImage } from '@/src/components/product-image';
+import { ProductGallery } from '@/src/components/product/product-gallery';
 import { Screen } from '@/src/components/screen';
 import { Button, EmptyState, QuantityStepper } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
@@ -68,7 +67,6 @@ export default function ProductDetailsScreen() {
 
   const currentProduct = product;
   const imageUrls = currentProduct.imageUrls.length ? currentProduct.imageUrls : [''];
-  const selectedImage = imageUrls[selectedImageIndex] ?? imageUrls[0];
   const outOfStock =
     currentProduct.availability === 'ready' && currentProduct.stock <= 0;
   const isCustomOrder =
@@ -120,53 +118,13 @@ export default function ProductDetailsScreen() {
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <View style={[styles.productLayout, desktop && styles.productLayoutDesktop]}>
-          <View style={[styles.galleryColumn, desktop && styles.galleryColumnDesktop]}>
-            <View style={styles.mainImageWrap}>
-              <ProductImage
-                uri={selectedImage}
-                contentFit={
-                  currentProduct.photoProvisional ||
-                  currentProduct.photoQuality === 'reduced'
-                    ? 'contain'
-                    : 'cover'
-                }
-                style={styles.image}
-              />
+          <ProductGallery
+            product={currentProduct}
+            imageUrls={imageUrls}
+            selectedImageIndex={selectedImageIndex}
+            onSelectImage={setSelectedImageIndex}
+          />
 
-              {product.marketingBadge ? (
-                <MarketingBadge
-                  badge={product.marketingBadge}
-                />
-              ) : null}
-            </View>
-            {imageUrls.length > 1 ? (
-              <View style={styles.gallery}>
-                <View style={styles.galleryHeader}>
-                  <Text style={styles.galleryTitle}>Fotos do produto</Text>
-                  <Text style={styles.galleryCount}>
-                    {selectedImageIndex + 1} de {imageUrls.length}
-                  </Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  contentContainerStyle={styles.thumbnails}
-                  showsHorizontalScrollIndicator>
-                  {imageUrls.map((uri, index) => (
-                    <Pressable
-                      key={`${uri}-${index}`}
-                      accessibilityLabel={`Ver foto ${index + 1} de ${imageUrls.length}`}
-                      onPress={() => setSelectedImageIndex(index)}
-                      style={[
-                        styles.thumbnailButton,
-                        selectedImageIndex === index && styles.thumbnailButtonActive,
-                      ]}>
-                      <ProductImage uri={uri} style={styles.thumbnail} />
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-          </View>
           <View style={[styles.details, desktop && styles.detailsDesktop]}>
           <View
             style={[
@@ -422,64 +380,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     color: colors.textMuted,
     fontSize: 13,
-  },
-  galleryColumn: {
-    backgroundColor: colors.surface,
-  },
-  galleryColumnDesktop: {
-    width: '55%',
-    overflow: 'hidden',
-    borderRadius: radii.large,
-  },
-  mainImageWrap: {
-    position: 'relative',
-  },
-
-  image: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: colors.surfaceWarm,
-  },
-  gallery: {
-    paddingTop: spacing.md,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  galleryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  galleryTitle: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  galleryCount: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  thumbnails: {
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  thumbnailButton: {
-    width: 68,
-    height: 68,
-    padding: 2,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    borderRadius: radii.small,
-  },
-  thumbnailButtonActive: {
-    borderColor: colors.primary,
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-    borderRadius: radii.small,
   },
   details: {
     padding: spacing.lg,

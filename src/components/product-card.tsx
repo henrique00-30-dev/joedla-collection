@@ -30,10 +30,11 @@ export function ProductCard({
 }: ProductCardProps) {
   const { favorites, toggleFavorite } = useStore();
   const favorite = favorites.includes(product.id);
+
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [reduceMotion, setReduceMotion] =
-    useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
   const lift = useRef(new Animated.Value(0)).current;
 
   const outOfStock =
@@ -45,6 +46,22 @@ export function ProductCard({
     : product.availability === 'ready'
       ? 'Pronta entrega'
       : 'Encomenda';
+
+  const hasDiscount =
+    Boolean(product.originalPrice) &&
+    Number(product.originalPrice) > product.price;
+
+  const discountPercentage =
+    hasDiscount && product.originalPrice
+      ? Math.max(
+          1,
+          Math.round(
+            ((product.originalPrice - product.price) /
+              product.originalPrice) *
+              100,
+          ),
+        )
+      : null;
 
   useEffect(() => {
     if (
@@ -58,20 +75,22 @@ export function ProductCard({
       '(prefers-reduced-motion: reduce)',
     );
 
-    const update = () =>
+    const update = () => {
       setReduceMotion(media.matches);
+    };
 
     update();
     media.addEventListener?.('change', update);
 
-    return () =>
+    return () => {
       media.removeEventListener?.('change', update);
+    };
   }, []);
 
   useEffect(() => {
     Animated.timing(lift, {
       toValue: hovered || focused ? 1 : 0,
-      duration: reduceMotion ? 0 : 200,
+      duration: reduceMotion ? 0 : 190,
       useNativeDriver: false,
     }).start();
   }, [focused, hovered, lift, reduceMotion]);
@@ -83,27 +102,27 @@ export function ProductCard({
             {
               translateY: lift.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, -6],
+                outputRange: [0, -5],
               }),
             },
             {
               scale: lift.interpolate({
                 inputRange: [0, 1],
-                outputRange: [1, 1.025],
+                outputRange: [1, 1.012],
               }),
             },
           ],
           shadowOpacity: lift.interpolate({
             inputRange: [0, 1],
-            outputRange: [0.08, 0.2],
+            outputRange: [0.07, 0.16],
           }),
           shadowRadius: lift.interpolate({
             inputRange: [0, 1],
-            outputRange: [8, 18],
+            outputRange: [8, 16],
           }),
           elevation: lift.interpolate({
             inputRange: [0, 1],
-            outputRange: [2, 8],
+            outputRange: [2, 7],
           }),
         }
       : undefined;
@@ -155,6 +174,8 @@ export function ProductCard({
             ]}
           />
 
+          <View style={styles.imageOverlay} />
+
           <Pressable
             accessibilityLabel={
               favorite
@@ -166,19 +187,28 @@ export function ProductCard({
               event.stopPropagation();
               toggleFavorite(product.id);
             }}
-            style={styles.heart}>
+            style={({ pressed }) => [
+              styles.heart,
+              pressed && styles.heartPressed,
+            ]}>
             <Ionicons
-              name={
-                favorite ? 'heart' : 'heart-outline'
-              }
-              size={21}
+              name={favorite ? 'heart' : 'heart-outline'}
+              size={22}
               color={
                 favorite
                   ? colors.danger
-                  : colors.text
+                  : colors.primaryDark
               }
             />
           </Pressable>
+
+          {discountPercentage ? (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountBadgeText}>
+                -{discountPercentage}%
+              </Text>
+            </View>
+          ) : null}
 
           <View
             style={[
@@ -212,19 +242,24 @@ export function ProductCard({
             {product.name}
           </Text>
 
-          <View style={styles.priceRow}>
-            {product.originalPrice &&
-            product.originalPrice > product.price ? (
+          <View style={styles.priceBlock}>
+            {hasDiscount && product.originalPrice ? (
               <Text style={styles.originalPrice}>
-                {formatCurrency(
-                  product.originalPrice,
-                )}
+                {formatCurrency(product.originalPrice)}
               </Text>
             ) : null}
 
-            <Text style={styles.price}>
-              {formatCurrency(product.price)}
-            </Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>
+                {formatCurrency(product.price)}
+              </Text>
+
+              {product.availability === 'custom' ? (
+                <Text style={styles.customHint}>
+                  sob encomenda
+                </Text>
+              ) : null}
+            </View>
           </View>
         </View>
       </Pressable>
@@ -235,10 +270,10 @@ export function ProductCard({
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
-    borderRadius: radii.medium,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: 'rgba(111,76,56,0.12)',
+    borderRadius: 18,
+    backgroundColor: '#FFFEFC',
     ...shadow,
   },
 
@@ -248,52 +283,91 @@ const styles = StyleSheet.create({
   },
 
   pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
+    transform: [{ scale: 0.995 }],
   },
 
   imageWrap: {
     position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: '#F7F1EA',
   },
 
   image: {
     width: '100%',
   },
 
+  imageOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 56,
+    backgroundColor: 'rgba(24,16,12,0.05)',
+  },
+
   heart: {
     position: 'absolute',
     right: spacing.sm,
     top: spacing.sm,
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(111,76,56,0.14)',
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    ...shadow,
+  },
+
+  heartPressed: {
+    opacity: 0.74,
+    transform: [{ scale: 0.94 }],
+  },
+
+  discountBadge: {
+    position: 'absolute',
+    left: spacing.sm,
+    top: spacing.sm,
+    minHeight: 29,
+    paddingHorizontal: 10,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#C94E39',
+  },
+
+  discountBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '900',
   },
 
   availability: {
     position: 'absolute',
     left: spacing.sm,
     bottom: spacing.sm,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    minHeight: 28,
+    paddingHorizontal: 10,
     borderRadius: radii.pill,
-    backgroundColor: colors.successSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(242,247,240,0.94)',
   },
 
   availabilityCustom: {
-    backgroundColor: colors.warningSoft,
+    backgroundColor: 'rgba(255,247,226,0.95)',
   },
 
   availabilityOutOfStock: {
-    backgroundColor: colors.dangerSoft,
+    backgroundColor: 'rgba(255,235,235,0.96)',
   },
 
   availabilityText: {
     color: colors.primaryDark,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '800',
   },
 
   availabilityTextOutOfStock: {
@@ -301,36 +375,48 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    minHeight: 82,
-    padding: spacing.md,
-    gap: spacing.xs,
+    minHeight: 96,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
 
   name: {
-    minHeight: 36,
+    minHeight: 39,
     color: colors.text,
     fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '600',
+    lineHeight: 19,
+    fontWeight: '700',
   },
 
-  price: {
-    color: colors.primary,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  priceRow: {
-    minHeight: 24,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    gap: spacing.xs,
+  priceBlock: {
+    marginTop: spacing.sm,
   },
 
   originalPrice: {
     color: colors.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     textDecorationLine: 'line-through',
+  },
+
+  priceRow: {
+    marginTop: 2,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+  },
+
+  price: {
+    color: '#8B451C',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+
+  customHint: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
   },
 });

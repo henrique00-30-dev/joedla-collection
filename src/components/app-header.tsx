@@ -1,7 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
@@ -30,13 +39,29 @@ export function AppHeader({
   const { cartCount, categories } = useStore();
   const { width } = useWindowDimensions();
   const isDesktop = width >= DESKTOP_BREAKPOINT;
+  const [search, setSearch] = useState('');
 
   function handleBack() {
     if (router.canGoBack()) {
       router.back();
       return;
     }
+
     router.replace('/');
+  }
+
+  function submitSearch() {
+    const value = search.trim();
+
+    if (!value) {
+      router.replace('/');
+      return;
+    }
+
+    router.push({
+      pathname: '/',
+      params: { search: value },
+    } as never);
   }
 
   if (compact || title) {
@@ -53,14 +78,23 @@ export function AppHeader({
               accessibilityLabel="Voltar"
               hitSlop={12}
               onPress={handleBack}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-              <Ionicons name="chevron-back" size={24} color={colors.text} />
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name="chevron-back"
+                size={24}
+                color={colors.text}
+              />
             </Pressable>
           ) : null}
         </View>
+
         <Text numberOfLines={1} style={styles.title}>
           {title}
         </Text>
+
         <View
           style={[
             styles.side,
@@ -73,18 +107,33 @@ export function AppHeader({
               accessibilityLabel="Voltar para a loja"
               hitSlop={10}
               onPress={() => router.replace('/')}
-              style={({ pressed }) => [styles.storeButton, pressed && styles.pressed]}>
-              <Ionicons name="home-outline" size={18} color={colors.primary} />
+              style={({ pressed }) => [
+                styles.storeButton,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name="home-outline"
+                size={18}
+                color={colors.primary}
+              />
               <Text style={styles.storeButtonText}>Loja</Text>
             </Pressable>
           ) : null}
+
           {rightAction ? (
             <Pressable
               accessibilityLabel={rightAction.label ?? 'Ação'}
               hitSlop={12}
               onPress={rightAction.onPress}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-              <Ionicons name={rightAction.icon} size={23} color={colors.text} />
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name={rightAction.icon}
+                size={23}
+                color={colors.text}
+              />
             </Pressable>
           ) : null}
         </View>
@@ -94,78 +143,203 @@ export function AppHeader({
 
   if (!isDesktop) {
     return (
-      <View style={styles.mobileHeader}>
-        <Pressable
-          accessibilityLabel="Abrir menu"
-          onPress={() => router.push('/(tabs)/menu')}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-          <Ionicons name="menu-outline" size={25} color={colors.text} />
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Ir para o início"
-          onPress={() => router.replace('/')}
-          style={styles.mobileBrand}>
-          <Image
-            source={require('@/assets/images/joedla-logo.png')}
-            contentFit="contain"
-            style={styles.mobileLogo}
-          />
-          <View>
-            <Text style={styles.mobileBrandName}>JOEDLA</Text>
-            <Text style={styles.mobileBrandCollection}>COLLECTION</Text>
-          </View>
-        </Pressable>
-        <CartButton cartCount={cartCount} />
+      <View>
+        <TopNotice compact />
+        <View style={styles.mobileHeader}>
+          <Pressable
+            accessibilityLabel="Abrir menu"
+            onPress={() => router.push('/(tabs)/menu')}
+            style={({ pressed }) => [
+              styles.mobileIconButton,
+              pressed && styles.pressed,
+            ]}>
+            <Ionicons
+              name="menu-outline"
+              size={26}
+              color={colors.primaryDark}
+            />
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="Ir para o início"
+            onPress={() => router.replace('/')}
+            style={styles.mobileBrand}>
+            <Image
+              source={require('@/assets/images/joedla-logo.png')}
+              contentFit="contain"
+              style={styles.mobileLogo}
+            />
+
+            <View>
+              <Text style={styles.mobileBrandName}>JOEDLA</Text>
+              <Text style={styles.mobileBrandCollection}>
+                COLLECTION
+              </Text>
+            </View>
+          </Pressable>
+
+          <CartButton cartCount={cartCount} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.desktopHeader}>
+      <TopNotice />
+
       <View style={styles.desktopPrimaryRow}>
-        <Pressable onPress={() => router.replace('/')} style={styles.desktopBrand}>
+        <Pressable
+          accessibilityLabel="Ir para o início"
+          onPress={() => router.replace('/')}
+          style={styles.desktopBrand}>
           <Image
             source={require('@/assets/images/joedla-logo.png')}
             contentFit="contain"
             style={styles.desktopLogo}
           />
+
           <View>
             <Text style={styles.desktopBrandName}>JOEDLA</Text>
-            <Text style={styles.desktopBrandCollection}>COLLECTION • MODA E ACESSÓRIOS</Text>
+            <Text style={styles.desktopBrandCollection}>
+              COLLECTION
+            </Text>
           </View>
         </Pressable>
+
+        <View style={styles.searchShell}>
+          <Ionicons
+            name="search-outline"
+            size={22}
+            color={colors.textMuted}
+          />
+
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={submitSearch}
+            returnKeyType="search"
+            placeholder="O que você procura?"
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+          />
+
+          {search ? (
+            <Pressable
+              accessibilityLabel="Limpar busca"
+              hitSlop={10}
+              onPress={() => setSearch('')}
+              style={({ pressed }) => [
+                styles.searchClear,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={colors.textMuted}
+              />
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityLabel="Buscar"
+              hitSlop={10}
+              onPress={submitSearch}
+              style={({ pressed }) => [
+                styles.searchSubmit,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name="arrow-forward"
+                size={19}
+                color={colors.white}
+              />
+            </Pressable>
+          )}
+        </View>
+
         <View style={styles.desktopActions}>
           <HeaderAction
             icon="heart-outline"
             label="Favoritos"
             onPress={() => router.push('/favorites')}
           />
+
+          <HeaderAction
+            icon="person-outline"
+            label="Conta"
+            onPress={() => router.push('/account')}
+          />
+
           <CartButton cartCount={cartCount} withLabel />
         </View>
       </View>
+
       <View style={styles.desktopNav}>
-        <Pressable onPress={() => router.replace('/')} style={styles.navItem}>
+        <Pressable
+          onPress={() => router.replace('/')}
+          style={({ pressed }) => [
+            styles.navItem,
+            pressed && styles.navItemPressed,
+          ]}>
           <Text style={styles.navText}>Início</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/(tabs)/categories')} style={styles.navItem}>
+
+        <Pressable
+          onPress={() => router.push('/(tabs)/categories')}
+          style={({ pressed }) => [
+            styles.navItem,
+            pressed && styles.navItemPressed,
+          ]}>
           <Text style={styles.navText}>Todas as categorias</Text>
         </Pressable>
-        {categories.slice(0, width >= 1200 ? 5 : 3).map((category) => (
-          <Pressable
-            key={category.slug}
-            onPress={() =>
-              router.push({ pathname: '/category/[slug]', params: { slug: category.slug } })
-            }
-            style={styles.navItem}>
-            <Text numberOfLines={1} style={styles.navText}>
-              {category.name}
-            </Text>
-          </Pressable>
-        ))}
-        <Pressable onPress={() => router.push('/how-to-buy')} style={styles.navItem}>
+
+        {categories
+          .slice(0, width >= 1200 ? 5 : 3)
+          .map((category) => (
+            <Pressable
+              key={category.slug}
+              onPress={() =>
+                router.push({
+                  pathname: '/category/[slug]',
+                  params: { slug: category.slug },
+                })
+              }
+              style={({ pressed }) => [
+                styles.navItem,
+                pressed && styles.navItemPressed,
+              ]}>
+              <Text numberOfLines={1} style={styles.navText}>
+                {category.name}
+              </Text>
+            </Pressable>
+          ))}
+
+        <Pressable
+          onPress={() => router.push('/how-to-buy')}
+          style={({ pressed }) => [
+            styles.navItem,
+            pressed && styles.navItemPressed,
+          ]}>
           <Text style={styles.navText}>Como comprar</Text>
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+function TopNotice({ compact = false }: { compact?: boolean }) {
+  return (
+    <View style={[styles.topNotice, compact && styles.topNoticeCompact]}>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.topNoticeText,
+          compact && styles.topNoticeTextCompact,
+        ]}>
+        FRETE GRÁTIS PARA ROSÁRIO DO CATETE-SE
+        {'  •  '}
+        PARCELE EM ATÉ 6X SEM JUROS
+      </Text>
     </View>
   );
 }
@@ -183,52 +357,118 @@ function HeaderAction({
     <Pressable
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
-      <Ionicons name={icon} size={21} color={colors.primaryDark} />
+      style={({ pressed }) => [
+        styles.headerAction,
+        pressed && styles.headerActionPressed,
+      ]}>
+      <Ionicons
+        name={icon}
+        size={22}
+        color={colors.primaryDark}
+      />
       <Text style={styles.headerActionText}>{label}</Text>
     </Pressable>
   );
 }
 
-function CartButton({ cartCount, withLabel = false }: { cartCount: number; withLabel?: boolean }) {
+function CartButton({
+  cartCount,
+  withLabel = false,
+}: {
+  cartCount: number;
+  withLabel?: boolean;
+}) {
   return (
     <Pressable
       accessibilityLabel="Abrir carrinho"
       onPress={() => router.push('/(tabs)/cart')}
-      style={({ pressed }) => [withLabel ? styles.headerAction : styles.iconButton, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        withLabel ? styles.headerAction : styles.mobileIconButton,
+        pressed &&
+          (withLabel
+            ? styles.headerActionPressed
+            : styles.pressed),
+      ]}>
       <View>
-        <Ionicons name="bag-handle-outline" size={withLabel ? 21 : 25} color={colors.primaryDark} />
+        <Ionicons
+          name="bag-handle-outline"
+          size={withLabel ? 22 : 26}
+          color={colors.primaryDark}
+        />
+
         {cartCount > 0 ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+            <Text style={styles.badgeText}>
+              {cartCount > 9 ? '9+' : cartCount}
+            </Text>
           </View>
         ) : null}
       </View>
-      {withLabel ? <Text style={styles.headerActionText}>Carrinho</Text> : null}
+
+      {withLabel ? (
+        <Text style={styles.headerActionText}>Carrinho</Text>
+      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  topNotice: {
+    minHeight: 30,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2A1207',
+  },
+
+  topNoticeCompact: {
+    minHeight: 26,
+    paddingHorizontal: spacing.md,
+  },
+
+  topNoticeText: {
+    color: '#F6E8D5',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textAlign: 'center',
+  },
+
+  topNoticeTextCompact: {
+    fontSize: 8,
+    letterSpacing: 0.7,
+  },
+
   mobileHeader: {
-    minHeight: 76,
+    minHeight: 78,
     paddingHorizontal: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFEFC',
   },
-  mobileBrand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  mobileLogo: { width: 48, height: 48 },
+
+  mobileBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+
+  mobileLogo: {
+    width: 52,
+    height: 52,
+  },
+
   mobileBrandName: {
     fontFamily: fonts.display,
     color: colors.primaryDark,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: 1.6,
+    letterSpacing: 1.8,
   },
+
   mobileBrandCollection: {
     marginTop: -2,
     color: colors.textMuted,
@@ -236,58 +476,169 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 3,
   },
+
+  mobileIconButton: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   desktopHeader: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFEFC',
+    ...(Platform.OS === 'web'
+      ? {
+          shadowColor: '#2A1207',
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+        }
+      : {}),
   },
+
   desktopPrimaryRow: {
     width: '100%',
-    maxWidth: 1200,
-    minHeight: 104,
+    maxWidth: 1280,
+    minHeight: 94,
     paddingHorizontal: spacing.xl,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.xl,
   },
-  desktopBrand: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  desktopLogo: { width: 82, height: 82 },
+
+  desktopBrand: {
+    minWidth: 230,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+
+  desktopLogo: {
+    width: 72,
+    height: 72,
+  },
+
   desktopBrandName: {
     fontFamily: fonts.display,
     color: colors.primaryDark,
-    fontSize: 29,
+    fontSize: 28,
     fontWeight: '800',
     letterSpacing: 3,
   },
+
   desktopBrandCollection: {
+    marginTop: -2,
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 7,
+    letterSpacing: 4.8,
   },
-  desktopActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerAction: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
+
+  searchShell: {
+    minWidth: 320,
+    maxWidth: 560,
+    minHeight: 48,
+    flex: 1,
+    paddingLeft: spacing.md,
+    paddingRight: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    backgroundColor: colors.surface,
   },
-  headerActionText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+
+  searchInput: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
+    outlineStyle: 'none' as never,
+  },
+
+  searchClear: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  searchSubmit: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+
+  desktopActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+
+  headerAction: {
+    minWidth: 72,
+    minHeight: 56,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+
+  headerActionPressed: {
+    opacity: 0.78,
+    backgroundColor: colors.surfaceWarm,
+    transform: [{ scale: 0.98 }],
+  },
+
+  headerActionText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
   desktopNav: {
     width: '100%',
-    maxWidth: 1200,
-    minHeight: 52,
+    maxWidth: 1280,
+    minHeight: 50,
     paddingHorizontal: spacing.xl,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xl,
   },
-  navItem: { minHeight: 52, justifyContent: 'center' },
-  navText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+
+  navItem: {
+    minHeight: 50,
+    paddingHorizontal: spacing.xs,
+    justifyContent: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+
+  navItemPressed: {
+    borderBottomColor: colors.primary,
+    opacity: 0.78,
+  },
+
+  navText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
   iconButton: {
     width: 42,
     height: 42,
@@ -295,20 +646,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.62 },
+
+  pressed: {
+    opacity: 0.62,
+  },
+
   badge: {
     position: 'absolute',
     right: -9,
     top: -8,
-    minWidth: 18,
-    height: 18,
+    minWidth: 19,
+    height: 19,
     paddingHorizontal: 4,
-    borderRadius: 9,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#B67627',
   },
-  badgeText: { color: colors.white, fontSize: 10, fontWeight: '800' },
+
+  badgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
   compactHeader: {
     minHeight: 62,
     paddingHorizontal: spacing.md,
@@ -318,10 +679,27 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  side: { width: 52, alignItems: 'flex-start' },
-  sideRight: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', gap: spacing.xs },
-  sideWithTwoActions: { width: 100 },
-  sideWithStore: { width: 68 },
+
+  side: {
+    width: 52,
+    alignItems: 'flex-start',
+  },
+
+  sideRight: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+  },
+
+  sideWithTwoActions: {
+    width: 100,
+  },
+
+  sideWithStore: {
+    width: 68,
+  },
+
   storeButton: {
     minWidth: 58,
     height: 38,
@@ -335,6 +713,18 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: colors.surface,
   },
-  storeButtonText: { color: colors.primary, fontSize: 11, fontWeight: '800' },
-  title: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 18, fontWeight: '700' },
+
+  storeButtonText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  title: {
+    flex: 1,
+    textAlign: 'center',
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
 });
