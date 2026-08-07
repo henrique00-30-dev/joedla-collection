@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
+import { OrderReviewSection } from '@/src/components/orders/order-review-section';
 import { Screen } from '@/src/components/screen';
 import { EmptyState, StatusBadge } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
@@ -18,17 +19,11 @@ import { formatCurrency, formatDate } from '@/src/utils/format';
 export default function OrdersScreen() {
   const { customerOrders } = useStore();
   const { width } = useWindowDimensions();
-
   const desktop = width >= 900;
 
   return (
     <Screen>
-      <AppHeader
-        compact
-        title="Meus pedidos"
-        showBack
-        showStoreHome
-      />
+      <AppHeader compact title="Meus pedidos" showBack showStoreHome />
 
       {!customerOrders.length ? (
         <EmptyState
@@ -40,43 +35,23 @@ export default function OrdersScreen() {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            desktop && styles.contentDesktop,
-          ]}
+          contentContainerStyle={[styles.content, desktop && styles.contentDesktop]}
           showsVerticalScrollIndicator>
           <View style={styles.pageHeader}>
             <View style={styles.pageHeaderCopy}>
-              <Text style={styles.eyebrow}>
-                ACOMPANHAMENTO
-              </Text>
-
-              <Text style={styles.pageTitle}>
-                Seus pedidos em um só lugar
-              </Text>
-
+              <Text style={styles.eyebrow}>ACOMPANHAMENTO</Text>
+              <Text style={styles.pageTitle}>Seus pedidos em um só lugar</Text>
               <Text style={styles.pageSubtitle}>
-                Consulte status, itens, forma de entrega e total
-                de cada compra realizada.
+                Consulte status, itens, forma de entrega e total de cada compra realizada.
               </Text>
             </View>
 
             <View style={styles.counter}>
-              <Ionicons
-                name="receipt-outline"
-                size={20}
-                color={colors.primary}
-              />
-
+              <Ionicons name="receipt-outline" size={20} color={colors.primary} />
               <View>
-                <Text style={styles.counterValue}>
-                  {customerOrders.length}
-                </Text>
-
+                <Text style={styles.counterValue}>{customerOrders.length}</Text>
                 <Text style={styles.counterLabel}>
-                  {customerOrders.length === 1
-                    ? 'pedido'
-                    : 'pedidos'}
+                  {customerOrders.length === 1 ? 'pedido' : 'pedidos'}
                 </Text>
               </View>
             </View>
@@ -84,16 +59,10 @@ export default function OrdersScreen() {
 
           <View style={styles.info}>
             <View style={styles.infoIcon}>
-              <Ionicons
-                name="logo-whatsapp"
-                size={20}
-                color={colors.info}
-              />
+              <Ionicons name="logo-whatsapp" size={20} color={colors.info} />
             </View>
-
             <Text style={styles.infoText}>
-              A confirmação final e os detalhes da entrega são
-              enviados pelo WhatsApp.
+              A confirmação final e os detalhes da entrega são enviados pelo WhatsApp. Depois que o pedido for concluído, você poderá avaliar os produtos comprados.
             </Text>
           </View>
 
@@ -102,31 +71,19 @@ export default function OrdersScreen() {
               <View key={order.id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <View style={styles.codeBlock}>
-                    <Text style={styles.code}>
-                      {order.publicCode}
-                    </Text>
-
-                    <Text style={styles.date}>
-                      {formatDate(order.createdAt)}
-                    </Text>
+                    <Text style={styles.code}>{order.publicCode}</Text>
+                    <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
                   </View>
-
                   <StatusBadge status={order.status} />
                 </View>
 
                 <View style={styles.divider} />
 
                 <View style={styles.itemsBlock}>
-                  <Text style={styles.itemsLabel}>
-                    Itens do pedido
-                  </Text>
-
+                  <Text style={styles.itemsLabel}>Itens do pedido</Text>
                   <Text style={styles.items}>
                     {order.items
-                      .map(
-                        (item) =>
-                          `${item.quantity}x ${item.productName}`,
-                      )
+                      .map((item) => `${item.quantity}x ${item.productName}`)
                       .join(', ')}
                   </Text>
                 </View>
@@ -146,12 +103,8 @@ export default function OrdersScreen() {
                         color={colors.success}
                       />
                     </View>
-
                     <View>
-                      <Text style={styles.deliveryLabel}>
-                        Entrega
-                      </Text>
-
+                      <Text style={styles.deliveryLabel}>Entrega</Text>
                       <Text style={styles.delivery}>
                         {order.deliveryMethod === 'delivery'
                           ? 'Entrega grátis'
@@ -163,15 +116,14 @@ export default function OrdersScreen() {
                   </View>
 
                   <View style={styles.totalBlock}>
-                    <Text style={styles.totalLabel}>
-                      Total
-                    </Text>
-
-                    <Text style={styles.total}>
-                      {formatCurrency(order.total)}
-                    </Text>
+                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.total}>{formatCurrency(order.total)}</Text>
                   </View>
                 </View>
+
+                {order.status === 'completed' ? (
+                  <OrderReviewSection order={order} />
+                ) : null}
               </View>
             ))}
           </View>
@@ -184,38 +136,32 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   content: {
     width: '100%',
+    minWidth: 0,
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.xl,
   },
-
   contentDesktop: {
     maxWidth: 980,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.xxl,
     alignSelf: 'center',
   },
-
   pageHeader: {
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: spacing.lg,
   },
-
-  pageHeaderCopy: {
-    minWidth: 260,
-    flex: 1,
-  },
-
+  pageHeaderCopy: { minWidth: 240, flex: 1 },
   eyebrow: {
     color: '#9D6A2F',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 2.4,
   },
-
   pageTitle: {
     marginTop: spacing.xs,
     fontFamily: fonts.display,
@@ -224,7 +170,6 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     fontWeight: '800',
   },
-
   pageSubtitle: {
     maxWidth: 620,
     marginTop: spacing.sm,
@@ -232,7 +177,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
   },
-
   counter: {
     minWidth: 150,
     minHeight: 72,
@@ -246,19 +190,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEFC',
     ...shadow,
   },
-
-  counterValue: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-
-  counterLabel: {
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-
+  counterValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  counterLabel: { color: colors.textMuted, fontSize: 10 },
   info: {
+    minWidth: 0,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(77,113,169,0.16)',
@@ -268,7 +203,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.infoSoft,
   },
-
   infoIcon: {
     width: 42,
     height: 42,
@@ -277,7 +211,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
-
   infoText: {
     minWidth: 0,
     flex: 1,
@@ -286,12 +219,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '700',
   },
-
-  ordersList: {
-    gap: spacing.md,
-  },
-
+  ordersList: { minWidth: 0, gap: spacing.md },
   card: {
+    minWidth: 0,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(111,76,56,0.12)',
@@ -300,40 +230,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEFC',
     ...shadow,
   },
-
   cardHeader: {
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: spacing.md,
   },
-
-  codeBlock: {
-    minWidth: 0,
-  },
-
-  code: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-
-  date: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
-
-  itemsBlock: {
-    gap: spacing.xs,
-  },
-
+  codeBlock: { minWidth: 0 },
+  code: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  date: { marginTop: 3, color: colors.textMuted, fontSize: 10 },
+  divider: { height: 1, backgroundColor: colors.border },
+  itemsBlock: { minWidth: 0, gap: spacing.xs },
   itemsLabel: {
     color: colors.text,
     fontSize: 11,
@@ -341,14 +250,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-
-  items: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-
+  items: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   cardFooter: {
+    minWidth: 0,
     paddingTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -356,13 +260,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
   },
-
-  deliveryBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-
+  deliveryBlock: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   deliveryIcon: {
     width: 38,
     height: 38,
@@ -371,36 +269,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.successSoft,
   },
-
   deliveryLabel: {
     color: colors.textMuted,
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-
-  delivery: {
-    marginTop: 2,
-    color: colors.success,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-
-  totalBlock: {
-    alignItems: 'flex-end',
-  },
-
+  delivery: { marginTop: 2, color: colors.success, fontSize: 12, fontWeight: '800' },
+  totalBlock: { alignItems: 'flex-end' },
   totalLabel: {
     color: colors.textMuted,
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-
-  total: {
-    marginTop: 2,
-    color: '#8B451C',
-    fontSize: 20,
-    fontWeight: '900',
-  },
+  total: { marginTop: 2, color: '#8B451C', fontSize: 20, fontWeight: '900' },
 });
