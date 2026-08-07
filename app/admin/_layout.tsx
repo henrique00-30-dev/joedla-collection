@@ -64,6 +64,11 @@ const MENU_GROUPS: AdminMenuGroup[] = [
         icon: 'pricetag-outline',
         href: '/admin/promotions',
       },
+      {
+        label: 'Campanhas',
+        icon: 'megaphone-outline',
+        href: '/admin/campaigns',
+      },
     ],
   },
   {
@@ -73,6 +78,11 @@ const MENU_GROUPS: AdminMenuGroup[] = [
         label: 'Barra de informações',
         icon: 'reorder-three-outline',
         href: '/admin/notices',
+      },
+      {
+        label: 'Moderação',
+        icon: 'chatbubbles-outline',
+        href: '/admin/community',
       },
     ],
   },
@@ -297,7 +307,7 @@ function AdminSidebar({
                     ]}>
                     <Ionicons
                       name={item.icon}
-                        size={17}
+                      size={17}
                       color={
                         active
                           ? '#FFFFFF'

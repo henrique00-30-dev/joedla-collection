@@ -58,7 +58,11 @@ export function Button({
               color={variant === 'primary' ? colors.white : colors.primary}
             />
           ) : null}
-          <Text style={[styles.buttonText, styles[`buttonText_${variant}`]]}>{children}</Text>
+          <Text
+            numberOfLines={2}
+            style={[styles.buttonText, styles[`buttonText_${variant}`]]}>
+            {children}
+          </Text>
         </>
       )}
     </Pressable>
@@ -191,10 +195,13 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   button: {
+    minWidth: 0,
+    maxWidth: '100%',
     minHeight: 50,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.medium,
     flexDirection: 'row',
+    flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
@@ -222,8 +229,11 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   buttonText: {
+    minWidth: 0,
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '800',
+    textAlign: 'center',
   },
   buttonText_primary: {
     color: colors.white,
@@ -238,6 +248,8 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   fieldGroup: {
+    minWidth: 0,
+    maxWidth: '100%',
     gap: 8,
   },
   fieldLabel: {
@@ -246,6 +258,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   field: {
+    width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
     minHeight: 50,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
@@ -266,7 +281,9 @@ const styles = StyleSheet.create({
   },
   stepper: {
     height: 48,
+    maxWidth: '100%',
     flexDirection: 'row',
+    flexShrink: 1,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.primarySoft,
@@ -300,6 +317,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radii.pill,
@@ -338,7 +356,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyButton: {
-    minWidth: 180,
+    width: '100%',
+    maxWidth: 320,
+    minWidth: 0,
     marginTop: spacing.sm,
   },
 });
