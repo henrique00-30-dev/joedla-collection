@@ -56,6 +56,20 @@ const darkVariables: Record<string, string> = {
   '--joedla-overlay': 'rgba(0, 0, 0, 0.64)',
 };
 
+const legacyBackgrounds: Record<string, string> = {
+  'rgb(255, 254, 252)': 'var(--joedla-surface)',
+  'rgb(255, 253, 249)': 'var(--joedla-background)',
+  'rgb(251, 248, 244)': 'var(--joedla-background)',
+  'rgb(248, 240, 230)': 'var(--joedla-surface-warm)',
+  'rgb(247, 241, 234)': 'var(--joedla-surface-warm)',
+  'rgb(247, 239, 230)': 'var(--joedla-surface-warm)',
+  'rgb(255, 247, 234)': 'var(--joedla-surface-warm)',
+};
+
+const legacyTextColors: Record<string, string> = {
+  'rgb(139, 69, 28)': 'var(--joedla-primary)',
+};
+
 type ThemeContextValue = {
   preference: ThemePreference;
   resolvedTheme: ResolvedTheme;
@@ -72,6 +86,46 @@ function applyWebTheme(theme: ResolvedTheme) {
   root.dataset.joedlaTheme = theme;
   root.style.colorScheme = theme;
   document.body.style.backgroundColor = variables['--joedla-background'];
+}
+
+function restoreLegacyOverrides() {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  document.querySelectorAll<HTMLElement>('[data-joedla-theme-adjusted="true"]').forEach((element) => {
+    const originalBackground = element.dataset.joedlaOriginalBackground;
+    const originalColor = element.dataset.joedlaOriginalColor;
+    if (originalBackground !== undefined) element.style.backgroundColor = originalBackground;
+    if (originalColor !== undefined) element.style.color = originalColor;
+    delete element.dataset.joedlaOriginalBackground;
+    delete element.dataset.joedlaOriginalColor;
+    delete element.dataset.joedlaThemeAdjusted;
+  });
+}
+
+function harmonizeLegacySurfaces(root: ParentNode) {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+  const elements: HTMLElement[] = [];
+  if (root instanceof HTMLElement) elements.push(root);
+  root.querySelectorAll?.('*').forEach((node) => {
+    if (node instanceof HTMLElement) elements.push(node);
+  });
+
+  elements.forEach((element) => {
+    if (element.dataset.joedlaThemeAdjusted === 'true') return;
+    const computed = window.getComputedStyle(element);
+    const backgroundReplacement = legacyBackgrounds[computed.backgroundColor];
+    const colorReplacement = legacyTextColors[computed.color];
+    if (!backgroundReplacement && !colorReplacement) return;
+
+    element.dataset.joedlaThemeAdjusted = 'true';
+    if (backgroundReplacement) {
+      element.dataset.joedlaOriginalBackground = element.style.backgroundColor;
+      element.style.backgroundColor = backgroundReplacement;
+    }
+    if (colorReplacement) {
+      element.dataset.joedlaOriginalColor = element.style.color;
+      element.style.color = colorReplacement;
+    }
+  });
 }
 
 export function ThemeProvider({ children }: PropsWithChildren) {
@@ -91,7 +145,28 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     : preference;
 
   useEffect(() => {
+    restoreLegacyOverrides();
     applyWebTheme(resolvedTheme);
+
+    if (resolvedTheme !== 'dark' || Platform.OS !== 'web' || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => harmonizeLegacySurfaces(document.body), 0);
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) harmonizeLegacySurfaces(node);
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+      restoreLegacyOverrides();
+    };
   }, [resolvedTheme]);
 
   function setPreference(next: ThemePreference) {
