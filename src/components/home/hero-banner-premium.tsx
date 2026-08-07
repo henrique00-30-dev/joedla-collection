@@ -33,6 +33,7 @@ export function HeroBannerPremium({
 }: HeroBannerPremiumProps) {
   const { width } = useWindowDimensions();
   const mobile = width < 700;
+  const narrowMobile = width < 390;
   const tablet = width >= 700 && width < 1000;
 
   return (
@@ -47,6 +48,7 @@ export function HeroBannerPremium({
           styles.textArea,
           tablet && styles.textAreaTablet,
           mobile && styles.textAreaMobile,
+          narrowMobile && styles.textAreaNarrow,
         ]}>
         <Text style={styles.overline}>JOEDLA COLLECTION</Text>
 
@@ -56,6 +58,7 @@ export function HeroBannerPremium({
             styles.title,
             tablet && styles.titleTablet,
             mobile && styles.titleMobile,
+            narrowMobile && styles.titleNarrow,
           ]}>
           {title}
         </Text>
@@ -63,10 +66,7 @@ export function HeroBannerPremium({
         {subtitle.trim() ? (
           <Text
             numberOfLines={mobile ? 3 : 4}
-            style={[
-              styles.subtitle,
-              mobile && styles.subtitleMobile,
-            ]}>
+            style={[styles.subtitle, mobile && styles.subtitleMobile]}>
             {subtitle}
           </Text>
         ) : null}
@@ -78,14 +78,13 @@ export function HeroBannerPremium({
             onPress={onPress}
             style={({ pressed }) => [
               styles.button,
+              narrowMobile && styles.buttonNarrow,
               pressed && styles.buttonPressed,
             ]}>
-            <Text style={styles.buttonText}>{buttonLabel}</Text>
-            <Ionicons
-              name="arrow-forward"
-              size={17}
-              color={colors.white}
-            />
+            <Text numberOfLines={2} style={styles.buttonText}>
+              {buttonLabel}
+            </Text>
+            <Ionicons name="arrow-forward" size={17} color={colors.white} />
           </Pressable>
         ) : null}
       </View>
@@ -105,17 +104,13 @@ export function HeroBannerPremium({
           />
         ) : (
           <View style={styles.imageFallback}>
-            <Ionicons
-              name="images-outline"
-              size={48}
-              color="rgba(255,255,255,0.62)"
-            />
+            <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.62)" />
           </View>
         )}
 
         <View style={styles.imageShade} />
 
-        {showNavigation ? (
+        {showNavigation && totalItems > 1 ? (
           <>
             <Pressable
               accessibilityRole="button"
@@ -124,13 +119,10 @@ export function HeroBannerPremium({
               style={({ pressed }) => [
                 styles.arrow,
                 styles.left,
+                narrowMobile && styles.arrowNarrow,
                 pressed && styles.arrowPressed,
               ]}>
-              <Ionicons
-                name="chevron-back"
-                size={22}
-                color={colors.white}
-              />
+              <Ionicons name="chevron-back" size={22} color={colors.white} />
             </Pressable>
 
             <Pressable
@@ -140,19 +132,16 @@ export function HeroBannerPremium({
               style={({ pressed }) => [
                 styles.arrow,
                 styles.right,
+                narrowMobile && styles.arrowNarrow,
                 pressed && styles.arrowPressed,
               ]}>
-              <Ionicons
-                name="chevron-forward"
-                size={22}
-                color={colors.white}
-              />
+              <Ionicons name="chevron-forward" size={22} color={colors.white} />
             </Pressable>
           </>
         ) : null}
 
         {showNavigation && totalItems > 1 ? (
-          <View style={styles.counter}>
+          <View style={[styles.counter, narrowMobile && styles.counterNarrow]}>
             <Text style={styles.counterText}>
               {String(currentIndex + 1).padStart(2, '0')}
               {' / '}
@@ -167,6 +156,8 @@ export function HeroBannerPremium({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
+    minWidth: 0,
     minHeight: 510,
     marginTop: spacing.lg,
     overflow: 'hidden',
@@ -175,45 +166,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F1713',
     ...shadow,
   },
-
-  containerTablet: {
-    minHeight: 470,
-  },
-
+  containerTablet: { minHeight: 470 },
   containerMobile: {
     minHeight: 620,
     borderRadius: radii.large,
     flexDirection: 'column',
   },
-
   textArea: {
     zIndex: 2,
+    minWidth: 0,
     flex: 0.86,
     paddingHorizontal: 52,
     paddingVertical: 46,
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
-
   textAreaTablet: {
     paddingHorizontal: 34,
     paddingVertical: 36,
   },
-
   textAreaMobile: {
+    width: '100%',
     minHeight: 290,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xl,
   },
-
+  textAreaNarrow: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
   overline: {
+    maxWidth: '100%',
     marginBottom: spacing.md,
     color: '#D9B06A',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 2.7,
   },
-
   title: {
     maxWidth: 520,
     fontFamily: fonts.display,
@@ -222,17 +211,9 @@ const styles = StyleSheet.create({
     lineHeight: 55,
     fontWeight: '800',
   },
-
-  titleTablet: {
-    fontSize: 40,
-    lineHeight: 46,
-  },
-
-  titleMobile: {
-    fontSize: 36,
-    lineHeight: 41,
-  },
-
+  titleTablet: { fontSize: 40, lineHeight: 46 },
+  titleMobile: { maxWidth: '100%', fontSize: 36, lineHeight: 41 },
+  titleNarrow: { fontSize: 31, lineHeight: 36 },
   subtitle: {
     maxWidth: 500,
     marginTop: spacing.lg,
@@ -240,58 +221,56 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 25,
   },
-
   subtitleMobile: {
+    maxWidth: '100%',
     marginTop: spacing.md,
     fontSize: 14,
     lineHeight: 21,
   },
-
   button: {
+    minWidth: 0,
+    maxWidth: '100%',
     minHeight: 49,
     marginTop: spacing.xl,
     paddingHorizontal: spacing.xl,
     borderRadius: radii.pill,
     flexDirection: 'row',
+    flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     backgroundColor: '#B88433',
   },
-
+  buttonNarrow: {
+    width: '100%',
+    paddingHorizontal: spacing.lg,
+  },
   buttonPressed: {
     opacity: 0.82,
     transform: [{ scale: 0.98 }],
   },
-
   buttonText: {
+    minWidth: 0,
+    flexShrink: 1,
     color: colors.white,
     fontSize: 14,
     fontWeight: '900',
+    textAlign: 'center',
   },
-
   imageArea: {
     position: 'relative',
+    minWidth: 0,
     flex: 1.15,
     minHeight: 510,
     overflow: 'hidden',
   },
-
-  imageAreaTablet: {
-    minHeight: 470,
-  },
-
+  imageAreaTablet: { minHeight: 470 },
   imageAreaMobile: {
     flex: undefined,
     width: '100%',
     minHeight: 330,
   },
-
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-
+  image: { width: '100%', height: '100%' },
   imageFallback: {
     width: '100%',
     height: '100%',
@@ -299,7 +278,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#3A2A23',
   },
-
   imageShade: {
     position: 'absolute',
     left: 0,
@@ -308,7 +286,6 @@ const styles = StyleSheet.create({
     width: '28%',
     backgroundColor: 'rgba(31,23,19,0.3)',
   },
-
   arrow: {
     position: 'absolute',
     top: '50%',
@@ -322,30 +299,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(20,13,10,0.48)',
   },
-
+  arrowNarrow: {
+    width: 40,
+    height: 40,
+    marginTop: -20,
+    borderRadius: 20,
+  },
   arrowPressed: {
     opacity: 0.72,
     transform: [{ scale: 0.95 }],
   },
-
-  left: {
-    left: spacing.md,
-  },
-
-  right: {
-    right: spacing.md,
-  },
-
+  left: { left: spacing.md },
+  right: { right: spacing.md },
   counter: {
     position: 'absolute',
     right: spacing.lg,
     bottom: spacing.lg,
+    maxWidth: '70%',
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: radii.pill,
     backgroundColor: 'rgba(20,13,10,0.58)',
   },
-
+  counterNarrow: {
+    right: spacing.md,
+    bottom: spacing.md,
+  },
   counterText: {
     color: colors.white,
     fontSize: 10,
