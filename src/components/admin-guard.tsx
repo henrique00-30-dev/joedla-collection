@@ -12,7 +12,7 @@ import {
 
 import { useStore } from '@/src/context/store-context';
 import { activePlacements } from '@/src/features/marketing/storefront';
-import { colors, radii, spacing } from '@/src/theme';
+import { colors, spacing } from '@/src/theme';
 
 export function AdminGuard({ children }: PropsWithChildren) {
   const { isAdmin, loading, marketing } = useStore();
@@ -91,23 +91,6 @@ export function AdminGuard({ children }: PropsWithChildren) {
       ) : null}
 
       <View style={styles.content}>{children}</View>
-
-      {pathname !== '/admin/community' ? (
-        <View style={[styles.shortcutBar, compact && styles.shortcutBarCompact]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir moderação de clientes"
-            onPress={() => router.push('/admin/community')}
-            style={({ pressed }) => [
-              styles.communityShortcut,
-              compact && styles.communityShortcutCompact,
-              pressed && styles.pressed,
-            ]}>
-            <Ionicons name="chatbubbles-outline" size={18} color={colors.white} />
-            <Text style={styles.communityShortcutText}>Moderação</Text>
-          </Pressable>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -163,44 +146,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 10,
     lineHeight: 14,
-  },
-  shortcutBar: {
-    width: '100%',
-    minHeight: 58,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  shortcutBarCompact: {
-    minHeight: 54,
-    paddingHorizontal: spacing.md,
-  },
-  communityShortcut: {
-    minWidth: 0,
-    maxWidth: '100%',
-    minHeight: 42,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    flexShrink: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-  },
-  communityShortcutCompact: {
-    width: '100%',
-  },
-  communityShortcutText: {
-    flexShrink: 1,
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '900',
-    textAlign: 'center',
   },
   pressed: { opacity: 0.78 },
 });
