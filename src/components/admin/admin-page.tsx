@@ -33,25 +33,28 @@ export function AdminPage({
   scroll = true,
 }: AdminPageProps) {
   const { width } = useWindowDimensions();
-  const compact = width < 760;
+  const phone = width < 600;
+  const tablet = width >= 600 && width < 1024;
+  const stackedHeader = width < 1024;
 
   const content = (
     <View
       style={[
         styles.content,
         { maxWidth },
-        compact && styles.contentCompact,
+        tablet && styles.contentTablet,
+        phone && styles.contentPhone,
         contentStyle,
       ]}>
-      <View style={[styles.header, compact && styles.headerCompact]}>
+      <View style={[styles.header, stackedHeader && styles.headerStacked]}>
         <View style={styles.headerCopy}>
           {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, phone && styles.titlePhone]}>{title}</Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
         </View>
 
         {actions ? (
-          <View style={[styles.actions, compact && styles.actionsCompact]}>
+          <View style={[styles.actions, stackedHeader && styles.actionsStacked]}>
             {actions}
           </View>
         ) : null}
@@ -93,8 +96,11 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     alignSelf: 'center',
   },
-  contentCompact: {
-    padding: 14,
+  contentTablet: {
+    paddingHorizontal: 18,
+  },
+  contentPhone: {
+    padding: 12,
     paddingBottom: spacing.xxl,
   },
   header: {
@@ -107,10 +113,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
   },
-  headerCompact: {
+  headerStacked: {
+    flexDirection: 'column',
     alignItems: 'stretch',
   },
   headerCopy: {
+    width: '100%',
     minWidth: 0,
     flexBasis: 260,
     flexGrow: 1,
@@ -131,7 +139,12 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     fontWeight: '800',
   },
+  titlePhone: {
+    fontSize: 20,
+    lineHeight: 25,
+  },
   description: {
+    width: '100%',
     maxWidth: 680,
     marginTop: 4,
     color: '#88776B',
@@ -148,12 +161,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  actionsCompact: {
+  actionsStacked: {
     width: '100%',
     justifyContent: 'flex-start',
+    alignItems: 'stretch',
   },
   body: {
     minWidth: 0,
+    width: '100%',
     marginTop: 20,
     gap: 20,
   },
