@@ -49,6 +49,7 @@ const STORAGE_KEYS = {
   categories: 'joedla.categories.v1',
   settings: 'joedla.settings.v1',
   cart: 'joedla.cart.v1',
+  directCheckout: 'joedla.direct-checkout.v1',
   customerOrders: 'joedla.customer-orders.v1',
   favorites: 'joedla.favorites.v1',
 };
@@ -153,6 +154,10 @@ export function StoreProvider({ children }: PropsWithChildren) {
   }, [cart, loading]);
 
   useEffect(() => {
+    if (!loading) void setStoredJson(STORAGE_KEYS.directCheckout, directCheckout);
+  }, [directCheckout, loading]);
+
+  useEffect(() => {
     if (!loading) void setStoredJson(STORAGE_KEYS.customerOrders, customerOrders);
   }, [customerOrders, loading]);
 
@@ -182,13 +187,15 @@ export function StoreProvider({ children }: PropsWithChildren) {
   async function initialize() {
     setLoading(true);
     try {
-      const [storedCart, storedOrders, storedFavorites] = await Promise.all([
+      const [storedCart, storedDirectCheckout, storedOrders, storedFavorites] = await Promise.all([
         getStoredJson<CartItem[]>(STORAGE_KEYS.cart, []),
+        getStoredJson<DirectCheckout | null>(STORAGE_KEYS.directCheckout, null),
         getStoredJson<Order[]>(STORAGE_KEYS.customerOrders, []),
         getStoredJson<string[]>(STORAGE_KEYS.favorites, []),
       ]);
 
       setCart(storedCart);
+      setDirectCheckout(storedDirectCheckout);
       setCustomerOrders(storedOrders);
       setFavorites(storedFavorites);
       if (cloudEnabled) {
@@ -798,11 +805,22 @@ export function useStore() {
   if (!context) throw new Error('useStore precisa estar dentro de StoreProvider.');
 
   const buyNowToken = typeof params.buyNow === 'string' ? params.buyNow : undefined;
-  const direct = pathname === '/checkout'
-    && buyNowToken
+  const isDirectCheckoutRoute = pathname === '/checkout' && Boolean(buyNowToken);
+  const direct = isDirectCheckoutRoute
     && context.directCheckout?.token === buyNowToken
     ? context.directCheckout
     : null;
+
+  if (isDirectCheckoutRoute && !direct) {
+    return {
+      ...context,
+      cart: [],
+      cartSubtotal: 0,
+      createOrder: async () => {
+        throw new Error('A compra direta expirou. Volte ao produto e toque em Comprar agora novamente.');
+      },
+    };
+  }
 
   if (!direct) return context;
 
