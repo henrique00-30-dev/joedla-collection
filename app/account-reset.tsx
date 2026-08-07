@@ -13,6 +13,13 @@ function validPassword(value: string) {
   return value.length >= 8 && /[A-Za-z]/.test(value) && /\d/.test(value);
 }
 
+function currentBrowserUrl(): string | null {
+  if (typeof window !== 'undefined' && window.location?.href) {
+    return window.location.href;
+  }
+  return null;
+}
+
 export default function AccountResetScreen() {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,30 +39,60 @@ export default function AccountResetScreen() {
     }
 
     try {
-      const initialUrl = await Linking.getInitialURL();
+      const browserUrl = currentBrowserUrl();
+      const initialUrl = browserUrl ?? await Linking.getInitialURL();
       if (!initialUrl) throw new Error('Link de recuperação inválido.');
 
-      const fragment = initialUrl.includes('#') ? initialUrl.split('#')[1] : '';
-      const params = new URLSearchParams(fragment);
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      const type = params.get('type');
+      const parsed = new URL(initialUrl);
+      const query = parsed.searchParams;
+      const fragment = new URLSearchParams(parsed.hash.replace(/^#/, ''));
 
-      if (!accessToken || !refreshToken || type !== 'recovery') {
-        const { data } = await customerSupabase.auth.getSession();
-        if (!data.session) throw new Error('Este link de recuperação é inválido ou expirou. Solicite um novo link.');
-      } else {
+      const authError =
+        query.get('error_description') ??
+        fragment.get('error_description') ??
+        query.get('error') ??
+        fragment.get('error');
+      if (authError) {
+        throw new Error('Este link de recuperação expirou ou já foi utilizado. Solicite um novo link.');
+      }
+
+      const code = query.get('code');
+      const accessToken = fragment.get('access_token') ?? query.get('access_token');
+      const refreshToken = fragment.get('refresh_token') ?? query.get('refresh_token');
+      const type = fragment.get('type') ?? query.get('type');
+
+      if (code) {
+        const { error } = await customerSupabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+      } else if (accessToken && refreshToken && (!type || type === 'recovery')) {
         const { error } = await customerSupabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
         if (error) throw error;
+      } else {
+        const { data, error } = await customerSupabase.auth.getSession();
+        if (error) throw error;
+        if (!data.session) {
+          throw new Error('Este link de recuperação é inválido ou expirou. Solicite um novo link.');
+        }
+      }
+
+      const { data: userData, error: userError } = await customerSupabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw new Error('Não foi possível validar sua recuperação. Solicite um novo link.');
       }
 
       setReady(true);
       setErrorMessage('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Não foi possível validar o link de recuperação.');
+      console.error('account recovery validation failed', error);
+      setReady(false);
+      setErrorMessage(
+        error instanceof Error && /expir|inválid|utilizado|validar/i.test(error.message)
+          ? error.message
+          : 'Não foi possível validar este link. Solicite um novo e tente novamente.',
+      );
     }
   }
 
@@ -81,6 +118,7 @@ export default function AccountResetScreen() {
       if (error) throw error;
       setPassword('');
       setConfirmPassword('');
+      await customerSupabase.auth.signOut({ scope: 'local' });
       router.replace('/account');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Não foi possível definir a nova senha.');
@@ -159,6 +197,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   card: {
+    width: '100%',
+    minWidth: 0,
     backgroundColor: colors.surface,
     borderRadius: radii.large,
     padding: spacing.lg,
@@ -202,6 +242,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   errorBox: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
@@ -210,6 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
   errorText: {
+    minWidth: 0,
     flex: 1,
     color: colors.danger,
     fontSize: 12,

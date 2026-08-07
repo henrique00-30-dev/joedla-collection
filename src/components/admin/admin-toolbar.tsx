@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
@@ -29,15 +30,19 @@ export function AdminToolbar({
   right,
   style,
 }: AdminToolbarProps) {
+  const { width } = useWindowDimensions();
+  const phone = width < 600;
+  const tablet = width >= 600 && width < 1024;
+  const stack = width < 820;
   const showSearch =
     typeof searchValue === 'string' &&
     typeof onChangeSearch === 'function';
 
   return (
-    <View style={[styles.toolbar, style]}>
-      <View style={styles.leftArea}>
+    <View style={[styles.toolbar, tablet && styles.toolbarTablet, phone && styles.toolbarPhone, style]}>
+      <View style={[styles.leftArea, stack && styles.areaStacked]}>
         {showSearch ? (
-          <View style={styles.search}>
+          <View style={[styles.search, stack && styles.searchStacked]}>
             <Ionicons name="search-outline" size={16} color={colors.textMuted} />
             <TextInput
               value={searchValue}
@@ -60,9 +65,9 @@ export function AdminToolbar({
             ) : null}
           </View>
         ) : null}
-        {left ? <View style={styles.leftContent}>{left}</View> : null}
+        {left ? <View style={[styles.leftContent, stack && styles.contentStacked]}>{left}</View> : null}
       </View>
-      {right ? <View style={styles.rightArea}>{right}</View> : null}
+      {right ? <View style={[styles.rightArea, stack && styles.areaStacked]}>{right}</View> : null}
     </View>
   );
 }
@@ -157,6 +162,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: '#FFFDFC',
   },
+  toolbarTablet: {
+    padding: 10,
+  },
+  toolbarPhone: {
+    padding: 8,
+  },
   leftArea: {
     minWidth: 0,
     flexBasis: 260,
@@ -177,6 +188,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  areaStacked: {
+    width: '100%',
+    flexBasis: '100%',
+    justifyContent: 'flex-start',
+  },
   leftContent: {
     minWidth: 0,
     maxWidth: '100%',
@@ -185,6 +201,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  contentStacked: {
+    width: '100%',
   },
   search: {
     width: '100%',
@@ -201,6 +220,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: '#F8F3ED',
+  },
+  searchStacked: {
+    maxWidth: '100%',
   },
   input: {
     minWidth: 0,
@@ -226,6 +248,7 @@ const styles = StyleSheet.create({
     borderColor: '#D3C1AE',
     borderRadius: radii.pill,
     flexDirection: 'row',
+    flexGrow: 0,
     flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
