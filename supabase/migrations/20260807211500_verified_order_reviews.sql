@@ -54,7 +54,7 @@ begin
   if not exists (
     select 1
     from jsonb_array_elements(v_order.items) item
-    where (item->>'productId')::uuid = p_product_id
+    where item->>'productId' = p_product_id::text
   ) then
     raise exception 'Este produto não pertence ao pedido informado.' using errcode = '22023';
   end if;
