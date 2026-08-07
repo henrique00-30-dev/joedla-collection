@@ -15,6 +15,7 @@ import {
 import { AppHeader } from '@/src/components/app-header';
 import { Screen } from '@/src/components/screen';
 import { useStore } from '@/src/context/store-context';
+import { ThemePreference, useThemeMode } from '@/src/context/theme-context';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import { openStoreWhatsApp } from '@/src/utils/whatsapp';
 
@@ -24,6 +25,12 @@ type MenuOption = {
   description?: string;
   onPress: () => void;
 };
+
+const themeOptions: { value: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'system', label: 'Sistema', icon: 'phone-portrait-outline' },
+  { value: 'light', label: 'Claro', icon: 'sunny-outline' },
+  { value: 'dark', label: 'Escuro', icon: 'moon-outline' },
+];
 
 function instagramUrl(value: string): string | null {
   const raw = value.trim();
@@ -36,6 +43,7 @@ function instagramUrl(value: string): string | null {
 
 export default function MenuScreen() {
   const { settings } = useStore();
+  const { preference, resolvedTheme, setPreference } = useThemeMode();
   const { width } = useWindowDimensions();
   const phone = width < 600;
   const tablet = width >= 600 && width < 1024;
@@ -126,6 +134,41 @@ export default function MenuScreen() {
           </View>
         ) : null}
 
+        <View style={styles.themeSection}>
+          <View style={styles.themeHeader}>
+            <View style={styles.themeHeaderIcon}>
+              <Ionicons name={resolvedTheme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.primary} />
+            </View>
+            <View style={styles.themeHeaderCopy}>
+              <Text style={styles.themeTitle}>Aparência</Text>
+              <Text style={styles.themeDescription}>
+                Escolha o visual da loja neste aparelho. Em Sistema, a loja acompanha o tema do celular ou computador.
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.themeOptions, phone && styles.themeOptionsPhone]}>
+            {themeOptions.map((option) => {
+              const active = preference === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setPreference(option.value)}
+                  style={({ pressed }) => [
+                    styles.themeOption,
+                    phone && styles.themeOptionPhone,
+                    active && styles.themeOptionActive,
+                    pressed && styles.pressed,
+                  ]}>
+                  <Ionicons name={option.icon} size={18} color={active ? colors.white : colors.primary} />
+                  <Text style={[styles.themeOptionText, active && styles.themeOptionTextActive]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <View style={[styles.groupsGrid, tablet && styles.groupsGridTablet, desktop && styles.groupsGridDesktop]}>
           {groups.map((group) => (
             <View key={group.title} style={styles.group}>
@@ -174,24 +217,37 @@ const styles = StyleSheet.create({
   contentPhone: { paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md },
   contentTablet: { maxWidth: 900, paddingHorizontal: spacing.xl },
   contentDesktop: { maxWidth: 980, paddingHorizontal: spacing.xxl, paddingTop: spacing.xl },
-  brandCard: { position: 'relative', overflow: 'hidden', minHeight: 142, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(111,76,56,0.12)', borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: spacing.lg, backgroundColor: '#21150F', ...shadow },
+  brandCard: { position: 'relative', overflow: 'hidden', minHeight: 142, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: spacing.lg, backgroundColor: '#21150F', ...shadow },
   brandCardPhone: { minHeight: 0, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   brandGlow: { position: 'absolute', right: -50, top: -70, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(216,179,106,0.13)' },
   logo: { width: 82, height: 82, flexShrink: 0 },
   logoPhone: { width: 58, height: 58 },
   brandCopy: { minWidth: 0, flex: 1 },
   brandEyebrow: { color: '#D8B36A', fontSize: 9, fontWeight: '900', letterSpacing: 2 },
-  brandName: { maxWidth: 520, marginTop: 4, fontFamily: fonts.display, color: colors.white, fontSize: 22, lineHeight: 27, fontWeight: '800' },
+  brandName: { maxWidth: 520, marginTop: 4, fontFamily: fonts.display, color: '#FFFFFF', fontSize: 22, lineHeight: 27, fontWeight: '800' },
   brandNamePhone: { fontSize: 17, lineHeight: 21 },
   delivery: { maxWidth: 540, marginTop: 5, color: '#D8C7B8', fontSize: 11, lineHeight: 16 },
   channelNotice: { maxWidth: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceWarm },
   channelNoticeText: { minWidth: 0, flex: 1, color: colors.text, fontSize: 11, lineHeight: 16 },
+  themeSection: { minWidth: 0, padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 18, gap: spacing.md, backgroundColor: colors.surface, ...shadow },
+  themeHeader: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  themeHeaderIcon: { width: 38, height: 38, flexShrink: 0, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceWarm },
+  themeHeaderCopy: { minWidth: 0, flex: 1 },
+  themeTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  themeDescription: { marginTop: 2, color: colors.textMuted, fontSize: 9.5, lineHeight: 14 },
+  themeOptions: { minWidth: 0, flexDirection: 'row', gap: spacing.sm },
+  themeOptionsPhone: { gap: 6 },
+  themeOption: { minWidth: 0, minHeight: 42, paddingHorizontal: spacing.md, flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.surfaceWarm },
+  themeOptionPhone: { paddingHorizontal: spacing.sm },
+  themeOptionActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  themeOptionText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  themeOptionTextActive: { color: '#FFFFFF' },
   groupsGrid: { minWidth: 0, gap: spacing.md },
   groupsGridTablet: { flexDirection: 'row', flexWrap: 'wrap' },
   groupsGridDesktop: { flexDirection: 'row', flexWrap: 'wrap' },
   group: { minWidth: 0, flexBasis: 280, flexGrow: 1, flexShrink: 1, gap: 5 },
   groupTitle: { paddingHorizontal: 3, color: colors.primaryDark, fontSize: 10, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  menuCard: { overflow: 'hidden', minWidth: 0, borderWidth: 1, borderColor: 'rgba(111,76,56,0.12)', borderRadius: 16, backgroundColor: '#FFFEFC', ...shadow },
+  menuCard: { overflow: 'hidden', minWidth: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, ...shadow },
   menuItem: { minWidth: 0, minHeight: 62, paddingHorizontal: spacing.md, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   pressed: { backgroundColor: colors.surfaceWarm },
@@ -206,6 +262,6 @@ const styles = StyleSheet.create({
   quickActionWhatsapp: { backgroundColor: '#1F7A4D' },
   quickActionInstagram: { backgroundColor: '#8B451C' },
   quickActionPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
-  quickActionText: { color: colors.white, fontSize: 11, fontWeight: '900' },
+  quickActionText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   version: { marginTop: 2, color: colors.textMuted, fontSize: 9, textAlign: 'center' },
 });
