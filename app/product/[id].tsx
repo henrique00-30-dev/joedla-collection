@@ -5,11 +5,13 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 
 import { AppHeader } from '@/src/components/app-header';
 import { ProductGrid } from '@/src/components/product-grid';
+import { CustomerProductInteractions } from '@/src/components/product/customer-interactions';
 import { ProductGallery } from '@/src/components/product/product-gallery';
 import { Screen } from '@/src/components/screen';
 import { Button, EmptyState, QuantityStepper } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { recordProductView } from '@/src/services/analytics';
+import { recordRecentlyViewed } from '@/src/services/customer';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 import { formatCurrency } from '@/src/utils/format';
 
@@ -34,7 +36,10 @@ export default function ProductDetailsScreen() {
   }, [product]);
 
   useEffect(() => {
-    if (product?.id) void recordProductView(product.id);
+    if (product?.id) {
+      void recordProductView(product.id);
+      void recordRecentlyViewed(product.id).catch(() => undefined);
+    }
   }, [product?.id]);
 
   const favorite = useMemo(
@@ -67,14 +72,12 @@ export default function ProductDetailsScreen() {
 
   const currentProduct = product;
   const imageUrls = currentProduct.imageUrls.length ? currentProduct.imageUrls : [''];
-  const outOfStock =
-    currentProduct.availability === 'ready' && currentProduct.stock <= 0;
-  const isCustomOrder =
-    currentProduct.availability === 'custom';
+  const outOfStock = currentProduct.availability === 'ready' && currentProduct.stock <= 0;
+  const isCustomOrder = currentProduct.availability === 'custom';
 
   function handleProductAction(destination: 'cart' | 'checkout') {
     if (outOfStock) {
-      setActionMessage('Produto indisponivel no momento.'); 
+      setActionMessage('Produto indisponivel no momento.');
       return;
     }
     if (currentProduct.sizes.length && !selectedSize) {
@@ -86,22 +89,12 @@ export default function ProductDetailsScreen() {
       return;
     }
 
-    addToCart(
-      currentProduct,
-      quantity,
-      selectedSize,
-      selectedColor,
-      isCustomOrder ? 'custom' : undefined,
-    );
+    addToCart(currentProduct, quantity, selectedSize, selectedColor, isCustomOrder ? 'custom' : undefined);
     if (destination === 'checkout') {
       router.push('/checkout');
       return;
     }
-    setActionMessage(
-      isCustomOrder
-        ? 'Encomenda adicionada ao carrinho.'
-        : 'Produto adicionado ao carrinho.',
-    );
+    setActionMessage(isCustomOrder ? 'Encomenda adicionada ao carrinho.' : 'Produto adicionado ao carrinho.');
   }
 
   return (
@@ -126,98 +119,92 @@ export default function ProductDetailsScreen() {
           />
 
           <View style={[styles.details, desktop && styles.detailsDesktop]}>
-          <View
-            style={[
+            <View style={[
               styles.availability,
               product.availability === 'custom' && styles.availabilityCustom,
               outOfStock && styles.availabilityOutOfStock,
             ]}>
-            <Text
-              style={[
-                styles.availabilityText,
-                outOfStock && styles.availabilityTextOutOfStock,
-              ]}>
-              {outOfStock
-                ? 'Em falta para pronta entrega'
-                : product.availability === 'ready'
-                  ? 'Pronta entrega'
-                  : 'Produto por encomenda'}
-            </Text>
-          </View>
-          <Text style={styles.name}>{product.name}</Text>
-          <View style={styles.priceRow}>
-            {product.originalPrice && product.originalPrice > product.price ? (
-              <Text style={styles.originalPrice}>{formatCurrency(product.originalPrice)}</Text>
-            ) : null}
-            <Text style={styles.price}>{formatCurrency(product.price)}</Text>
-          </View>
-          <Text style={styles.description}>{product.description}</Text>
-
-          {product.sizes.length ? (
-            <OptionGroup
-              label="Tamanho"
-              options={product.sizes}
-              selected={selectedSize}
-              onSelect={(value) => {
-                setSelectedSize(value);
-                setActionMessage('');
-              }}
-            />
-          ) : null}
-
-          {product.colors.length ? (
-            <OptionGroup
-              label="Cor"
-              options={product.colors}
-              selected={selectedColor}
-              onSelect={(value) => {
-                setSelectedColor(value);
-                setActionMessage('');
-              }}
-            />
-          ) : null}
-
-          <View style={styles.quantityRow}>
-            <View>
-              <Text style={styles.optionLabel}>Quantidade</Text>
-              <Text style={styles.stock}>
+              <Text style={[styles.availabilityText, outOfStock && styles.availabilityTextOutOfStock]}>
                 {outOfStock
-                  ? 'Disponível para encomenda'
+                  ? 'Em falta para pronta entrega'
                   : product.availability === 'ready'
-                  ? `${product.stock} unidade(s) disponível(is)`
-                  : 'Produzido por encomenda'}
+                    ? 'Pronta entrega'
+                    : 'Produto por encomenda'}
               </Text>
             </View>
-            <QuantityStepper
-              value={quantity}
-              maximum={
-                product.availability === 'ready' && !outOfStock
-                  ? product.stock
-                  : 99
-              }
-              onChange={setQuantity}
-            />
-          </View>
+            <Text style={styles.name}>{product.name}</Text>
+            <View style={styles.priceRow}>
+              {product.originalPrice && product.originalPrice > product.price ? (
+                <Text style={styles.originalPrice}>{formatCurrency(product.originalPrice)}</Text>
+              ) : null}
+              <Text style={styles.price}>{formatCurrency(product.price)}</Text>
+            </View>
+            <Text style={styles.description}>{product.description}</Text>
 
-          <View style={[styles.infoCard, isCustomOrder && styles.customInfoCard]}>
-            <Ionicons
-              name={isCustomOrder ? 'time-outline' : 'location-outline'}
-              size={21}
-              color={isCustomOrder ? colors.warning : colors.success}
-            />
-            <Text style={[styles.infoText, isCustomOrder && styles.customInfoText]}>
-              {isCustomOrder
-                ? 'Prazo da encomenda combinado pelo WhatsApp'
-                : 'Entrega grátis em Rosário do Catete'}
-            </Text>
-          </View>
-          <View style={styles.purchaseNotes}>
-            <PurchaseNote icon="resize-outline" title="Tamanhos e medidas" text="Confirme as medidas com a loja se tiver dúvida." />
-            <PurchaseNote icon="shirt-outline" title="Cuidados com a peça" text="Siga as orientações da etiqueta para conservar o produto." />
-            <PurchaseNote icon="swap-horizontal-outline" title="Trocas e encomendas" text="Condições combinadas diretamente com nosso atendimento." />
-          </View>
+            {product.sizes.length ? (
+              <OptionGroup
+                label="Tamanho"
+                options={product.sizes}
+                selected={selectedSize}
+                onSelect={(value) => {
+                  setSelectedSize(value);
+                  setActionMessage('');
+                }}
+              />
+            ) : null}
+
+            {product.colors.length ? (
+              <OptionGroup
+                label="Cor"
+                options={product.colors}
+                selected={selectedColor}
+                onSelect={(value) => {
+                  setSelectedColor(value);
+                  setActionMessage('');
+                }}
+              />
+            ) : null}
+
+            <View style={styles.quantityRow}>
+              <View>
+                <Text style={styles.optionLabel}>Quantidade</Text>
+                <Text style={styles.stock}>
+                  {outOfStock
+                    ? 'Disponível para encomenda'
+                    : product.availability === 'ready'
+                      ? `${product.stock} unidade(s) disponível(is)`
+                      : 'Produzido por encomenda'}
+                </Text>
+              </View>
+              <QuantityStepper
+                value={quantity}
+                maximum={product.availability === 'ready' && !outOfStock ? product.stock : 99}
+                onChange={setQuantity}
+              />
+            </View>
+
+            <View style={[styles.infoCard, isCustomOrder && styles.customInfoCard]}>
+              <Ionicons
+                name={isCustomOrder ? 'time-outline' : 'location-outline'}
+                size={21}
+                color={isCustomOrder ? colors.warning : colors.success}
+              />
+              <Text style={[styles.infoText, isCustomOrder && styles.customInfoText]}>
+                {isCustomOrder ? 'Prazo da encomenda combinado pelo WhatsApp' : 'Entrega grátis em Rosário do Catete'}
+              </Text>
+            </View>
+            <View style={styles.purchaseNotes}>
+              <PurchaseNote icon="resize-outline" title="Tamanhos e medidas" text="Confirme as medidas com a loja se tiver dúvida." />
+              <PurchaseNote icon="shirt-outline" title="Cuidados com a peça" text="Siga as orientações da etiqueta para conservar o produto." />
+              <PurchaseNote icon="swap-horizontal-outline" title="Trocas e encomendas" text="Condições combinadas diretamente com nosso atendimento." />
+            </View>
           </View>
         </View>
+
+        <View style={styles.interactionsSection}>
+          <CustomerProductInteractions productId={product.id} outOfStock={outOfStock} />
+        </View>
+
         {relatedProducts.length ? (
           <View style={styles.relatedSection}>
             <Text style={styles.relatedTitle}>Você também pode gostar</Text>
@@ -234,66 +221,37 @@ export default function ProductDetailsScreen() {
         {actionMessage ? (
           <Text
             accessibilityLiveRegion="polite"
-            style={[
-              styles.actionMessage,
-              actionMessage.includes('adicionad') && styles.actionMessageSuccess,
-            ]}>
+            style={[styles.actionMessage, actionMessage.includes('adicionad') && styles.actionMessageSuccess]}>
             {actionMessage}
           </Text>
         ) : null}
         <View style={styles.footerActions}>
-  {outOfStock ? (
-    <View style={styles.unavailableBox}>
-      <Ionicons
-        name="alert-circle-outline"
-        size={20}
-        color={colors.textMuted}
-      />
-
-      <Text style={styles.unavailableText}>
-        Produto indisponível
-      </Text>
-    </View>
-  ) : isCustomOrder ? (
-    <Button
-      icon="time-outline"
-      onPress={() => handleProductAction('cart')}
-      style={styles.actionButton}>
-      Encomendar
-    </Button>
-  ) : (
-    <>
-      <Button
-        variant="secondary"
-        icon="bag-add-outline"
-        onPress={() => handleProductAction('cart')}
-        style={styles.actionButton}>
-        Adicionar ao carrinho
-      </Button>
-
-      <Button
-        icon="flash-outline"
-        onPress={() => handleProductAction('checkout')}
-        style={styles.actionButton}>
-        Comprar agora
-      </Button>
-    </>
-  )}
-</View>
+          {outOfStock ? (
+            <View style={styles.unavailableBox}>
+              <Ionicons name="alert-circle-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.unavailableText}>Produto indisponível</Text>
+            </View>
+          ) : isCustomOrder ? (
+            <Button icon="time-outline" onPress={() => handleProductAction('cart')} style={styles.actionButton}>
+              Encomendar
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" icon="bag-add-outline" onPress={() => handleProductAction('cart')} style={styles.actionButton}>
+                Adicionar ao carrinho
+              </Button>
+              <Button icon="flash-outline" onPress={() => handleProductAction('checkout')} style={styles.actionButton}>
+                Comprar agora
+              </Button>
+            </>
+          )}
+        </View>
       </View>
     </Screen>
   );
 }
 
-function PurchaseNote({
-  icon,
-  title,
-  text,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  text: string;
-}) {
+function PurchaseNote({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; title: string; text: string }) {
   return (
     <View style={styles.purchaseNote}>
       <Ionicons name={icon} size={19} color={colors.primary} />
@@ -331,13 +289,7 @@ function OptionGroup({
               selected === option && styles.optionSelected,
               pressed && styles.optionPressed,
             ]}>
-            <Text
-              style={[
-                styles.optionText,
-                selected === option && styles.optionTextSelected,
-              ]}>
-              {option}
-            </Text>
+            <Text style={[styles.optionText, selected === option && styles.optionTextSelected]}>{option}</Text>
           </Pressable>
         ))}
       </View>
@@ -345,14 +297,9 @@ function OptionGroup({
   );
 }
 
-
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing.xl,
-  },
-  productLayout: {
-    width: '100%',
-  },
+  content: { paddingBottom: spacing.xl },
+  productLayout: { width: '100%' },
   productLayoutDesktop: {
     maxWidth: 1180,
     padding: spacing.xxl,
@@ -360,6 +307,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 54,
+  },
+  interactionsSection: {
+    width: '100%',
+    maxWidth: 1180,
+    paddingHorizontal: spacing.lg,
+    alignSelf: 'center',
   },
   relatedSection: {
     width: '100%',
@@ -369,25 +322,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     alignSelf: 'center',
   },
-  relatedTitle: {
-    color: colors.text,
-    fontFamily: fonts.display,
-    fontSize: 23,
-    fontWeight: '700',
-  },
-  relatedDescription: {
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-  details: {
-    padding: spacing.lg,
-  },
-  detailsDesktop: {
-    flex: 1,
-    padding: 0,
-  },
+  relatedTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 23, fontWeight: '700' },
+  relatedDescription: { marginTop: spacing.xs, marginBottom: spacing.lg, color: colors.textMuted, fontSize: 13 },
+  details: { padding: spacing.lg },
+  detailsDesktop: { flex: 1, padding: 0 },
   availability: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,
@@ -395,65 +333,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.successSoft,
   },
-  availabilityCustom: {
-    backgroundColor: colors.warningSoft,
-  },
-  availabilityOutOfStock: {
-    backgroundColor: colors.dangerSoft,
-  },
-  availabilityText: {
-    color: colors.primaryDark,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  availabilityTextOutOfStock: {
-    color: colors.danger,
-  },
-  name: {
-    marginTop: spacing.md,
-    fontFamily: fonts.display,
-    color: colors.text,
-    fontSize: 27,
-    lineHeight: 33,
-    fontWeight: '700',
-  },
-  priceRow: {
-    marginTop: spacing.sm,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    gap: spacing.sm,
-  },
-  originalPrice: {
-    color: colors.textMuted,
-    fontSize: 15,
-    textDecorationLine: 'line-through',
-  },
-  price: {
-    color: colors.primary,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  description: {
-    marginTop: spacing.lg,
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  optionGroup: {
-    marginTop: spacing.xl,
-    gap: spacing.md,
-  },
-  optionLabel: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  options: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
+  availabilityCustom: { backgroundColor: colors.warningSoft },
+  availabilityOutOfStock: { backgroundColor: colors.dangerSoft },
+  availabilityText: { color: colors.primaryDark, fontSize: 11, fontWeight: '800' },
+  availabilityTextOutOfStock: { color: colors.danger },
+  name: { marginTop: spacing.md, fontFamily: fonts.display, color: colors.text, fontSize: 27, lineHeight: 33, fontWeight: '700' },
+  priceRow: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: spacing.sm },
+  originalPrice: { color: colors.textMuted, fontSize: 15, textDecorationLine: 'line-through' },
+  price: { color: colors.primary, fontSize: 24, fontWeight: '900' },
+  description: { marginTop: spacing.lg, color: colors.textMuted, fontSize: 14, lineHeight: 22 },
+  optionGroup: { marginTop: spacing.xl, gap: spacing.md },
+  optionLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   option: {
     minWidth: 58,
     minHeight: 50,
@@ -465,33 +356,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
-  optionSelected: {
-    borderColor: colors.primaryDark,
-    backgroundColor: colors.primary,
-  },
-  optionPressed: {
-    opacity: 0.72,
-  },
-  optionText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  optionTextSelected: {
-    color: colors.white,
-  },
-  quantityRow: {
-    marginTop: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  stock: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 11,
-  },
+  optionSelected: { borderColor: colors.primaryDark, backgroundColor: colors.primary },
+  optionPressed: { opacity: 0.72 },
+  optionText: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  optionTextSelected: { color: colors.white },
+  quantityRow: { marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.lg },
+  stock: { marginTop: 3, color: colors.textMuted, fontSize: 11 },
   infoCard: {
     marginTop: spacing.xl,
     padding: spacing.lg,
@@ -501,18 +371,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.successSoft,
   },
-  infoText: {
-    flex: 1,
-    color: colors.success,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  customInfoCard: {
-    backgroundColor: colors.warningSoft,
-  },
-  customInfoText: {
-    color: colors.warning,
-  },
+  infoText: { flex: 1, color: colors.success, fontSize: 13, fontWeight: '700' },
+  customInfoCard: { backgroundColor: colors.warningSoft },
+  customInfoText: { color: colors.warning },
   footer: {
     minHeight: 132,
     paddingHorizontal: spacing.lg,
@@ -532,60 +393,25 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.large,
   },
-  footerTotalRow: {
+  footerTotalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  footerLabel: { color: colors.textMuted, fontSize: 11 },
+  footerPrice: { color: colors.primary, fontSize: 19, fontWeight: '900' },
+  actionMessage: { color: colors.danger, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  actionMessageSuccess: { color: colors.success },
+  footerActions: { flexDirection: 'row', gap: spacing.sm },
+  actionButton: { flex: 1, minWidth: 0, paddingHorizontal: spacing.sm },
+  unavailableBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  footerLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-  footerPrice: {
-    color: colors.primary,
-    fontSize: 19,
-    fontWeight: '900',
-  },
-  actionMessage: {
-    color: colors.danger,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  actionMessageSuccess: {
-    color: colors.success,
-  },
-  footerActions: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radii.medium,
+    backgroundColor: colors.surfaceWarm,
   },
-  actionButton: {
-    flex: 1,
-    minWidth: 0,
-    paddingHorizontal: spacing.sm,
-  },
-  unavailableBox: {
-  flex: 1,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: spacing.sm,
-  paddingVertical: spacing.md,
-  borderRadius: radii.medium,
-  backgroundColor: colors.surfaceWarm,
-},
-
-unavailableText: {
-  color: colors.textMuted,
-  fontSize: 15,
-  fontWeight: '800',
-  textAlign: 'center',
-},
-  purchaseNotes: {
-    marginTop: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
+  unavailableText: { color: colors.textMuted, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  purchaseNotes: { marginTop: spacing.xl, borderTopWidth: 1, borderTopColor: colors.border },
   purchaseNote: {
     minHeight: 70,
     paddingVertical: spacing.md,

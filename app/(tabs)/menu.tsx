@@ -40,9 +40,7 @@ export default function MenuScreen() {
   }
 
   async function handleInstagram() {
-    const username = settings.instagram
-      .replace(/^@/, '')
-      .trim();
+    const username = settings.instagram.replace(/^@/, '').trim();
 
     if (!username) {
       Alert.alert(
@@ -52,15 +50,10 @@ export default function MenuScreen() {
       return;
     }
 
-    await Linking.openURL(
-      `https://instagram.com/${username}`,
-    );
+    await Linking.openURL(`https://instagram.com/${username}`);
   }
 
-  const groups: {
-    title: string;
-    items: MenuOption[];
-  }[] = [
+  const groups: { title: string; items: MenuOption[] }[] = [
     {
       title: 'Comprar',
       items: [
@@ -74,8 +67,7 @@ export default function MenuScreen() {
           icon: 'grid-outline',
           label: 'Categorias',
           description: 'Explore todos os departamentos',
-          onPress: () =>
-            router.push('/(tabs)/categories'),
+          onPress: () => router.push('/(tabs)/categories'),
         },
         {
           icon: 'heart-outline',
@@ -86,21 +78,25 @@ export default function MenuScreen() {
       ],
     },
     {
-      title: 'Meus pedidos',
+      title: 'Minha conta',
       items: [
         {
           icon: 'receipt-outline',
           label: 'Acompanhar pedidos',
           description: 'Consulte o andamento das suas compras',
-          onPress: () =>
-            router.push('/(tabs)/orders'),
+          onPress: () => router.push('/(tabs)/orders'),
         },
         {
           icon: 'person-circle-outline',
           label: 'Minha conta',
-          description: 'Acesso opcional ao histórico de compras',
-          onPress: () =>
-            router.push('/account' as Href),
+          description: 'Pedidos, avaliações, pontos e notificações',
+          onPress: () => router.push('/account' as Href),
+        },
+        {
+          icon: 'shield-checkmark-outline',
+          label: 'Segurança, endereços e privacidade',
+          description: 'Senha, endereços, cupons e solicitações LGPD',
+          onPress: () => router.push('/account-settings' as Href),
         },
       ],
     },
@@ -131,11 +127,10 @@ export default function MenuScreen() {
           onPress: handleInstagram,
         },
         {
-          icon: 'shield-checkmark-outline',
-          label: 'Privacidade e segurança',
+          icon: 'document-text-outline',
+          label: 'Política de privacidade',
           description: 'Saiba como seus dados são protegidos',
-          onPress: () =>
-            router.push('/privacy' as Href),
+          onPress: () => router.push('/privacy' as Href),
         },
       ],
     },
@@ -143,56 +138,31 @@ export default function MenuScreen() {
 
   return (
     <Screen>
-      <AppHeader
-        compact
-        title="Menu"
-        showBack
-        showStoreHome
-      />
+      <AppHeader compact title="Menu" showBack showStoreHome />
 
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          desktop && styles.contentDesktop,
-        ]}
+        contentContainerStyle={[styles.content, desktop && styles.contentDesktop]}
         showsVerticalScrollIndicator>
         <View style={styles.brandCard}>
           <View style={styles.brandGlow} />
-
           <Image
             source={require('@/assets/images/joedla-logo.png')}
             contentFit="contain"
             style={styles.logo}
           />
-
           <View style={styles.brandCopy}>
-            <Text style={styles.brandEyebrow}>
-              JOEDLA COLLECTION
-            </Text>
-
-            <Text style={styles.brandName}>
-              Moda e atendimento em um só lugar
-            </Text>
-
+            <Text style={styles.brandEyebrow}>JOEDLA COLLECTION</Text>
+            <Text style={styles.brandName}>Moda e atendimento em um só lugar</Text>
             {settings.deliveryMessage.trim() ? (
-              <Text style={styles.delivery}>
-                {settings.deliveryMessage}
-              </Text>
+              <Text style={styles.delivery}>{settings.deliveryMessage}</Text>
             ) : null}
           </View>
         </View>
 
-        <View
-          style={[
-            styles.groupsGrid,
-            desktop && styles.groupsGridDesktop,
-          ]}>
+        <View style={[styles.groupsGrid, desktop && styles.groupsGridDesktop]}>
           {groups.map((group) => (
             <View key={group.title} style={styles.group}>
-              <Text style={styles.groupTitle}>
-                {group.title}
-              </Text>
-
+              <Text style={styles.groupTitle}>{group.title}</Text>
               <View style={styles.menuCard}>
                 {group.items.map((item, index) => (
                   <MenuItem
@@ -215,15 +185,8 @@ export default function MenuScreen() {
               styles.quickActionWhatsapp,
               pressed && styles.quickActionPressed,
             ]}>
-            <Ionicons
-              name="logo-whatsapp"
-              size={20}
-              color={colors.white}
-            />
-
-            <Text style={styles.quickActionText}>
-              WhatsApp
-            </Text>
+            <Ionicons name="logo-whatsapp" size={20} color={colors.white} />
+            <Text style={styles.quickActionText}>WhatsApp</Text>
           </Pressable>
 
           <Pressable
@@ -234,21 +197,12 @@ export default function MenuScreen() {
               styles.quickActionInstagram,
               pressed && styles.quickActionPressed,
             ]}>
-            <Ionicons
-              name="logo-instagram"
-              size={20}
-              color={colors.white}
-            />
-
-            <Text style={styles.quickActionText}>
-              Instagram
-            </Text>
+            <Ionicons name="logo-instagram" size={20} color={colors.white} />
+            <Text style={styles.quickActionText}>Instagram</Text>
           </Pressable>
         </View>
 
-        <Text style={styles.version}>
-          Joedla Collection • Loja online
-        </Text>
+        <Text style={styles.version}>Joedla Collection • Loja online</Text>
       </ScrollView>
     </Screen>
   );
@@ -260,9 +214,7 @@ function MenuItem({
   description,
   onPress,
   last = false,
-}: MenuOption & {
-  last?: boolean;
-}) {
+}: MenuOption & { last?: boolean }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -274,30 +226,15 @@ function MenuItem({
         pressed && styles.pressed,
       ]}>
       <View style={styles.menuIcon}>
-        <Ionicons
-          name={icon}
-          size={21}
-          color={colors.primary}
-        />
+        <Ionicons name={icon} size={21} color={colors.primary} />
       </View>
-
       <View style={styles.menuCopy}>
         <Text style={styles.menuLabel}>{label}</Text>
-
         {description ? (
-          <Text
-            numberOfLines={2}
-            style={styles.menuDescription}>
-            {description}
-          </Text>
+          <Text numberOfLines={2} style={styles.menuDescription}>{description}</Text>
         ) : null}
       </View>
-
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color={colors.textMuted}
-      />
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -310,13 +247,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: spacing.xl,
   },
-
   contentDesktop: {
     maxWidth: 980,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.xxl,
   },
-
   brandCard: {
     position: 'relative',
     overflow: 'hidden',
@@ -331,7 +266,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#21150F',
     ...shadow,
   },
-
   brandGlow: {
     position: 'absolute',
     right: -50,
@@ -341,24 +275,9 @@ const styles = StyleSheet.create({
     borderRadius: 105,
     backgroundColor: 'rgba(216,179,106,0.13)',
   },
-
-  logo: {
-    width: 100,
-    height: 100,
-  },
-
-  brandCopy: {
-    minWidth: 0,
-    flex: 1,
-  },
-
-  brandEyebrow: {
-    color: '#D8B36A',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2.3,
-  },
-
+  logo: { width: 100, height: 100 },
+  brandCopy: { minWidth: 0, flex: 1 },
+  brandEyebrow: { color: '#D8B36A', fontSize: 10, fontWeight: '900', letterSpacing: 2.3 },
   brandName: {
     maxWidth: 520,
     marginTop: spacing.sm,
@@ -368,30 +287,10 @@ const styles = StyleSheet.create({
     lineHeight: 31,
     fontWeight: '800',
   },
-
-  delivery: {
-    maxWidth: 540,
-    marginTop: spacing.md,
-    color: '#D8C7B8',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-
-  groupsGrid: {
-    gap: spacing.xl,
-  },
-
-  groupsGridDesktop: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-
-  group: {
-    minWidth: 280,
-    flex: 1,
-    gap: spacing.sm,
-  },
-
+  delivery: { maxWidth: 540, marginTop: spacing.md, color: '#D8C7B8', fontSize: 12, lineHeight: 18 },
+  groupsGrid: { gap: spacing.xl },
+  groupsGridDesktop: { flexDirection: 'row', flexWrap: 'wrap' },
+  group: { minWidth: 280, flex: 1, gap: spacing.sm },
   groupTitle: {
     paddingHorizontal: spacing.xs,
     color: colors.primaryDark,
@@ -400,7 +299,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-
   menuCard: {
     overflow: 'hidden',
     borderWidth: 1,
@@ -409,7 +307,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEFC',
     ...shadow,
   },
-
   menuItem: {
     minHeight: 78,
     paddingHorizontal: spacing.lg,
@@ -418,16 +315,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-
-  pressed: {
-    backgroundColor: colors.surfaceWarm,
-  },
-
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  pressed: { backgroundColor: colors.surfaceWarm },
   menuIcon: {
     width: 42,
     height: 42,
@@ -436,31 +325,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceWarm,
   },
-
-  menuCopy: {
-    minWidth: 0,
-    flex: 1,
-  },
-
-  menuLabel: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  menuDescription: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 15,
-  },
-
-  quickActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-
+  menuCopy: { minWidth: 0, flex: 1 },
+  menuLabel: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  menuDescription: { marginTop: 3, color: colors.textMuted, fontSize: 10, lineHeight: 15 },
+  quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   quickAction: {
     minWidth: 180,
     minHeight: 48,
@@ -472,29 +340,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadow,
   },
-
-  quickActionWhatsapp: {
-    backgroundColor: '#1F7A4D',
-  },
-
-  quickActionInstagram: {
-    backgroundColor: '#8B451C',
-  },
-
-  quickActionPressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.98 }],
-  },
-
-  quickActionText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-
-  version: {
-    color: colors.textMuted,
-    fontSize: 10,
-    textAlign: 'center',
-  },
+  quickActionWhatsapp: { backgroundColor: '#1F7A4D' },
+  quickActionInstagram: { backgroundColor: '#8B451C' },
+  quickActionPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
+  quickActionText: { color: colors.white, fontSize: 12, fontWeight: '900' },
+  version: { color: colors.textMuted, fontSize: 10, textAlign: 'center' },
 });
