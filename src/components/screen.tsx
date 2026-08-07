@@ -1,5 +1,5 @@
 import { PropsWithChildren } from 'react';
-import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, useWindowDimensions, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '@/src/theme';
@@ -9,9 +9,20 @@ type ScreenProps = PropsWithChildren<{
   edges?: ('top' | 'right' | 'bottom' | 'left')[];
 }>;
 
+const MOBILE_TAB_BAR_SPACE = 70;
+
 export function Screen({ children, style, edges = ['top', 'left', 'right'] }: ScreenProps) {
+  const { width } = useWindowDimensions();
+  const needsBottomProtection = edges.includes('bottom') && width < 900;
+
   return (
-    <SafeAreaView edges={edges} style={[styles.screen, style]}>
+    <SafeAreaView
+      edges={edges}
+      style={[
+        styles.screen,
+        needsBottomProtection && styles.withMobileTabBarSpace,
+        style,
+      ]}>
       {children}
     </SafeAreaView>
   );
@@ -20,6 +31,10 @@ export function Screen({ children, style, edges = ['top', 'left', 'right'] }: Sc
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: colors.background,
+  },
+  withMobileTabBarSpace: {
+    paddingBottom: MOBILE_TAB_BAR_SPACE,
   },
 });
