@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ReactNode } from 'react';
 import {
-    Pressable,
-    StyleProp,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-    ViewStyle,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  ViewStyle,
 } from 'react-native';
 
 import { colors, radii, spacing } from '@/src/theme';
@@ -38,12 +38,7 @@ export function AdminToolbar({
       <View style={styles.leftArea}>
         {showSearch ? (
           <View style={styles.search}>
-            <Ionicons
-              name="search-outline"
-              size={16}
-              color={colors.textMuted}
-            />
-
+            <Ionicons name="search-outline" size={16} color={colors.textMuted} />
             <TextInput
               value={searchValue}
               onChangeText={onChangeSearch}
@@ -53,39 +48,21 @@ export function AdminToolbar({
               autoCorrect={false}
               style={styles.input}
             />
-
             {searchValue ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Limpar pesquisa"
                 hitSlop={8}
                 onPress={() => onChangeSearch('')}
-                style={({ pressed }) => [
-                  styles.clearButton,
-                  pressed && styles.pressed,
-                ]}>
-                <Ionicons
-                  name="close-circle"
-                  size={17}
-                  color={colors.textMuted}
-                />
+                style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}>
+                <Ionicons name="close-circle" size={17} color={colors.textMuted} />
               </Pressable>
             ) : null}
           </View>
         ) : null}
-
-        {left ? (
-          <View style={styles.leftContent}>
-            {left}
-          </View>
-        ) : null}
+        {left ? <View style={styles.leftContent}>{left}</View> : null}
       </View>
-
-      {right ? (
-        <View style={styles.rightArea}>
-          {right}
-        </View>
-      ) : null}
+      {right ? <View style={styles.rightArea}>{right}</View> : null}
     </View>
   );
 }
@@ -122,21 +99,15 @@ export function AdminToolbarButton({
         <Ionicons
           name={icon}
           size={15}
-          color={
-            variant === 'secondary'
-              ? '#7D4D1E'
-              : colors.white
-          }
+          color={variant === 'secondary' ? '#7D4D1E' : colors.white}
         />
       ) : null}
-
       <Text
+        numberOfLines={2}
         style={[
           styles.buttonText,
-          variant === 'primary' &&
-            styles.buttonTextPrimary,
-          variant === 'danger' &&
-            styles.buttonTextPrimary,
+          variant === 'primary' && styles.buttonTextPrimary,
+          variant === 'danger' && styles.buttonTextPrimary,
         ]}>
         {label}
       </Text>
@@ -150,11 +121,7 @@ type AdminFilterChipProps = {
   onPress: () => void;
 };
 
-export function AdminFilterChip({
-  label,
-  active = false,
-  onPress,
-}: AdminFilterChipProps) {
+export function AdminFilterChip({ label, active = false, onPress }: AdminFilterChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -166,10 +133,8 @@ export function AdminFilterChip({
         pressed && styles.pressed,
       ]}>
       <Text
-        style={[
-          styles.filterChipText,
-          active && styles.filterChipTextActive,
-        ]}>
+        numberOfLines={2}
+        style={[styles.filterChipText, active && styles.filterChipTextActive]}>
         {label}
       </Text>
     </Pressable>
@@ -178,6 +143,8 @@ export function AdminFilterChip({
 
 const styles = StyleSheet.create({
   toolbar: {
+    width: '100%',
+    minWidth: 0,
     minHeight: 60,
     padding: 12,
     borderWidth: 1,
@@ -190,35 +157,42 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: '#FFFDFC',
   },
-
   leftArea: {
-    minWidth: 220,
-    flex: 1,
+    minWidth: 0,
+    flexBasis: 260,
+    flexGrow: 1,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-
   rightArea: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-
   leftContent: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-
   search: {
-    minWidth: 220,
+    width: '100%',
+    minWidth: 0,
     maxWidth: 420,
     minHeight: 42,
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: '#DED2C7',
@@ -228,7 +202,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: '#F8F3ED',
   },
-
   input: {
     minWidth: 0,
     flex: 1,
@@ -237,7 +210,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     outlineStyle: 'none' as never,
   },
-
   clearButton: {
     width: 24,
     height: 24,
@@ -245,71 +217,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   button: {
+    minWidth: 0,
+    maxWidth: '100%',
     minHeight: 40,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: '#D3C1AE',
     borderRadius: radii.pill,
     flexDirection: 'row',
+    flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
     backgroundColor: '#F7EEE5',
   },
-
-  buttonPrimary: {
-    borderColor: '#9D5F1D',
-    backgroundColor: '#9D5F1D',
-  },
-
-  buttonDanger: {
-    borderColor: colors.danger,
-    backgroundColor: colors.danger,
-  },
-
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-
+  buttonPrimary: { borderColor: '#9D5F1D', backgroundColor: '#9D5F1D' },
+  buttonDanger: { borderColor: colors.danger, backgroundColor: colors.danger },
+  buttonDisabled: { opacity: 0.45 },
   buttonText: {
+    minWidth: 0,
+    flexShrink: 1,
     color: '#7D4D1E',
     fontSize: 11,
     fontWeight: '900',
+    textAlign: 'center',
   },
-
-  buttonTextPrimary: {
-    color: colors.white,
-  },
-
+  buttonTextPrimary: { color: colors.white },
   filterChip: {
+    minWidth: 0,
+    maxWidth: '100%',
     minHeight: 36,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: '#D8C8B7',
     borderRadius: radii.pill,
+    flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFDFC',
   },
-
-  filterChipActive: {
-    borderColor: '#9D5F1D',
-    backgroundColor: '#F1E1CF',
-  },
-
+  filterChipActive: { borderColor: '#9D5F1D', backgroundColor: '#F1E1CF' },
   filterChipText: {
+    flexShrink: 1,
     color: '#88776B',
     fontSize: 9,
     fontWeight: '800',
+    textAlign: 'center',
   },
-
-  filterChipTextActive: {
-    color: '#7D4D1E',
-  },
-
-  pressed: {
-    opacity: 0.68,
-  },
+  filterChipTextActive: { color: '#7D4D1E' },
+  pressed: { opacity: 0.68 },
 });
