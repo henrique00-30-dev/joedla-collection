@@ -42,6 +42,29 @@ import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import type { Order } from '@/src/types';
 import { formatCurrency, formatDate } from '@/src/utils/format';
 
+const REGISTER_TIMEOUT_MS = 15000;
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, '').slice(0, 11);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('O cadastro demorou mais que o esperado. Tente novamente.')),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export default function AccountScreen() {
   const { products } = useStore();
   const { width } = useWindowDimensions();
@@ -55,6 +78,7 @@ export default function AccountScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [registerName, setRegisterName] = useState('');
   const [registerWhatsapp, setRegisterWhatsapp] = useState('');
+  const [registerError, setRegisterError] = useState('');
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -137,27 +161,49 @@ export default function AccountScreen() {
   }
 
   async function register() {
+    setRegisterError('');
+
     if (registerName.trim().length < 3 || !email.trim()) {
-      Alert.alert('Dados incompletos', 'Informe seu nome e um e-mail válido.');
+      const message = 'Informe seu nome completo e um e-mail válido.';
+      setRegisterError(message);
+      Alert.alert('Dados incompletos', message);
       return;
     }
+
+    const phoneDigits = digitsOnly(registerWhatsapp);
+    if (phoneDigits.length !== 11) {
+      const message = 'Informe 11 dígitos no WhatsApp, incluindo o DDD. Ex.: 79999999999.';
+      setRegisterError(message);
+      Alert.alert('WhatsApp inválido', message);
+      return;
+    }
+
     if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-      Alert.alert('Senha fraca', 'Use pelo menos 8 caracteres, com letras e números.');
+      const message = 'A senha precisa ter no mínimo 8 caracteres, com pelo menos 1 letra e 1 número.';
+      setRegisterError(message);
+      Alert.alert('Senha inválida', message);
       return;
     }
+
     setLoading(true);
     try {
-      await registerCustomer({
-        fullName: registerName.trim(),
-        email: email.trim(),
-        password,
-        whatsapp: registerWhatsapp.trim(),
-      });
+      await withTimeout(
+        registerCustomer({
+          fullName: registerName.trim(),
+          email: email.trim(),
+          password,
+          whatsapp: phoneDigits,
+        }),
+        REGISTER_TIMEOUT_MS,
+      );
       setPassword('');
+      setRegisterError('');
       await refresh();
       Alert.alert('Conta criada', 'Seu cadastro está pronto e você já está conectado.');
     } catch (error) {
-      Alert.alert('Não foi possível criar a conta', error instanceof Error ? error.message : 'Tente novamente.');
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      setRegisterError(message);
+      Alert.alert('Não foi possível criar a conta', message);
     } finally {
       setLoading(false);
     }
@@ -219,10 +265,10 @@ export default function AccountScreen() {
         {!user ? (
           <View style={[styles.card, desktop && styles.authCard]}>
             <View style={styles.modeRow}>
-              <Pressable onPress={() => setMode('login')} style={[styles.modeButton, mode === 'login' && styles.modeButtonActive]}>
+              <Pressable onPress={() => { setMode('login'); setRegisterError(''); }} style={[styles.modeButton, mode === 'login' && styles.modeButtonActive]}>
                 <Text style={[styles.modeText, mode === 'login' && styles.modeTextActive]}>Entrar</Text>
               </Pressable>
-              <Pressable onPress={() => setMode('register')} style={[styles.modeButton, mode === 'register' && styles.modeButtonActive]}>
+              <Pressable onPress={() => { setMode('register'); setRegisterError(''); }} style={[styles.modeButton, mode === 'register' && styles.modeButtonActive]}>
                 <Text style={[styles.modeText, mode === 'register' && styles.modeTextActive]}>Criar conta</Text>
               </Pressable>
             </View>
@@ -230,24 +276,46 @@ export default function AccountScreen() {
             {mode === 'register' ? (
               <>
                 <Field label="Nome completo" value={registerName} onChangeText={setRegisterName} placeholder="Seu nome" maxLength={120} />
-                <Field label="WhatsApp (opcional)" value={registerWhatsapp} onChangeText={setRegisterWhatsapp} keyboardType="phone-pad" placeholder="(79) 99999-9999" maxLength={30} />
+                <Field
+                  label="WhatsApp — obrigatório: 11 dígitos com DDD"
+                  value={registerWhatsapp}
+                  onChangeText={(value) => setRegisterWhatsapp(digitsOnly(value))}
+                  keyboardType="phone-pad"
+                  placeholder="79999999999"
+                  maxLength={11}
+                />
+                <Text style={styles.requirementText}>
+                  Digite somente números: 2 do DDD + 9 do celular. Ex.: 79999999999.
+                </Text>
               </>
             ) : null}
 
             <Field label="E-mail" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="voce@exemplo.com" maxLength={254} />
             <Field
-              label="Senha"
+              label={mode === 'register' ? 'Senha — mínimo 8 caracteres' : 'Senha'}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
-              placeholder={mode === 'register' ? 'Mínimo 8 caracteres, letras e números' : 'Sua senha'}
+              placeholder={mode === 'register' ? 'Mínimo 8 caracteres' : 'Sua senha'}
               maxLength={72}
             />
+            {mode === 'register' ? (
+              <Text style={styles.requirementText}>
+                Obrigatório: pelo menos 8 caracteres, contendo no mínimo 1 letra e 1 número.
+              </Text>
+            ) : null}
             <Pressable onPress={() => setShowPassword((value) => !value)} style={styles.showPassword}>
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.primary} />
               <Text style={styles.link}>{showPassword ? 'Ocultar senha' : 'Mostrar senha'}</Text>
             </Pressable>
+
+            {mode === 'register' && registerError ? (
+              <View style={styles.formErrorBox}>
+                <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
+                <Text style={styles.formErrorText}>{registerError}</Text>
+              </View>
+            ) : null}
 
             <Button loading={loading} onPress={mode === 'login' ? login : register}>
               {mode === 'login' ? 'Entrar na minha conta' : 'Criar minha conta'}
@@ -402,8 +470,11 @@ const styles = StyleSheet.create({
   modeButtonActive: { backgroundColor: colors.surface },
   modeText: { color: colors.textMuted, fontWeight: '700' },
   modeTextActive: { color: colors.primary },
+  requirementText: { marginTop: -spacing.sm, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   showPassword: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.xs },
   link: { color: colors.primary, fontWeight: '700' },
+  formErrorBox: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radii.medium, backgroundColor: colors.dangerSoft },
+  formErrorText: { minWidth: 0, flex: 1, color: colors.danger, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   securityBox: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', padding: spacing.md, borderRadius: radii.medium, backgroundColor: colors.successSoft },
   securityText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 18 },
   accountTop: { backgroundColor: colors.surface, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md, ...shadow.card },
