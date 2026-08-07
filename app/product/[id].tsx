@@ -17,6 +17,7 @@ import { formatCurrency } from '@/src/utils/format';
 
 export default function ProductDetailsScreen() {
   const { width } = useWindowDimensions();
+  const phone = width < 600;
   const desktop = width >= 900;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { products, favorites, toggleFavorite, addToCart } = useStore();
@@ -42,15 +43,10 @@ export default function ProductDetailsScreen() {
     }
   }, [product?.id]);
 
-  const favorite = useMemo(
-    () => (product ? favorites.includes(product.id) : false),
-    [favorites, product],
-  );
+  const favorite = useMemo(() => (product ? favorites.includes(product.id) : false), [favorites, product]);
   const relatedProducts = useMemo(
     () => product
-      ? products
-        .filter((item) => item.active && item.id !== product.id && item.category === product.category)
-        .slice(0, 4)
+      ? products.filter((item) => item.active && item.id !== product.id && item.category === product.category).slice(0, 4)
       : [],
     [product, products],
   );
@@ -70,26 +66,25 @@ export default function ProductDetailsScreen() {
     );
   }
 
-  const currentProduct = product;
-  const imageUrls = currentProduct.imageUrls.length ? currentProduct.imageUrls : [''];
-  const outOfStock = currentProduct.availability === 'ready' && currentProduct.stock <= 0;
-  const isCustomOrder = currentProduct.availability === 'custom';
+  const imageUrls = product.imageUrls.length ? product.imageUrls : [''];
+  const outOfStock = product.availability === 'ready' && product.stock <= 0;
+  const isCustomOrder = product.availability === 'custom';
 
   function handleProductAction(destination: 'cart' | 'checkout') {
     if (outOfStock) {
-      setActionMessage('Produto indisponivel no momento.');
+      setActionMessage('Produto indisponível no momento.');
       return;
     }
-    if (currentProduct.sizes.length && !selectedSize) {
+    if (product.sizes.length && !selectedSize) {
       setActionMessage('Escolha um tamanho antes de continuar.');
       return;
     }
-    if (currentProduct.colors.length && !selectedColor) {
+    if (product.colors.length && !selectedColor) {
       setActionMessage('Escolha uma cor antes de continuar.');
       return;
     }
 
-    addToCart(currentProduct, quantity, selectedSize, selectedColor, isCustomOrder ? 'custom' : undefined);
+    addToCart(product, quantity, selectedSize, selectedColor, isCustomOrder ? 'custom' : undefined);
     if (destination === 'checkout') {
       router.push('/checkout');
       return;
@@ -109,10 +104,11 @@ export default function ProductDetailsScreen() {
           label: favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
         }}
       />
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
         <View style={[styles.productLayout, desktop && styles.productLayoutDesktop]}>
           <ProductGallery
-            product={currentProduct}
+            product={product}
             imageUrls={imageUrls}
             selectedImageIndex={selectedImageIndex}
             onSelectImage={setSelectedImageIndex}
@@ -121,17 +117,14 @@ export default function ProductDetailsScreen() {
           <View style={[styles.details, desktop && styles.detailsDesktop]}>
             <View style={[
               styles.availability,
-              product.availability === 'custom' && styles.availabilityCustom,
+              isCustomOrder && styles.availabilityCustom,
               outOfStock && styles.availabilityOutOfStock,
             ]}>
               <Text style={[styles.availabilityText, outOfStock && styles.availabilityTextOutOfStock]}>
-                {outOfStock
-                  ? 'Em falta para pronta entrega'
-                  : product.availability === 'ready'
-                    ? 'Pronta entrega'
-                    : 'Produto por encomenda'}
+                {outOfStock ? 'Em falta para pronta entrega' : isCustomOrder ? 'Produto por encomenda' : 'Pronta entrega'}
               </Text>
             </View>
+
             <Text style={styles.name}>{product.name}</Text>
             <View style={styles.priceRow}>
               {product.originalPrice && product.originalPrice > product.price ? (
@@ -165,8 +158,8 @@ export default function ProductDetailsScreen() {
               />
             ) : null}
 
-            <View style={styles.quantityRow}>
-              <View>
+            <View style={[styles.quantityRow, phone && styles.quantityRowPhone]}>
+              <View style={styles.quantityCopy}>
                 <Text style={styles.optionLabel}>Quantidade</Text>
                 <Text style={styles.stock}>
                   {outOfStock
@@ -193,6 +186,7 @@ export default function ProductDetailsScreen() {
                 {isCustomOrder ? 'Prazo da encomenda combinado pelo WhatsApp' : 'Entrega grátis em Rosário do Catete'}
               </Text>
             </View>
+
             <View style={styles.purchaseNotes}>
               <PurchaseNote icon="resize-outline" title="Tamanhos e medidas" text="Confirme as medidas com a loja se tiver dúvida." />
               <PurchaseNote icon="shirt-outline" title="Cuidados com a peça" text="Siga as orientações da etiqueta para conservar o produto." />
@@ -213,11 +207,13 @@ export default function ProductDetailsScreen() {
           </View>
         ) : null}
       </ScrollView>
+
       <View style={[styles.footer, desktop && styles.footerDesktop]}>
         <View style={styles.footerTotalRow}>
           <Text style={styles.footerLabel}>Valor</Text>
           <Text style={styles.footerPrice}>{formatCurrency(product.price * quantity)}</Text>
         </View>
+
         {actionMessage ? (
           <Text
             accessibilityLiveRegion="polite"
@@ -225,22 +221,30 @@ export default function ProductDetailsScreen() {
             {actionMessage}
           </Text>
         ) : null}
-        <View style={styles.footerActions}>
+
+        <View style={[styles.footerActions, phone && styles.footerActionsPhone]}>
           {outOfStock ? (
             <View style={styles.unavailableBox}>
               <Ionicons name="alert-circle-outline" size={20} color={colors.textMuted} />
               <Text style={styles.unavailableText}>Produto indisponível</Text>
             </View>
           ) : isCustomOrder ? (
-            <Button icon="time-outline" onPress={() => handleProductAction('cart')} style={styles.actionButton}>
+            <Button icon="time-outline" onPress={() => handleProductAction('cart')} style={styles.actionButtonSingle}>
               Encomendar
             </Button>
           ) : (
             <>
-              <Button variant="secondary" icon="bag-add-outline" onPress={() => handleProductAction('cart')} style={styles.actionButton}>
+              <Button
+                variant="secondary"
+                icon="bag-add-outline"
+                onPress={() => handleProductAction('cart')}
+                style={[styles.actionButton, phone && styles.actionButtonPhone]}>
                 Adicionar ao carrinho
               </Button>
-              <Button icon="flash-outline" onPress={() => handleProductAction('checkout')} style={styles.actionButton}>
+              <Button
+                icon="flash-outline"
+                onPress={() => handleProductAction('checkout')}
+                style={[styles.actionButton, phone && styles.actionButtonPhone]}>
                 Comprar agora
               </Button>
             </>
@@ -263,17 +267,7 @@ function PurchaseNote({ icon, title, text }: { icon: keyof typeof Ionicons.glyph
   );
 }
 
-function OptionGroup({
-  label,
-  options,
-  selected,
-  onSelect,
-}: {
-  label: string;
-  options: string[];
-  selected?: string;
-  onSelect: (value: string) => void;
-}) {
+function OptionGroup({ label, options, selected, onSelect }: { label: string; options: string[]; selected?: string; onSelect: (value: string) => void }) {
   return (
     <View style={styles.optionGroup}>
       <Text style={styles.optionLabel}>{label}</Text>
@@ -284,11 +278,7 @@ function OptionGroup({
             accessibilityRole="button"
             accessibilityState={{ selected: selected === option }}
             onPress={() => onSelect(option)}
-            style={({ pressed }) => [
-              styles.option,
-              selected === option && styles.optionSelected,
-              pressed && styles.optionPressed,
-            ]}>
+            style={({ pressed }) => [styles.option, selected === option && styles.optionSelected, pressed && styles.optionPressed]}>
             <Text style={[styles.optionText, selected === option && styles.optionTextSelected]}>{option}</Text>
           </Pressable>
         ))}
@@ -299,40 +289,11 @@ function OptionGroup({
 
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xl },
-  productLayout: { width: '100%' },
-  productLayoutDesktop: {
-    maxWidth: 1180,
-    padding: spacing.xxl,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 54,
-  },
-  interactionsSection: {
-    width: '100%',
-    maxWidth: 1180,
-    paddingHorizontal: spacing.lg,
-    alignSelf: 'center',
-  },
-  relatedSection: {
-    width: '100%',
-    maxWidth: 1180,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-    alignSelf: 'center',
-  },
-  relatedTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 23, fontWeight: '700' },
-  relatedDescription: { marginTop: spacing.xs, marginBottom: spacing.lg, color: colors.textMuted, fontSize: 13 },
-  details: { padding: spacing.lg },
+  productLayout: { width: '100%', minWidth: 0 },
+  productLayoutDesktop: { maxWidth: 1180, padding: spacing.xxl, alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-start', gap: 54 },
+  details: { minWidth: 0, padding: spacing.lg },
   detailsDesktop: { flex: 1, padding: 0 },
-  availability: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    backgroundColor: colors.successSoft,
-  },
+  availability: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: radii.pill, backgroundColor: colors.successSoft },
   availabilityCustom: { backgroundColor: colors.warningSoft },
   availabilityOutOfStock: { backgroundColor: colors.dangerSoft },
   availabilityText: { color: colors.primaryDark, fontSize: 11, fontWeight: '800' },
@@ -345,83 +306,40 @@ const styles = StyleSheet.create({
   optionGroup: { marginTop: spacing.xl, gap: spacing.md },
   optionLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  option: {
-    minWidth: 58,
-    minHeight: 50,
-    paddingHorizontal: spacing.lg,
-    borderWidth: 2,
-    borderColor: colors.primarySoft,
-    borderRadius: radii.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
+  option: { minWidth: 58, minHeight: 50, paddingHorizontal: spacing.lg, borderWidth: 2, borderColor: colors.primarySoft, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   optionSelected: { borderColor: colors.primaryDark, backgroundColor: colors.primary },
   optionPressed: { opacity: 0.72 },
   optionText: { color: colors.text, fontSize: 14, fontWeight: '800' },
   optionTextSelected: { color: colors.white },
-  quantityRow: { marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.lg },
+  quantityRow: { marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.lg },
+  quantityRowPhone: { alignItems: 'flex-start' },
+  quantityCopy: { minWidth: 0, flexGrow: 1, flexShrink: 1 },
   stock: { marginTop: 3, color: colors.textMuted, fontSize: 11 },
-  infoCard: {
-    marginTop: spacing.xl,
-    padding: spacing.lg,
-    borderRadius: radii.medium,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.successSoft,
-  },
-  infoText: { flex: 1, color: colors.success, fontSize: 13, fontWeight: '700' },
+  infoCard: { marginTop: spacing.xl, padding: spacing.lg, borderRadius: radii.medium, flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.successSoft },
+  infoText: { minWidth: 0, flex: 1, color: colors.success, fontSize: 13, fontWeight: '700' },
   customInfoCard: { backgroundColor: colors.warningSoft },
   customInfoText: { color: colors.warning },
-  footer: {
-    minHeight: 132,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  footerDesktop: {
-    width: '100%',
-    maxWidth: 1180,
-    minHeight: 112,
-    paddingHorizontal: spacing.xxl,
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.large,
-  },
-  footerTotalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  footerLabel: { color: colors.textMuted, fontSize: 11 },
-  footerPrice: { color: colors.primary, fontSize: 19, fontWeight: '900' },
-  actionMessage: { color: colors.danger, fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  actionMessageSuccess: { color: colors.success },
-  footerActions: { flexDirection: 'row', gap: spacing.sm },
-  actionButton: { flex: 1, minWidth: 0, paddingHorizontal: spacing.sm },
-  unavailableBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surfaceWarm,
-  },
-  unavailableText: { color: colors.textMuted, fontSize: 15, fontWeight: '800', textAlign: 'center' },
   purchaseNotes: { marginTop: spacing.xl, borderTopWidth: 1, borderTopColor: colors.border },
-  purchaseNote: {
-    minHeight: 70,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  purchaseNoteCopy: { flex: 1 },
+  purchaseNote: { minHeight: 70, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  purchaseNoteCopy: { minWidth: 0, flex: 1 },
   purchaseNoteTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
   purchaseNoteText: { marginTop: 3, color: colors.textMuted, fontSize: 11, lineHeight: 17 },
+  interactionsSection: { width: '100%', maxWidth: 1180, paddingHorizontal: spacing.lg, alignSelf: 'center' },
+  relatedSection: { width: '100%', maxWidth: 1180, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl, alignSelf: 'center' },
+  relatedTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 23, fontWeight: '700' },
+  relatedDescription: { marginTop: spacing.xs, marginBottom: spacing.lg, color: colors.textMuted, fontSize: 13 },
+  footer: { width: '100%', minWidth: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.sm, backgroundColor: colors.surface },
+  footerDesktop: { maxWidth: 1180, paddingHorizontal: spacing.xxl, alignSelf: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.large },
+  footerTotalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  footerLabel: { color: colors.textMuted, fontSize: 11 },
+  footerPrice: { flexShrink: 0, color: colors.primary, fontSize: 19, fontWeight: '900' },
+  actionMessage: { color: colors.danger, fontSize: 12, lineHeight: 17, fontWeight: '700', textAlign: 'center' },
+  actionMessageSuccess: { color: colors.success },
+  footerActions: { width: '100%', minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  footerActionsPhone: { flexDirection: 'column' },
+  actionButton: { minWidth: 180, flexBasis: 220, flexGrow: 1 },
+  actionButtonPhone: { width: '100%', minWidth: 0, flexBasis: 'auto', flexGrow: 0 },
+  actionButtonSingle: { width: '100%', minWidth: 0 },
+  unavailableBox: { width: '100%', minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md, borderRadius: radii.medium, backgroundColor: colors.surfaceWarm },
+  unavailableText: { color: colors.textMuted, fontSize: 15, fontWeight: '800', textAlign: 'center' },
 });
