@@ -19,8 +19,12 @@ import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import { Order } from '@/src/types';
 import {
   digitsOnly,
+  isValidBrazilPhone,
   isValidEmail,
+  normalizeBrazilPhone,
   normalizeEmail,
+  normalizePlainText,
+  validatePlainText,
 } from '@/src/utils/fields';
 import { formatCurrency, formatDate } from '@/src/utils/format';
 
@@ -32,6 +36,10 @@ export default function AccountScreen() {
   const [token, setToken] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const [profileName, setProfileName] = useState('');
+  const [profileWhatsapp, setProfileWhatsapp] = useState('');
+  const [profileError, setProfileError] = useState('');
 
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
@@ -58,9 +66,7 @@ export default function AccountScreen() {
   }, []);
 
   async function refreshAccount() {
-    if (!supabase) {
-      return;
-    }
+    if (!supabase) return;
 
     setLoading(true);
 
@@ -76,6 +82,19 @@ export default function AccountScreen() {
         setIsAdminSession(false);
         return;
       }
+
+      const metadataName =
+        typeof currentUser.user_metadata?.name === 'string'
+          ? currentUser.user_metadata.name
+          : '';
+
+      const metadataWhatsapp =
+        typeof currentUser.user_metadata?.whatsapp === 'string'
+          ? currentUser.user_metadata.whatsapp
+          : '';
+
+      setProfileName(metadataName);
+      setProfileWhatsapp(metadataWhatsapp);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -117,20 +136,17 @@ export default function AccountScreen() {
         email: normalizeEmail(email),
         options: {
           shouldCreateUser: true,
-          emailRedirectTo:
-            'https://www.joedla-collection.com.br/account',
         },
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setCodeSent(true);
+      setToken('');
 
       Alert.alert(
-        'Acesso enviado',
-        'Confira seu e-mail. Use o link recebido ou digite o código de 6 números.',
+        'Código enviado',
+        'Digite nesta tela o código de 6 números que chegou no seu e-mail.',
       );
     } catch (error) {
       Alert.alert(
@@ -162,10 +178,10 @@ export default function AccountScreen() {
         type: 'email',
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
+      setCodeSent(false);
+      setToken('');
       await refreshAccount();
     } catch (error) {
       Alert.alert(
@@ -179,10 +195,63 @@ export default function AccountScreen() {
     }
   }
 
-  async function signOut() {
-    if (!supabase) {
+  async function saveProfile() {
+    if (!supabase || !user) return;
+
+    const nameError = validatePlainText(profileName, {
+      minimum: 2,
+      maximum: 120,
+    });
+
+    if (nameError) {
+      setProfileError(nameError);
       return;
     }
+
+    if (
+      profileWhatsapp &&
+      !isValidBrazilPhone(profileWhatsapp, true)
+    ) {
+      setProfileError(
+        'Informe um WhatsApp com DDD e 11 números.',
+      );
+      return;
+    }
+
+    setProfileError('');
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          name: normalizePlainText(profileName),
+          whatsapp: normalizeBrazilPhone(profileWhatsapp),
+        },
+      });
+
+      if (error) throw error;
+
+      setUser(data.user);
+      Alert.alert(
+        'Conta criada',
+        'Seus dados foram salvos. Agora você pode acompanhar seus pedidos por esta conta.',
+      );
+
+      await refreshAccount();
+    } catch (error) {
+      Alert.alert(
+        'Não foi possível criar a conta',
+        error instanceof Error
+          ? error.message
+          : 'Tente novamente.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signOut() {
+    if (!supabase) return;
 
     const { error } = await supabase.auth.signOut({
       scope: 'local',
@@ -195,7 +264,13 @@ export default function AccountScreen() {
 
     setUser(null);
     setOrders([]);
+    setCodeSent(false);
+    setEmail('');
+    setToken('');
   }
+
+  const profileComplete =
+    Boolean(user?.user_metadata?.name?.trim());
 
   return (
     <Screen>
@@ -213,17 +288,13 @@ export default function AccountScreen() {
         ]}
         showsVerticalScrollIndicator>
         <View style={styles.pageHeader}>
-          <Text style={styles.eyebrow}>
-            ÁREA DO CLIENTE
-          </Text>
+          <Text style={styles.eyebrow}>ÁREA DO CLIENTE</Text>
 
-          <Text style={styles.pageTitle}>
-            Sua conta Joedla
-          </Text>
+          <Text style={styles.pageTitle}>Minha conta</Text>
 
           <Text style={styles.pageSubtitle}>
-            Acompanhe pedidos, consulte seu histórico e acesse
-            a loja sem precisar criar uma senha.
+            Entre com um código enviado por e-mail. Não é
+            necessário criar senha.
           </Text>
         </View>
 
@@ -253,7 +324,7 @@ export default function AccountScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
                 <Ionicons
-                  name="mail-unread-outline"
+                  name="keypad-outline"
                   size={23}
                   color={colors.primary}
                 />
@@ -261,11 +332,15 @@ export default function AccountScreen() {
 
               <View style={styles.cardHeaderCopy}>
                 <Text style={styles.title}>
-                  Entrar sem senha
+                  {codeSent
+                    ? 'Digite o código'
+                    : 'Entrar ou criar conta'}
                 </Text>
 
                 <Text style={styles.text}>
-                  Enviaremos um acesso único para seu e-mail.
+                  {codeSent
+                    ? 'Enviamos um código de 6 números para seu e-mail.'
+                    : 'Informe seu e-mail para receber um código de acesso.'}
                 </Text>
               </View>
             </View>
@@ -274,6 +349,7 @@ export default function AccountScreen() {
               label="Seu e-mail"
               value={email}
               onChangeText={setEmail}
+              editable={!codeSent}
               autoCapitalize="none"
               keyboardType="email-address"
               placeholder="voce@exemplo.com"
@@ -294,28 +370,44 @@ export default function AccountScreen() {
             ) : null}
 
             {codeSent ? (
+              <>
+                <Button
+                  loading={loading}
+                  onPress={verifyCode}>
+                  Confirmar código
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  loading={loading}
+                  onPress={sendAccess}>
+                  Enviar novo código
+                </Button>
+              </>
+            ) : (
               <Button
                 loading={loading}
-                onPress={verifyCode}>
-                Confirmar código
+                onPress={sendAccess}>
+                Enviar código por e-mail
               </Button>
-            ) : null}
-
-            <Button
-              variant={codeSent ? 'secondary' : 'primary'}
-              loading={loading}
-              onPress={sendAccess}>
-              {codeSent
-                ? 'Enviar novo acesso'
-                : 'Enviar acesso por e-mail'}
-            </Button>
+            )}
           </View>
         ) : isAdminSession ? (
+          <View style={styles.card}>
+            <Text style={styles.title}>
+              Sessão administrativa ativa
+            </Text>
+            <Text style={styles.text}>
+              Esta conta está reservada para administrar a loja.
+              Use o painel para continuar.
+            </Text>
+          </View>
+        ) : !profileComplete ? (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
                 <Ionicons
-                  name="shield-checkmark-outline"
+                  name="person-add-outline"
                   size={23}
                   color={colors.primary}
                 />
@@ -323,15 +415,43 @@ export default function AccountScreen() {
 
               <View style={styles.cardHeaderCopy}>
                 <Text style={styles.title}>
-                  Sessão administrativa ativa
+                  Criar sua conta
                 </Text>
-
                 <Text style={styles.text}>
-                  Esta conta está reservada para administrar a
-                  loja. Use o painel para continuar.
+                  Complete seus dados para finalizar o cadastro.
                 </Text>
               </View>
             </View>
+
+            <Field
+              label="Seu nome"
+              value={profileName}
+              onChangeText={(value) => {
+                setProfileName(value);
+                setProfileError('');
+              }}
+              placeholder="Nome completo"
+              maxLength={120}
+              error={profileError}
+            />
+
+            <Field
+              label="WhatsApp (opcional)"
+              value={profileWhatsapp}
+              onChangeText={(value) => {
+                setProfileWhatsapp(value);
+                setProfileError('');
+              }}
+              keyboardType="phone-pad"
+              placeholder="(79) 99999-9999"
+              maxLength={20}
+            />
+
+            <Button
+              loading={loading}
+              onPress={saveProfile}>
+              Criar conta
+            </Button>
           </View>
         ) : (
           <>
@@ -339,21 +459,21 @@ export default function AccountScreen() {
               <View style={styles.accountIdentity}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
-                    {(user.email?.[0] ?? 'J').toUpperCase()}
+                    {(profileName?.[0] ??
+                      user.email?.[0] ??
+                      'J').toUpperCase()}
                   </Text>
                 </View>
 
                 <View style={styles.accountCopy}>
-                  <Text style={styles.title}>Olá!</Text>
-                  <Text style={styles.text}>
-                    {user.email}
+                  <Text style={styles.title}>
+                    {profileName || 'Minha conta'}
                   </Text>
+                  <Text style={styles.text}>{user.email}</Text>
                 </View>
               </View>
 
-              <Button
-                variant="secondary"
-                onPress={signOut}>
+              <Button variant="secondary" onPress={signOut}>
                 Sair
               </Button>
             </View>
@@ -363,34 +483,20 @@ export default function AccountScreen() {
                 <Text style={styles.sectionTitle}>
                   Histórico de compras
                 </Text>
-
                 <Text style={styles.sectionSubtitle}>
                   Consulte seus pedidos vinculados a esta conta.
-                </Text>
-              </View>
-
-              <View style={styles.orderCount}>
-                <Text style={styles.orderCountValue}>
-                  {orders.length}
-                </Text>
-
-                <Text style={styles.orderCountLabel}>
-                  {orders.length === 1 ? 'pedido' : 'pedidos'}
                 </Text>
               </View>
             </View>
 
             {orders.length ? (
               orders.map((order) => (
-                <View
-                  key={order.id}
-                  style={styles.orderCard}>
+                <View key={order.id} style={styles.orderCard}>
                   <View style={styles.orderRow}>
                     <View>
                       <Text style={styles.orderCode}>
                         {order.publicCode}
                       </Text>
-
                       <Text style={styles.orderDate}>
                         {formatDate(order.createdAt)}
                       </Text>
@@ -408,15 +514,9 @@ export default function AccountScreen() {
                       .join(', ')}
                   </Text>
 
-                  <View style={styles.orderFooter}>
-                    <Text style={styles.orderTotalLabel}>
-                      Total
-                    </Text>
-
-                    <Text style={styles.orderTotal}>
-                      {formatCurrency(order.total)}
-                    </Text>
-                  </View>
+                  <Text style={styles.orderTotal}>
+                    {formatCurrency(order.total)}
+                  </Text>
                 </View>
               ))
             ) : (
@@ -426,13 +526,11 @@ export default function AccountScreen() {
                   size={36}
                   color={colors.textMuted}
                 />
-
                 <Text style={styles.emptyTitle}>
                   Nenhum pedido ainda
                 </Text>
-
                 <Text style={styles.empty}>
-                  Nenhum pedido vinculado a esta conta ainda.
+                  Seus pedidos aparecerão aqui depois da compra.
                 </Text>
               </View>
             )}
@@ -610,17 +708,12 @@ const styles = StyleSheet.create({
 
   sectionHeader: {
     marginTop: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: spacing.md,
   },
 
   sectionTitle: {
-    fontFamily: fonts.display,
-    color: colors.primaryDark,
-    fontSize: 21,
-    fontWeight: '800',
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
   },
 
   sectionSubtitle: {
@@ -629,38 +722,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  orderCount: {
-    minWidth: 80,
-    minHeight: 54,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.large,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-
-  orderCountValue: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-
-  orderCountLabel: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 9,
-  },
-
   orderCard: {
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(111,76,56,0.12)',
-    borderRadius: 18,
+    borderColor: colors.border,
+    borderRadius: radii.medium,
     gap: spacing.md,
-    backgroundColor: '#FFFEFC',
-    ...shadow,
+    backgroundColor: colors.surface,
   },
 
   orderRow: {
@@ -688,50 +756,28 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  orderFooter: {
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  orderTotalLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-
   orderTotal: {
-    color: '#8B451C',
-    fontSize: 18,
+    color: colors.primary,
+    fontSize: 17,
     fontWeight: '900',
+    textAlign: 'right',
   },
 
   emptyCard: {
-    minHeight: 220,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 22,
+    paddingVertical: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    gap: spacing.sm,
   },
 
   emptyTitle: {
-    marginTop: spacing.md,
     color: colors.text,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
   },
 
   empty: {
-    maxWidth: 380,
-    marginTop: spacing.sm,
     color: colors.textMuted,
     textAlign: 'center',
-    fontSize: 12,
-    lineHeight: 18,
   },
 });

@@ -8,11 +8,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import { AdminGuard } from '@/src/components/admin-guard';
 import {
   AdminCard,
   AdminPage,
@@ -20,9 +22,8 @@ import {
   AdminStatCard,
   AdminToolbarButton,
 } from '@/src/components/admin';
-import { AdminGuard } from '@/src/components/admin-guard';
-import { StructuredField } from '@/src/components/structured-field';
 import { Button, Field } from '@/src/components/ui';
+import { StructuredField } from '@/src/components/structured-field';
 import { useStore } from '@/src/context/store-context';
 import { colors, fonts, radii, spacing } from '@/src/theme';
 import type { Banner, StoreSettings } from '@/src/types';
@@ -113,10 +114,10 @@ export default function AdminAppearanceScreen() {
   }
 
   function addBanner() {
-    if (form.banners.length >= 4) {
+    if (form.banners.length >= 3) {
       Alert.alert(
         'Limite de banners',
-        'Você pode manter no máximo 4 banners no carrossel.',
+        'O banner principal ocupa a posição 1. Você pode cadastrar até 3 banners extras para as posições 2, 3 e 4.',
       );
       return;
     }
@@ -468,7 +469,7 @@ export default function AdminAppearanceScreen() {
               value={String(
                 form.banners.length,
               )}
-              helper="Máximo de 4"
+              helper="3 extras + 1 fixo"
             />
 
             <AdminStatCard
@@ -569,8 +570,8 @@ export default function AdminAppearanceScreen() {
           </AdminSection>
 
           <AdminSection
-            title="Banner principal"
-            description="Conteúdo de destaque usado como fallback quando o carrossel não estiver ativo.">
+            title="Banner principal — posição 1 fixa"
+            description="Este é o primeiro item do carrossel. Ele sempre permanece como a posição 1, mas pode ser editado normalmente.">
             <AdminCard>
               <Field
                 label="Título"
@@ -670,8 +671,8 @@ export default function AdminAppearanceScreen() {
           </AdminSection>
 
           <AdminSection
-            title="Carrossel de banners"
-            description={`${form.banners.length} de 4 banners cadastrados.`}
+            title="Posições 2 a 4"
+            description={`${form.banners.length} de 3 banners extras cadastrados. Campanhas ativas também podem ocupar estas posições na loja.`}
             action={
               <AdminToolbarButton
                 label="Adicionar banner"
@@ -679,7 +680,7 @@ export default function AdminAppearanceScreen() {
                 variant="primary"
                 disabled={
                   form.banners.length >=
-                    4 || uploading
+                    3 || uploading
                 }
                 onPress={addBanner}
               />
@@ -1093,7 +1094,10 @@ function BannerDestinationPicker({
             Escolha a categoria
           </Text>
 
-          <View style={styles.destinationOptionList}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            contentContainerStyle={styles.destinationOptionList}>
             {categories.map((category) => (
               <DestinationChip
                 key={category.slug}
@@ -1109,7 +1113,7 @@ function BannerDestinationPicker({
                 }
               />
             ))}
-          </View>
+          </ScrollView>
         </View>
       ) : null}
 
@@ -1119,7 +1123,10 @@ function BannerDestinationPicker({
             Escolha o produto
           </Text>
 
-          <View style={styles.destinationOptionList}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            contentContainerStyle={styles.destinationOptionList}>
             {products
               .filter((product) => product.active)
               .map((product) => (
@@ -1137,27 +1144,10 @@ function BannerDestinationPicker({
                   }
                 />
               ))}
-          </View>
+          </ScrollView>
         </View>
       ) : null}
 
-      <View style={styles.destinationResult}>
-        <Ionicons
-          name="checkmark-circle-outline"
-          size={16}
-          color={colors.success}
-        />
-
-        <Text
-          numberOfLines={1}
-          style={styles.destinationResultText}>
-          {getDestinationLabel(
-            value,
-            categories,
-            products,
-          )}
-        </Text>
-      </View>
     </View>
   );
 }
@@ -1352,9 +1342,7 @@ const styles = StyleSheet.create({
   },
 
   destinationOptionList: {
-    maxHeight: 170,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    paddingRight: spacing.md,
     gap: spacing.sm,
   },
 

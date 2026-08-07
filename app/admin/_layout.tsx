@@ -18,11 +18,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '@/src/lib/supabase';
-import {
-  colors,
-  fonts,
-  shadow,
-} from '@/src/theme';
+import { colors, fonts, shadow } from '@/src/theme';
 
 type AdminMenuItem = {
   label: string;
@@ -192,9 +188,7 @@ function AdminSidebar({
             scope: 'local',
           });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
       }
 
       onNavigate?.();
@@ -231,7 +225,7 @@ function AdminSidebar({
           ]}>
           <Ionicons
             name="arrow-back"
-            size={17}
+            size={18}
             color="#F7EEE7"
           />
         </Pressable>
@@ -240,7 +234,6 @@ function AdminSidebar({
           <Text style={styles.brandName}>
             JOEDLA
           </Text>
-
           <Text style={styles.brandCollection}>
             COLLECTION
           </Text>
@@ -257,7 +250,7 @@ function AdminSidebar({
             ]}>
             <Ionicons
               name="close"
-              size={19}
+              size={20}
               color="#F7EEE7"
             />
           </Pressable>
@@ -269,74 +262,69 @@ function AdminSidebar({
       <ScrollView
         style={styles.menuScroll}
         showsVerticalScrollIndicator
-        contentContainerStyle={
-          styles.menuContent
-        }>
-        {MENU_GROUPS.map(
-          (group, groupIndex) => (
-            <View
-              key={
-                group.title ??
-                `group-${groupIndex}`
-              }
-              style={styles.menuGroup}>
-              {group.title ? (
-                <Text style={styles.groupTitle}>
-                  {group.title}
-                </Text>
-              ) : null}
+        contentContainerStyle={styles.menuContent}>
+        {MENU_GROUPS.map((group, groupIndex) => (
+          <View
+            key={
+              group.title ??
+              `group-${groupIndex}`
+            }
+            style={styles.menuGroup}>
+            {group.title ? (
+              <Text style={styles.groupTitle}>
+                {group.title}
+              </Text>
+            ) : null}
 
-              <View style={styles.groupItems}>
-                {group.items.map((item) => {
-                  const active =
-                    isRouteActive(
-                      pathname,
-                      item.href,
-                    );
+            <View style={styles.groupItems}>
+              {group.items.map((item) => {
+                const active = isRouteActive(
+                  pathname,
+                  item.href,
+                );
 
-                  return (
-                    <Pressable
-                      key={item.label}
-                      accessibilityRole="button"
-                      accessibilityState={{
-                        selected: active,
-                      }}
-                      onPress={() =>
-                        openRoute(item.href)
+                return (
+                  <Pressable
+                    key={item.label}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: active,
+                    }}
+                    onPress={() =>
+                      openRoute(item.href)
+                    }
+                    style={({ pressed }) => [
+                      styles.menuItem,
+                      active &&
+                        styles.menuItemActive,
+                      pressed &&
+                        styles.sidebarPressed,
+                    ]}>
+                    <Ionicons
+                      name={item.icon}
+                      size={16}
+                      color={
+                        active
+                          ? '#FFFFFF'
+                          : '#D9CCC2'
                       }
-                      style={({ pressed }) => [
-                        styles.menuItem,
-                        active &&
-                          styles.menuItemActive,
-                        pressed &&
-                          styles.sidebarPressed,
-                      ]}>
-                      <Ionicons
-                        name={item.icon}
-                        size={14}
-                        color={
-                          active
-                            ? '#FFFFFF'
-                            : '#D9CCC2'
-                        }
-                      />
+                    />
 
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.menuLabel,
-                          active &&
-                            styles.menuLabelActive,
-                        ]}>
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.menuLabel,
+                        active &&
+                          styles.menuLabelActive,
+                      ]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          ),
-        )}
+          </View>
+        ))}
 
         <Pressable
           accessibilityRole="button"
@@ -347,7 +335,7 @@ function AdminSidebar({
           ]}>
           <Ionicons
             name="log-out-outline"
-            size={15}
+            size={16}
             color="#D9CCC2"
           />
 
@@ -373,12 +361,11 @@ function MobileHeader({
         onPress={onOpenMenu}
         style={({ pressed }) => [
           styles.mobileHeaderButton,
-          pressed &&
-            styles.mobileHeaderPressed,
+          pressed && styles.mobileHeaderPressed,
         ]}>
         <Ionicons
           name="menu"
-          size={21}
+          size={22}
           color={colors.text}
         />
       </Pressable>
@@ -387,9 +374,7 @@ function MobileHeader({
         <Text style={styles.mobileHeaderTitle}>
           JOEDLA
         </Text>
-
-        <Text
-          style={styles.mobileHeaderSubtitle}>
+        <Text style={styles.mobileHeaderSubtitle}>
           PAINEL ADMINISTRATIVO
         </Text>
       </View>
@@ -400,8 +385,7 @@ function MobileHeader({
         onPress={() => router.push('/')}
         style={({ pressed }) => [
           styles.storeButtonMobile,
-          pressed &&
-            styles.mobileHeaderPressed,
+          pressed && styles.mobileHeaderPressed,
         ]}>
         <Ionicons
           name="storefront-outline"
@@ -437,9 +421,9 @@ const styles = StyleSheet.create({
   },
 
   sidebar: {
-    width: 160,
-    minWidth: 160,
-    maxWidth: 160,
+    width: 168,
+    minWidth: 168,
+    maxWidth: 168,
     height: '100%',
     flexGrow: 0,
     flexShrink: 0,
@@ -449,14 +433,14 @@ const styles = StyleSheet.create({
   },
 
   sidebarMobile: {
-    width: 252,
-    minWidth: 252,
-    maxWidth: 252,
+    width: 260,
+    minWidth: 260,
+    maxWidth: 260,
   },
 
   sidebarHeader: {
-    minHeight: 54,
-    paddingHorizontal: 6,
+    minHeight: 56,
+    paddingHorizontal: 7,
     borderBottomWidth:
       StyleSheet.hairlineWidth,
     borderBottomColor:
@@ -467,15 +451,15 @@ const styles = StyleSheet.create({
   },
 
   headerButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   headerSpacer: {
-    width: 28,
+    width: 30,
   },
 
   brand: {
@@ -485,8 +469,8 @@ const styles = StyleSheet.create({
   brandName: {
     fontFamily: fonts.display,
     color: '#D9A65B',
-    fontSize: 15,
-    lineHeight: 17,
+    fontSize: 16,
+    lineHeight: 18,
     fontWeight: '800',
     letterSpacing: 1.8,
   },
@@ -494,9 +478,9 @@ const styles = StyleSheet.create({
   brandCollection: {
     marginTop: 1,
     color: '#BFAE9E',
-    fontSize: 5,
+    fontSize: 6,
     fontWeight: '800',
-    letterSpacing: 1.9,
+    letterSpacing: 1.8,
   },
 
   menuScroll: {
@@ -505,35 +489,35 @@ const styles = StyleSheet.create({
 
   menuContent: {
     flexGrow: 1,
-    paddingHorizontal: 5,
-    paddingTop: 7,
-    paddingBottom: 26,
+    paddingHorizontal: 6,
+    paddingTop: 8,
+    paddingBottom: 28,
   },
 
   menuGroup: {
-    marginBottom: 7,
+    marginBottom: 9,
   },
 
   groupTitle: {
-    marginBottom: 3,
-    paddingHorizontal: 6,
+    marginBottom: 4,
+    paddingHorizontal: 7,
     color: '#C78B39',
-    fontSize: 7,
+    fontSize: 8.5,
     fontWeight: '900',
     letterSpacing: 0.7,
   },
 
   groupItems: {
-    gap: 1,
+    gap: 2,
   },
 
   menuItem: {
-    minHeight: 28,
-    paddingHorizontal: 6,
-    borderRadius: 6,
+    minHeight: 32,
+    paddingHorizontal: 7,
+    borderRadius: 7,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
   },
 
   menuItemActive: {
@@ -543,33 +527,34 @@ const styles = StyleSheet.create({
   menuLabel: {
     minWidth: 0,
     flex: 1,
-    color: '#D9CCC2',
-    fontSize: 9,
-    fontWeight: '600',
+    color: '#E7DCD3',
+    fontSize: 10.5,
+    lineHeight: 14,
+    fontWeight: '700',
   },
 
   menuLabelActive: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: '900',
   },
 
   signOut: {
-    minHeight: 32,
-    marginTop: 4,
-    paddingHorizontal: 6,
+    minHeight: 36,
+    marginTop: 6,
+    paddingHorizontal: 7,
     borderTopWidth:
       StyleSheet.hairlineWidth,
     borderTopColor:
       'rgba(255,255,255,0.08)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
   },
 
   signOutText: {
-    color: '#D9CCC2',
-    fontSize: 9,
-    fontWeight: '700',
+    color: '#E7DCD3',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
 
   sidebarPressed: {

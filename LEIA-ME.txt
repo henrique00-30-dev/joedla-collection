@@ -1,0 +1,43 @@
+CORREÇÕES FINAIS — JOEDLA COLLECTION
+
+Arquivos para substituir:
+1. app/account.tsx
+2. app/(tabs)/index.tsx
+3. app/admin/appearance.tsx
+4. app/admin/_layout.tsx
+
+O que foi corrigido:
+- Minha conta: login somente por código de 6 números e tela para concluir criação da conta com nome/WhatsApp.
+- Home: o banner principal passa a ser a posição 1 fixa do carrossel.
+- Home: campanhas deixam de aparecer abaixo das categorias e passam a disputar as posições 2 a 4 do carrossel junto com banners extras.
+- Aparência: máximo de 3 banners extras, porque o banner principal ocupa a posição 1.
+- Aparência: seleção de categoria/produto passa a rolar horizontalmente e não invade os campos de data.
+- Aparência: removida a caixa permanente “Destino selecionado”, que estava sobrepondo outras informações.
+- Menu lateral: textos e ícones aumentados mantendo o menu compacto.
+
+IMPORTANTE — SUPABASE (para o e-mail enviar CÓDIGO, e não link):
+No painel Supabase:
+Authentication > Email Templates > Magic Link
+
+Troque o conteúdo do template para usar {{ .Token }}.
+Exemplo:
+
+Assunto:
+Seu código de acesso — Joedla Collection
+
+Corpo:
+<h2>Seu código de acesso</h2>
+<p>Digite o código abaixo na tela da Joedla Collection:</p>
+<h1 style="font-size:32px;letter-spacing:6px">{{ .Token }}</h1>
+<p>Se você não solicitou este código, ignore este e-mail.</p>
+
+NÃO use {{ .ConfirmationURL }} nesse template, pois isso gera o link mágico.
+
+Depois de substituir os arquivos:
+cmd /c npx tsc --noEmit
+cmd /c npx expo start --clear
+
+Se o TypeScript estiver sem erros:
+git add .
+git commit -m "Corrige conta, carrossel, banners e menu administrativo"
+git push origin main
