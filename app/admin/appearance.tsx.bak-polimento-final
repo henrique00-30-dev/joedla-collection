@@ -444,8 +444,8 @@ export default function AdminAppearanceScreen() {
         style={styles.flex}>
         <AdminPage
           eyebrow="Configurações"
-          title="Banners e campanhas"
-          description="Gerencie o banner principal, banners extras e campanhas que ocupam o mesmo carrossel da loja."
+          title="Aparência da loja"
+          description="Edite o banner principal e o carrossel exibido na página inicial."
           actions={
             <AdminToolbarButton
               label={
@@ -1275,9 +1275,7 @@ function getDestinationLabel(
 const styles = StyleSheet.create({
 
   destinationField: {
-    gap: 16,
-    marginTop: spacing.sm,
-    marginBottom: 28,
+    gap: spacing.sm,
   },
 
   destinationLabel: {
@@ -1295,9 +1293,7 @@ const styles = StyleSheet.create({
   destinationKinds: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
-    marginTop: 6,
-    marginBottom: 22,
+    gap: spacing.sm,
   },
 
   destinationChip: {
@@ -1331,14 +1327,12 @@ const styles = StyleSheet.create({
   },
 
   destinationOptions: {
-    padding: spacing.lg,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E3D6CA',
     borderRadius: radii.medium,
-    gap: 14,
+    gap: spacing.sm,
     backgroundColor: '#F8F3ED',
-    marginTop: 14,
-    marginBottom: 18,
   },
 
   destinationOptionTitle: {
@@ -1349,8 +1343,7 @@ const styles = StyleSheet.create({
 
   destinationOptionList: {
     paddingRight: spacing.md,
-    gap: 12,
-    paddingVertical: 8,
+    gap: spacing.sm,
   },
 
   destinationResult: {
@@ -1451,17 +1444,12 @@ const styles = StyleSheet.create({
 
   inlineActions: {
     alignItems: 'flex-start',
-    marginTop: 18,
-    marginBottom: 22,
-    gap: 14,
   },
 
   dateGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 24,
-    marginTop: 16,
-    marginBottom: 24,
+    gap: spacing.md,
   },
 
   bannerList: {
@@ -1472,12 +1460,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
-    gap: 24,
+    gap: spacing.lg,
   },
 
   bannerPreviewColumn: {
     width: 190,
-    gap: 18,
+    gap: spacing.sm,
   },
 
   bannerPreviewImage: {
@@ -1502,13 +1490,13 @@ const styles = StyleSheet.create({
   bannerFields: {
     minWidth: 280,
     flex: 1,
-    gap: 20,
+    gap: spacing.md,
   },
 
   fieldRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 22,
+    gap: spacing.md,
   },
 
   fieldHalf: {
@@ -1558,7 +1546,6 @@ const styles = StyleSheet.create({
   },
 
   footerActions: {
-    marginTop: 24,
     alignItems: 'flex-end',
   },
 

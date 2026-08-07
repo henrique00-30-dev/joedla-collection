@@ -225,14 +225,8 @@ export async function createTrustedCloudOrder(
   return mapOrder(data as Record<string, any>);
 }
 
-export async function loadCloudCustomerOrders(
-  clientOverride = supabase,
-): Promise<Order[]> {
-  const client = clientOverride;
-
-  if (!client) {
-    throw new Error('O banco online ainda não foi configurado.');
-  }
+export async function loadCloudCustomerOrders(): Promise<Order[]> {
+  const client = requireClient();
   const {
     data: { user },
   } = await client.auth.getUser();

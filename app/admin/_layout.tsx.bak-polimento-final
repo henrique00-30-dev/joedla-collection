@@ -64,6 +64,11 @@ const MENU_GROUPS: AdminMenuGroup[] = [
         icon: 'pricetag-outline',
         href: '/admin/promotions',
       },
+      {
+        label: 'Campanhas',
+        icon: 'megaphone-outline',
+        href: '/admin/campaigns',
+      },
     ],
   },
   {
@@ -90,8 +95,8 @@ const MENU_GROUPS: AdminMenuGroup[] = [
     title: 'CONFIGURAÇÕES',
     items: [
       {
-        label: 'Banners e campanhas',
-        icon: 'images-outline',
+        label: 'Aparência da loja',
+        icon: 'color-palette-outline',
         href: '/admin/appearance',
       },
       {
@@ -297,7 +302,7 @@ function AdminSidebar({
                     ]}>
                     <Ionicons
                       name={item.icon}
-                        size={17}
+                      size={16}
                       color={
                         active
                           ? '#FFFFFF'
@@ -416,9 +421,9 @@ const styles = StyleSheet.create({
   },
 
   sidebar: {
-    width: 190,
-    minWidth: 190,
-    maxWidth: 190,
+    width: 168,
+    minWidth: 168,
+    maxWidth: 168,
     height: '100%',
     flexGrow: 0,
     flexShrink: 0,
@@ -428,9 +433,9 @@ const styles = StyleSheet.create({
   },
 
   sidebarMobile: {
-    width: 274,
-    minWidth: 274,
-    maxWidth: 274,
+    width: 260,
+    minWidth: 260,
+    maxWidth: 260,
   },
 
   sidebarHeader: {
@@ -497,7 +502,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 7,
     color: '#C78B39',
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '900',
     letterSpacing: 0.7,
   },
@@ -507,7 +512,7 @@ const styles = StyleSheet.create({
   },
 
   menuItem: {
-    minHeight: 36,
+    minHeight: 32,
     paddingHorizontal: 7,
     borderRadius: 7,
     flexDirection: 'row',
@@ -523,7 +528,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flex: 1,
     color: '#E7DCD3',
-    fontSize: 12,
+    fontSize: 10.5,
     lineHeight: 14,
     fontWeight: '700',
   },
@@ -548,7 +553,7 @@ const styles = StyleSheet.create({
 
   signOutText: {
     color: '#E7DCD3',
-    fontSize: 12,
+    fontSize: 10.5,
     fontWeight: '800',
   },
 

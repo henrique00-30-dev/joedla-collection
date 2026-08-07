@@ -18,6 +18,7 @@ import { CategoryTile } from '@/src/components/category-tile';
 import { HeroBannerPremium } from '@/src/components/home/hero-banner-premium';
 import { ProductGrid } from '@/src/components/product-grid';
 import { Screen } from '@/src/components/screen';
+import { SearchBar } from '@/src/components/search-bar';
 import { SectionHeader } from '@/src/components/section-header';
 import { StoreFooter } from '@/src/components/store-footer';
 import { useStore } from '@/src/context/store-context';
@@ -372,7 +373,20 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator>
         <AppHeader />
-{query.trim() ? (
+
+        <View
+          style={[
+            styles.pageWidth,
+            styles.horizontalPadding,
+            styles.searchArea,
+          ]}>
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
+
+        {query.trim() ? (
           <View
             style={[
               styles.pageWidth,
@@ -610,12 +624,15 @@ const styles = StyleSheet.create({
   },
 
   heroArea: {
-    marginTop: 18,
+    marginTop: spacing.lg,
   },
 
+  searchArea: {
+    paddingTop: spacing.md,
+  },
 
   section: {
-    marginTop: 28,
+    marginTop: spacing.xl,
     paddingHorizontal: spacing.lg,
   },
 

@@ -263,7 +263,14 @@ export function AppHeader({
             label="Favoritos"
             onPress={() => router.push('/favorites')}
           />
-<CartButton cartCount={cartCount} withLabel />
+
+          <HeaderAction
+            icon="person-outline"
+            label="Conta"
+            onPress={() => router.push('/account')}
+          />
+
+          <CartButton cartCount={cartCount} withLabel />
         </View>
       </View>
 

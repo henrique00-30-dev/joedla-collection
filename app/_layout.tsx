@@ -28,8 +28,7 @@ export default function RootLayout() {
             <Stack.Screen name="favorites" />
             <Stack.Screen name="how-to-buy" />
             <Stack.Screen name="privacy" />
-            <Stack.Screen name="account" />
-            <Stack.Screen name="admin/login" />
+<Stack.Screen name="admin/login" />
             <Stack.Screen name="admin/index" />
             <Stack.Screen name="admin/products" />
             <Stack.Screen name="admin/categories" />

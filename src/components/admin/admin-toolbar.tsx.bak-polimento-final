@@ -178,8 +178,8 @@ export function AdminFilterChip({
 
 const styles = StyleSheet.create({
   toolbar: {
-    minHeight: 60,
-    padding: 12,
+    minHeight: 54,
+    padding: spacing.sm,
     borderWidth: 1,
     borderColor: '#DED2C7',
     borderRadius: 13,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   search: {
     minWidth: 220,
     maxWidth: 420,
-    minHeight: 42,
+    minHeight: 38,
     flex: 1,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    minHeight: 40,
+    minHeight: 36,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: '#D3C1AE',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: '#7D4D1E',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
   },
 
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
 
   filterChip: {
-    minHeight: 36,
+    minHeight: 32,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: '#D8C8B7',

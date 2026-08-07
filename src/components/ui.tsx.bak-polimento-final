@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   fieldGroup: {
-    gap: 8,
+    gap: 6,
   },
   fieldLabel: {
     color: colors.text,
