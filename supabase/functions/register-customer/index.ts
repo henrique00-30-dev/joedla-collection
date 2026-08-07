@@ -8,6 +8,8 @@ const allowedOrigins = new Set([
   "http://localhost:19006",
 ]);
 
+const recoveryRedirect = "https://joedla-collection.com.br/account-reset";
+
 function cors(origin: string | null) {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -64,6 +66,7 @@ Deno.serve(async (request) => {
 
     const url = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
     const emailHash = await hmac(email, serviceKey);
@@ -76,7 +79,8 @@ Deno.serve(async (request) => {
     if (countError) throw countError;
     if ((count ?? 0) >= 5) return json({ error: "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente." }, 429, origin);
 
-    await admin.from("customer_registration_attempts").insert({ email_hash: emailHash });
+    const { error: attemptError } = await admin.from("customer_registration_attempts").insert({ email_hash: emailHash });
+    if (attemptError) throw attemptError;
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
@@ -87,11 +91,24 @@ Deno.serve(async (request) => {
 
     if (error) {
       const knownUser = /already|registered|exists/i.test(error.message);
-      return json(
-        { error: knownUser ? "Se esse e-mail já tiver cadastro, use a opção Entrar." : "Não foi possível criar a conta. Tente novamente." },
-        knownUser ? 409 : 400,
-        origin,
-      );
+      if (knownUser) {
+        const publicAuth = createClient(url, anonKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { error: recoveryError } = await publicAuth.auth.resetPasswordForEmail(email, {
+          redirectTo: recoveryRedirect,
+        });
+        if (recoveryError) console.error("customer recovery email failed", recoveryError);
+
+        return json({
+          error: recoveryError
+            ? "Este e-mail já possui cadastro. Toque em Entrar ou tente a recuperação de acesso novamente em alguns minutos."
+            : "Este e-mail já possui cadastro. Enviamos um e-mail seguro para você definir uma nova senha e recuperar o acesso.",
+          existingAccount: true,
+          recoverySent: !recoveryError,
+        }, 200, origin);
+      }
+      return json({ error: "Não foi possível criar a conta. Tente novamente." }, 400, origin);
     }
 
     if (!data.user) throw new Error("Usuário não criado.");
