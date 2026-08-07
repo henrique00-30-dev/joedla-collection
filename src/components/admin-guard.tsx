@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     backgroundColor: colors.primary,
-    ...shadow.card,
+    ...shadow,
   },
   communityShortcutText: {
     color: colors.white,
