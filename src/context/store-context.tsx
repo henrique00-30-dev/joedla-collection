@@ -1,3 +1,4 @@
+import { useGlobalSearchParams, usePathname } from 'expo-router';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
 
@@ -52,6 +53,11 @@ const STORAGE_KEYS = {
   favorites: 'joedla.favorites.v1',
 };
 
+type DirectCheckout = {
+  token: string;
+  item: CartItem;
+};
+
 type StoreContextValue = {
   products: Product[];
   categories: Category[];
@@ -67,6 +73,7 @@ type StoreContextValue = {
   cloudEnabled: boolean;
   cartCount: number;
   cartSubtotal: number;
+  directCheckout: DirectCheckout | null;
   refreshStore: () => Promise<void>;
   addToCart: (
     product: Product,
@@ -75,11 +82,19 @@ type StoreContextValue = {
     selectedColor?: string,
     availabilityOverride?: Availability,
   ) => void;
+  startDirectCheckout: (
+    product: Product,
+    quantity: number,
+    selectedSize?: string,
+    selectedColor?: string,
+    availabilityOverride?: Availability,
+  ) => string;
   updateCartQuantity: (key: string, quantity: number) => void;
   removeFromCart: (key: string) => void;
   clearCart: () => void;
   toggleFavorite: (productId: string) => void;
   createOrder: (draft: CheckoutDraft) => Promise<Order>;
+  createDirectOrder: (draft: CheckoutDraft, token: string) => Promise<Order>;
   loginAdmin: (email: string, password: string) => Promise<void>;
   logoutAdmin: () => Promise<void>;
   refreshAdminOrders: () => Promise<void>;
@@ -113,6 +128,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
     nextBoundaryDelayMs: null,
   });
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [adminOrders, setAdminOrders] = useState<Order[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -199,6 +215,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       setLoading(false);
     }
   }
+
   async function refreshStore() {
     if (!cloudEnabled) {
       throw new Error(
@@ -381,6 +398,26 @@ export function StoreProvider({ children }: PropsWithChildren) {
       }),
     );
 
+    setDirectCheckout((current) => {
+      if (!current) return current;
+      const product = cloudProducts.find((candidate) => candidate.id === current.item.productId);
+      if (!product) return null;
+      return {
+        ...current,
+        item: {
+          ...current.item,
+          productName: product.name,
+          imageUrl: product.imageUrls[0] ?? current.item.imageUrl,
+          unitPrice: product.price,
+          originalUnitPrice: product.originalPrice,
+          promotionCampaignId: product.promotionCampaignId,
+          individualPromotionId: product.individualPromotionId,
+          priceSource: product.priceSource,
+          stock: product.availability === 'ready' ? product.stock : current.item.stock,
+        },
+      };
+    });
+
     await Promise.all([
       setStoredJson(
         STORAGE_KEYS.products,
@@ -401,18 +438,15 @@ export function StoreProvider({ children }: PropsWithChildren) {
     }
   }
 
-  function addToCart(
+  function buildCartItem(
     product: Product,
     quantity: number,
     selectedSize?: string,
     selectedColor?: string,
     availabilityOverride?: Availability,
-  ) {
+  ): CartItem | null {
     const effectiveAvailability = availabilityOverride ?? product.availability;
-    if (effectiveAvailability === 'ready' && product.stock <= 0) {
-      return;
-    }
-  
+    if (effectiveAvailability === 'ready' && product.stock <= 0) return null;
     const effectiveStock = effectiveAvailability === 'ready' ? product.stock : 99;
     const key = [
       product.id,
@@ -420,40 +454,79 @@ export function StoreProvider({ children }: PropsWithChildren) {
       selectedColor ?? '',
       effectiveAvailability,
     ].join(':');
+
+    return {
+      key,
+      productId: product.id,
+      productName: product.name,
+      imageUrl: product.imageUrls[0] ?? '',
+      unitPrice: product.price,
+      originalUnitPrice: product.originalPrice,
+      promotionCampaignId: product.promotionCampaignId,
+      individualPromotionId: product.individualPromotionId,
+      priceSource: product.priceSource,
+      quantity: Math.max(1, Math.min(quantity, effectiveStock, 99)),
+      selectedSize,
+      selectedColor,
+      availability: effectiveAvailability,
+      stock: effectiveStock,
+    };
+  }
+
+  function addToCart(
+    product: Product,
+    quantity: number,
+    selectedSize?: string,
+    selectedColor?: string,
+    availabilityOverride?: Availability,
+  ) {
+    const nextItem = buildCartItem(
+      product,
+      quantity,
+      selectedSize,
+      selectedColor,
+      availabilityOverride,
+    );
+    if (!nextItem) return;
+
     setCart((current) => {
-      const existing = current.find((item) => item.key === key);
+      const existing = current.find((item) => item.key === nextItem.key);
       if (existing) {
         return current.map((item) =>
-          item.key === key
+          item.key === nextItem.key
             ? {
                 ...item,
                 quantity:
-                  effectiveAvailability === 'ready'
-                    ? Math.min(item.quantity + quantity, effectiveStock)
-                    : Math.min(item.quantity + quantity, 99),
+                  nextItem.availability === 'ready'
+                    ? Math.min(item.quantity + nextItem.quantity, nextItem.stock)
+                    : Math.min(item.quantity + nextItem.quantity, 99),
               }
             : item,
         );
       }
-
-      return [
-        ...current,
-        {
-          key,
-          productId: product.id,
-          productName: product.name,
-          imageUrl: product.imageUrls[0] ?? '',
-          unitPrice: product.price,
-          originalUnitPrice: product.originalPrice,
-          promotionCampaignId: product.promotionCampaignId,
-          quantity: Math.max(1, Math.min(quantity, effectiveStock, 99)),
-          selectedSize,
-          selectedColor,
-          availability: effectiveAvailability,
-          stock: effectiveStock,
-        },
-      ];
+      return [...current, nextItem];
     });
+  }
+
+  function startDirectCheckout(
+    product: Product,
+    quantity: number,
+    selectedSize?: string,
+    selectedColor?: string,
+    availabilityOverride?: Availability,
+  ) {
+    const item = buildCartItem(
+      product,
+      quantity,
+      selectedSize,
+      selectedColor,
+      availabilityOverride,
+    );
+    if (!item) throw new Error('Produto indisponível no momento.');
+
+    const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    setDirectCheckout({ token, item });
+    return token;
   }
 
   function updateCartQuantity(key: string, quantity: number) {
@@ -484,19 +557,23 @@ export function StoreProvider({ children }: PropsWithChildren) {
     );
   }
 
-  async function createOrder(draft: CheckoutDraft): Promise<Order> {
-    if (!cart.length) throw new Error('Seu carrinho está vazio.');
+  async function createOrderFromItems(
+    draft: CheckoutDraft,
+    items: CartItem[],
+    directToken?: string,
+  ): Promise<Order> {
+    if (!items.length) throw new Error('Nenhum produto selecionado para finalizar.');
     if (!cloudEnabled) {
       throw new Error('A loja está sem conexão com o banco online. Tente novamente depois.');
     }
 
     const currentPrices = await loadCatalogPriceResolutions(
-      [...new Set(cart.map((item) => item.productId))],
+      [...new Set(items.map((item) => item.productId))],
     );
     const priceByProduct = new Map(
       currentPrices.map((price) => [price.productId, price]),
     );
-    const priceChanged = cart.some((item) => {
+    const priceChanged = items.some((item) => {
       const resolution = priceByProduct.get(item.productId);
       return resolution
         ? Math.round(item.unitPrice * 100) !== resolution.finalPriceCents
@@ -504,7 +581,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
     });
 
     if (priceChanged) {
-      setCart((current) => current.map((item) => {
+      const updateItemPrice = (item: CartItem) => {
         const resolution = priceByProduct.get(item.productId);
         if (!resolution) return item;
         return {
@@ -517,20 +594,45 @@ export function StoreProvider({ children }: PropsWithChildren) {
           individualPromotionId: resolution.individualPromotionId ?? undefined,
           priceSource: resolution.priceSource,
         };
-      }));
+      };
+
+      if (directToken) {
+        setDirectCheckout((current) =>
+          current?.token === directToken
+            ? { ...current, item: updateItemPrice(current.item) }
+            : current,
+        );
+      } else {
+        setCart((current) => current.map(updateItemPrice));
+      }
+
       throw new Error(
-        'Os preços do carrinho foram atualizados. Revise os valores e confirme o pedido novamente.',
+        'Os preços foram atualizados. Revise os valores e confirme o pedido novamente.',
       );
     }
 
-    const order = await createTrustedCloudOrder(draft, cart);
-
+    const order = await createTrustedCloudOrder(draft, items);
     setCustomerOrders((current) => [order, ...current]);
-    setCart([]);
+
+    if (directToken) {
+      setDirectCheckout((current) => current?.token === directToken ? null : current);
+    } else {
+      setCart([]);
+    }
 
     setAdminOrders((current) => [order, ...current]);
-
     return order;
+  }
+
+  async function createOrder(draft: CheckoutDraft): Promise<Order> {
+    return createOrderFromItems(draft, cart);
+  }
+
+  async function createDirectOrder(draft: CheckoutDraft, token: string): Promise<Order> {
+    if (!directCheckout || directCheckout.token !== token) {
+      throw new Error('A compra direta expirou. Volte ao produto e toque em Comprar agora novamente.');
+    }
+    return createOrderFromItems(draft, [directCheckout.item], token);
   }
 
   async function loginAdmin(email: string, password: string) {
@@ -625,7 +727,6 @@ export function StoreProvider({ children }: PropsWithChildren) {
     const nextAdminOrders = update(adminOrders);
     setAdminOrders(nextAdminOrders);
     setCustomerOrders((current) => update(current));
-
   }
 
   async function updateSettings(nextSettings: StoreSettings) {
@@ -664,13 +765,16 @@ export function StoreProvider({ children }: PropsWithChildren) {
     cloudEnabled,
     cartCount,
     cartSubtotal,
+    directCheckout,
     refreshStore,
     addToCart,
+    startDirectCheckout,
     updateCartQuantity,
     removeFromCart,
     clearCart,
     toggleFavorite,
     createOrder,
+    createDirectOrder,
     loginAdmin,
     logoutAdmin,
     refreshAdminOrders,
@@ -688,6 +792,24 @@ export function StoreProvider({ children }: PropsWithChildren) {
 
 export function useStore() {
   const context = useContext(StoreContext);
+  const pathname = usePathname();
+  const params = useGlobalSearchParams<{ buyNow?: string }>();
+
   if (!context) throw new Error('useStore precisa estar dentro de StoreProvider.');
-  return context;
+
+  const buyNowToken = typeof params.buyNow === 'string' ? params.buyNow : undefined;
+  const direct = pathname === '/checkout'
+    && buyNowToken
+    && context.directCheckout?.token === buyNowToken
+    ? context.directCheckout
+    : null;
+
+  if (!direct) return context;
+
+  return {
+    ...context,
+    cart: [direct.item],
+    cartSubtotal: direct.item.unitPrice * direct.item.quantity,
+    createOrder: (draft: CheckoutDraft) => context.createDirectOrder(draft, direct.token),
+  };
 }
