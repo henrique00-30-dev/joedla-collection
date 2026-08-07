@@ -22,7 +22,6 @@ export const supabase = isCloudConfigured
     })
   : null;
 
-
 export const customerSupabase = isCloudConfigured
   ? createClient(supabaseUrl, supabasePublishableKey, {
       auth: {
@@ -30,7 +29,8 @@ export const customerSupabase = isCloudConfigured
         storageKey: 'joedla-customer-auth',
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: Platform.OS === 'web',
+        // O cliente usa e-mail + senha. Não processamos magic links antigos.
+        detectSessionInUrl: false,
       },
     })
   : null;
