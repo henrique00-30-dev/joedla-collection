@@ -271,9 +271,9 @@ const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(111,76,56,0.12)',
+    borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: '#FFFEFC',
+    backgroundColor: colors.surface,
     ...shadow,
   },
 
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   imageWrap: {
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: '#F7F1EA',
+    backgroundColor: colors.surfaceWarm,
   },
 
   image: {
@@ -313,11 +313,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderWidth: 1,
-    borderColor: 'rgba(111,76,56,0.14)',
+    borderColor: colors.border,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: colors.surface,
     ...shadow,
   },
 
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   },
 
   discountBadgeText: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '900',
   },
@@ -353,15 +353,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(242,247,240,0.94)',
+    backgroundColor: colors.successSoft,
   },
 
   availabilityCustom: {
-    backgroundColor: 'rgba(255,247,226,0.95)',
+    backgroundColor: colors.warningSoft,
   },
 
   availabilityOutOfStock: {
-    backgroundColor: 'rgba(255,235,235,0.96)',
+    backgroundColor: colors.dangerSoft,
   },
 
   availabilityText: {
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   },
 
   price: {
-    color: '#8B451C',
+    color: colors.primary,
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '900',
