@@ -29,7 +29,7 @@ export function AdminGuard({ children }: PropsWithChildren) {
         ),
       )
       .map(({ campaign, placement }) => ({
-        id: placement.id,
+        id: campaign.id,
         name: campaign.name,
         position: placement.position,
       }));
@@ -51,13 +51,25 @@ export function AdminGuard({ children }: PropsWithChildren) {
   const showCarouselNotice =
     pathname === '/admin/appearance' && carouselCampaigns.length > 0;
 
+  function openCarouselCampaigns() {
+    if (carouselCampaigns.length === 1) {
+      router.push({
+        pathname: '/admin/campaign/[id]',
+        params: { id: carouselCampaigns[0].id },
+      });
+      return;
+    }
+
+    router.push('/admin/campaigns');
+  }
+
   return (
     <View style={styles.root}>
       {showCarouselNotice ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Abrir campanhas do carrossel"
-          onPress={() => router.push('/admin/campaigns')}
+          onPress={openCarouselCampaigns}
           style={({ pressed }) => [
             styles.carouselNotice,
             compact && styles.carouselNoticeCompact,
@@ -71,7 +83,7 @@ export function AdminGuard({ children }: PropsWithChildren) {
                 : `${carouselCampaigns.length} campanhas ocupam o carrossel`}
             </Text>
             <Text numberOfLines={compact ? 2 : 1} style={styles.carouselNoticeText}>
-              {carouselCampaigns.map((item) => item.name).join(' • ')}. Esses itens aparecem além do banner principal.
+              {carouselCampaigns.map((item) => item.name).join(' • ')}. Toque para abrir e pausar ou arquivar.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
