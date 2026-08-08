@@ -9,6 +9,7 @@ import { Screen } from '@/src/components/screen';
 import { keyValueStorage } from '@/src/lib/storage';
 import { ClubSummary, loadClubSummary, loginClub, registerClub, resetClubPin } from '@/src/services/club';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
+import { maskBrazilPhone } from '@/src/utils/fields';
 import { formatCurrency, formatDate } from '@/src/utils/format';
 
 const TOKEN_KEY = 'joedla.club.session.v1';
@@ -67,6 +68,11 @@ export default function ClubScreen() {
     setOrderCode('');
   }
 
+  function updateWhatsapp(value: string) {
+    setWhatsapp(maskBrazilPhone(value));
+    setNotice(null);
+  }
+
   function showError(title: string, message: string) {
     setNotice({ type: 'error', text: message });
     Alert.alert(title, message);
@@ -84,7 +90,7 @@ export default function ClubScreen() {
       return;
     }
     if (digits.length !== 11) {
-      showError('Revise o WhatsApp', 'Informe DDD + celular, totalizando 11 números.');
+      showError('Revise o WhatsApp', 'Informe DDD + celular, totalizando exatamente 11 números.');
       return;
     }
     if (mode === 'recover' && !orderCode.trim()) {
@@ -183,7 +189,14 @@ export default function ClubScreen() {
               <Field label="Nome completo" value={name} onChangeText={(value) => { setName(value); setNotice(null); }} placeholder="Digite seu nome" autoCapitalize="words" />
             ) : null}
 
-            <Field label="WhatsApp" value={whatsapp} onChangeText={(value) => { setWhatsapp(value); setNotice(null); }} placeholder="(79) 99999-9999" keyboardType="phone-pad" />
+            <Field
+              label="WhatsApp (DDD + 9 dígitos)"
+              value={whatsapp}
+              onChangeText={updateWhatsapp}
+              placeholder="(79) 99999-9999"
+              keyboardType="phone-pad"
+              maxLength={15}
+            />
 
             {mode === 'recover' ? (
               <Field
@@ -201,6 +214,7 @@ export default function ClubScreen() {
               onChangeText={(value) => { setPin(value.replace(/\D/g, '').slice(0, 6)); setNotice(null); }}
               placeholder="••••••"
               keyboardType="number-pad"
+              maxLength={6}
               secureTextEntry
             />
 
@@ -226,10 +240,10 @@ export default function ClubScreen() {
 
             <Text style={styles.helper}>
               {mode === 'register'
-                ? 'Você pode criar sua conta antes da primeira compra. Pedidos concluídos com este mesmo WhatsApp aparecerão aqui automaticamente.'
+                ? 'O WhatsApp aceita exatamente 11 números contando o DDD. Você pode criar sua conta antes da primeira compra; pedidos concluídos com este mesmo número serão vinculados automaticamente.'
                 : mode === 'recover'
                   ? 'O pedido informado precisa estar concluído e ter sido feito com o mesmo WhatsApp desta conta.'
-                  : 'Use o mesmo WhatsApp informado nas suas compras.'}
+                  : 'Use o mesmo WhatsApp informado nas suas compras. O campo aceita exatamente DDD + 9 dígitos.'}
             </Text>
           </View>
         </ScrollView>
