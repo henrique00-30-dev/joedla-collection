@@ -8,6 +8,29 @@ export type AdminClubCustomer = { id: string; name: string; whatsapp: string; po
 export type AdminClubCustomerDetail = ClubSummary & { payments: Array<{ id: string; orderId: string; amount: number; method: 'pix' | 'cash'; paidAt: string; note?: string | null }> };
 export type ClubSettings = { active: boolean; reaisPerPoint: number; discountPoints: number; discountValue: number };
 export type AdminClubReward = { id: string; productId: string; pointsRequired: number; active: boolean };
+export type AdminFinancialReportPayment = { amount: number; method: 'pix' | 'cash'; paidAt: string; note?: string | null };
+export type AdminFinancialReportRow = {
+  orderId: string;
+  publicCode: string;
+  customerName: string;
+  whatsapp: string;
+  purchaseDate: string;
+  total: number;
+  paid: number;
+  remaining: number;
+  lastPaymentAt?: string | null;
+  payments: AdminFinancialReportPayment[];
+};
+export type AdminFinancialReport = {
+  summary: {
+    completedOrders: number;
+    customers: number;
+    totalSales: number;
+    totalReceived: number;
+    totalPending: number;
+  };
+  rows: AdminFinancialReportRow[];
+};
 
 function publicClient() { const client = customerSupabase ?? supabase; if (!client) throw new Error('A conexão da loja não está configurada.'); return client; }
 function adminClient() { if (!supabase) throw new Error('A conexão administrativa não está configurada.'); return supabase; }
@@ -15,7 +38,7 @@ function rpcError(error: unknown, fallback: string) { if (error && typeof error 
 
 export async function registerClub(name: string, whatsapp: string, pin: string) {
   const { data, error } = await publicClient().rpc('club_register', { p_name: name, p_whatsapp: whatsapp, p_pin: pin });
-  if (error) throw rpcError(error, 'Não foi possível criar seu cadastro no Clube Joedla.');
+  if (error) throw rpcError(error, 'Não foi possível criar sua conta no Clube Joedla.');
   return data as { token: string; name: string };
 }
 export async function activateClub(whatsapp: string, orderCode: string, pin: string) {
@@ -56,6 +79,11 @@ export async function registerClubPayment(input: { orderId: string; amount: numb
   const { data, error } = await adminClient().rpc('club_admin_register_payment', { p_order_id: input.orderId, p_amount: input.amount, p_method: input.method, p_note: input.note?.trim() || null });
   if (error) throw rpcError(error, 'Não foi possível registrar o pagamento.');
   return data as { paid: number; remaining: number; pointsAdded: number; pointsBalance: number };
+}
+export async function loadAdminFinancialReport(): Promise<AdminFinancialReport> {
+  const { data, error } = await adminClient().rpc('club_admin_financial_report');
+  if (error) throw rpcError(error, 'Não foi possível carregar o relatório financeiro.');
+  return data as AdminFinancialReport;
 }
 export async function loadClubSettings(): Promise<ClubSettings> {
   const { data, error } = await adminClient().from('club_settings').select('active,reais_per_point,discount_points,discount_value').eq('id', 1).single();
