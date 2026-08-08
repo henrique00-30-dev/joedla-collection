@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection, AdminStatCard } from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
@@ -97,6 +97,7 @@ export default function AdminCouponsScreen() {
         maxUses: coupon.maxUses,
       });
       await load();
+      Alert.alert('Cupom atualizado', coupon.active ? 'O cupom foi desativado.' : 'O cupom foi ativado.');
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Não foi possível atualizar o cupom.');
     } finally {
@@ -104,29 +105,38 @@ export default function AdminCouponsScreen() {
     }
   }
 
+  async function removeCoupon(coupon: AdminCoupon) {
+    setSaving(true);
+    try {
+      await deleteAdminCoupon(coupon.id);
+      await load();
+      Alert.alert('Cupom atualizado', coupon.uses > 0 ? 'O cupom foi desativado para preservar o histórico.' : 'O cupom foi removido.');
+    } catch (error) {
+      Alert.alert('Erro', error instanceof Error ? error.message : 'Não foi possível remover.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function confirmDelete(coupon: AdminCoupon) {
+    const message = coupon.uses > 0
+      ? 'Como este cupom já foi usado, ele será desativado para preservar o histórico.'
+      : 'Este cupom ainda não foi usado e poderá ser removido.';
+
+    if (Platform.OS === 'web') {
+      const runtime = globalThis as typeof globalThis & { confirm?: (text: string) => boolean };
+      if (typeof runtime.confirm === 'function' && runtime.confirm(`Remover cupom?\n\n${message}`)) {
+        void removeCoupon(coupon);
+      }
+      return;
+    }
+
     Alert.alert(
       'Remover cupom?',
-      coupon.uses > 0
-        ? 'Como este cupom já foi usado, ele será desativado para preservar o histórico.'
-        : 'Este cupom ainda não foi usado e poderá ser removido.',
+      message,
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          style: 'destructive',
-          onPress: () => void (async () => {
-            setSaving(true);
-            try {
-              await deleteAdminCoupon(coupon.id);
-              await load();
-            } catch (error) {
-              Alert.alert('Erro', error instanceof Error ? error.message : 'Não foi possível remover.');
-            } finally {
-              setSaving(false);
-            }
-          })(),
-        },
+        { text: 'Confirmar', style: 'destructive', onPress: () => void removeCoupon(coupon) },
       ],
     );
   }
@@ -181,10 +191,10 @@ export default function AdminCouponsScreen() {
                   <Text style={styles.meta}>Usos: {coupon.uses}{coupon.maxUses ? ` / ${coupon.maxUses}` : ''}</Text>
                 </View>
                 <View style={styles.actions}>
-                  <Pressable disabled={saving} onPress={() => void toggleCoupon(coupon)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                  <Pressable disabled={saving} onPress={() => void toggleCoupon(coupon)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, saving && styles.disabled]}>
                     <Text style={styles.secondaryText}>{coupon.active ? 'Desativar' : 'Ativar'}</Text>
                   </Pressable>
-                  <Pressable disabled={saving} onPress={() => confirmDelete(coupon)} style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
+                  <Pressable disabled={saving} onPress={() => confirmDelete(coupon)} style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed, saving && styles.disabled]}>
                     <Text style={styles.deleteText}>Remover</Text>
                   </Pressable>
                 </View>
@@ -225,9 +235,9 @@ const styles = StyleSheet.create({
   inactive: { color: colors.textMuted, fontSize: 9, fontWeight: '900' },
   meta: { color: colors.textMuted, fontSize: 9, fontWeight: '700' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  secondaryButton: { minHeight: 36, flexGrow: 1, flexBasis: 120, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#9D5F1D', borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
+  secondaryButton: { minHeight: 44, flexGrow: 1, flexBasis: 140, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#9D5F1D', borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: '#9D5F1D', fontSize: 9, fontWeight: '900' },
-  deleteButton: { minHeight: 36, flexGrow: 1, flexBasis: 120, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.danger, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
+  deleteButton: { minHeight: 44, flexGrow: 1, flexBasis: 140, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.danger, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
   deleteText: { color: colors.danger, fontSize: 9, fontWeight: '900' },
   empty: { color: colors.textMuted, fontSize: 10 },
   pressed: { opacity: 0.72 },
