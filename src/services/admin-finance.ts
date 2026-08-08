@@ -1,4 +1,5 @@
 import { supabase } from '@/src/lib/supabase';
+import { OrderStatus } from '@/src/types';
 
 export type AdminStoreCustomer = {
   id: string;
@@ -148,6 +149,15 @@ export async function loadOrderFinancialDetail(orderId: string): Promise<OrderFi
   });
   if (error) throw rpcError(error, 'Não foi possível carregar o financeiro do pedido.');
   return data as OrderFinancialDetail;
+}
+
+export async function setOrderStatus(orderId: string, status: OrderStatus) {
+  const { data, error } = await client().rpc('admin_set_order_status', {
+    p_order_id: orderId,
+    p_status: status,
+  });
+  if (error) throw rpcError(error, 'Não foi possível atualizar a situação do pedido.');
+  return data as { id: string; status: OrderStatus };
 }
 
 export async function registerOrderPayment(input: {
