@@ -162,6 +162,14 @@ export async function setOrderStatus(orderId: string, status: OrderStatus) {
   return data as { id: string; status: OrderStatus };
 }
 
+export async function deleteCancelledOrder(orderId: string) {
+  const { data, error } = await client().rpc('admin_delete_cancelled_order', {
+    p_order_id: orderId,
+  });
+  if (error) throw rpcError(error, 'Não foi possível excluir o pedido cancelado.');
+  return data as { id: string; deleted: boolean };
+}
+
 export async function registerOrderPayment(input: {
   orderId: string;
   amount: number;

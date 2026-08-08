@@ -80,6 +80,11 @@ export async function loadAdminClubCustomerDetail(customerId: string): Promise<A
   if (error) throw rpcError(error, 'Não foi possível carregar a ficha do cliente.');
   return data as AdminClubCustomerDetail;
 }
+export async function deleteAdminClubCustomer(customerId: string) {
+  const { data, error } = await adminClient().rpc('club_admin_delete_customer', { p_customer_id: customerId });
+  if (error) throw rpcError(error, 'Não foi possível excluir o cliente do Clube.');
+  return data as { id: string; deleted: boolean };
+}
 export async function registerClubPayment(input: { orderId: string; amount: number; method: 'pix' | 'cash'; note?: string }) {
   const { data, error } = await adminClient().rpc('club_admin_register_payment', { p_order_id: input.orderId, p_amount: input.amount, p_method: input.method, p_note: input.note?.trim() || null });
   if (error) throw rpcError(error, 'Não foi possível registrar o pagamento.');
