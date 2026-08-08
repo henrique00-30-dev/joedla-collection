@@ -14,7 +14,7 @@ type AdminStatCardProps = {
   label: string;
   value: string;
   helper?: string;
-  tone?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+  tone?: 'default' | 'neutral' | 'success' | 'warning' | 'danger' | 'info';
   compact?: boolean;
   style?: StyleProp<ViewStyle>;
 };
