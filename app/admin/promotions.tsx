@@ -1,7 +1,6 @@
-import { Href, router } from 'expo-router';
+import { Href, router, useFocusEffect } from 'expo-router';
 import {
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -92,9 +91,11 @@ export default function PromotionsScreen() {
     [],
   );
 
-  useEffect(() => {
-    void loadPromotions();
-  }, [loadPromotions]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadPromotions();
+    }, [loadPromotions]),
+  );
 
   const items = useMemo<PromotionListItem[]>(
     () => {
