@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AdminGuard } from '@/src/components/admin-guard';
@@ -28,11 +28,25 @@ const statusOptions: OrderStatus[] = [
   'cancelled',
 ];
 
+type Notice = { type: 'success' | 'error'; text: string } | null;
+
 export default function AdminOrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { adminOrders, changeOrderStatus } = useStore();
+  const { adminOrders, changeOrderStatus, refreshAdminOrders } = useStore();
   const order = adminOrders.find((item) => item.id === id);
   const [updating, setUpdating] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAdminOrders().catch((error) => {
+        setNotice({
+          type: 'error',
+          text: error instanceof Error ? error.message : 'Não foi possível atualizar o pedido.',
+        });
+      });
+    }, [refreshAdminOrders]),
+  );
 
   if (!order) {
     return (
@@ -54,27 +68,42 @@ export default function AdminOrderDetailsScreen() {
   const currentOrder = order;
 
   async function updateStatus(status: OrderStatus) {
-    if (status === currentOrder.status) return;
+    if (status === currentOrder.status || updating) return;
+    setNotice(null);
     setUpdating(true);
     try {
       await changeOrderStatus(currentOrder.id, status);
+      const text = `Pedido ${currentOrder.publicCode} atualizado para “${orderStatusLabel[status]}”.`;
+      setNotice({ type: 'success', text });
+      Alert.alert('Status atualizado', text);
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Tente novamente.');
+      const text = error instanceof Error ? error.message : 'Tente novamente.';
+      setNotice({ type: 'error', text });
+      Alert.alert('Não foi possível atualizar', text);
     } finally {
       setUpdating(false);
     }
   }
 
   async function contactCustomer() {
+    setNotice(null);
     const number = normalizeWhatsApp(currentOrder.customer.whatsapp);
     if (!number) {
-      Alert.alert('Número inválido', 'O cliente não informou um WhatsApp válido.');
+      const text = 'O cliente não informou um WhatsApp válido.';
+      setNotice({ type: 'error', text });
+      Alert.alert('Número inválido', text);
       return;
     }
     const message = encodeURIComponent(
       `Olá, ${currentOrder.customer.name}! Aqui é da Joedla Collection. Estou falando sobre o pedido ${currentOrder.publicCode}.`,
     );
-    await Linking.openURL(`https://wa.me/${number}?text=${message}`);
+    try {
+      await Linking.openURL(`https://wa.me/${number}?text=${message}`);
+    } catch {
+      const text = 'Não foi possível abrir o WhatsApp. Confira a conexão e tente novamente.';
+      setNotice({ type: 'error', text });
+      Alert.alert('WhatsApp indisponível', text);
+    }
   }
 
   return (
@@ -82,6 +111,17 @@ export default function AdminOrderDetailsScreen() {
       <Screen edges={['top', 'left', 'right', 'bottom']}>
         <AppHeader compact title={order.publicCode} showBack showStoreHome />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
+          {notice ? (
+            <View accessibilityLiveRegion="polite" style={[styles.notice, notice.type === 'success' ? styles.noticeSuccess : styles.noticeError]}>
+              <Ionicons
+                name={notice.type === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+                size={20}
+                color={notice.type === 'success' ? colors.success : colors.danger}
+              />
+              <Text style={[styles.noticeText, notice.type === 'success' ? styles.noticeTextSuccess : styles.noticeTextError]}>{notice.text}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.statusCard}>
             <View>
               <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
@@ -97,17 +137,9 @@ export default function AdminOrderDetailsScreen() {
             <InfoRow icon="location-outline" label="Cidade" value={order.customer.city} />
             {order.deliveryMethod === 'delivery' ? (
               <>
-                <InfoRow
-                  icon="map-outline"
-                  label="Endereço"
-                  value={`${order.customer.address}, ${order.customer.neighborhood}`}
-                />
+                <InfoRow icon="map-outline" label="Endereço" value={`${order.customer.address}, ${order.customer.neighborhood}`} />
                 {order.customer.reference ? (
-                  <InfoRow
-                    icon="navigate-outline"
-                    label="Referência"
-                    value={order.customer.reference}
-                  />
+                  <InfoRow icon="navigate-outline" label="Referência" value={order.customer.reference} />
                 ) : null}
               </>
             ) : null}
@@ -123,17 +155,13 @@ export default function AdminOrderDetailsScreen() {
                 <View style={styles.item}>
                   <ProductImage uri={item.imageUrl} style={styles.itemImage} />
                   <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>
-                      {item.quantity}x {item.productName}
-                    </Text>
+                    <Text style={styles.itemName}>{item.quantity}x {item.productName}</Text>
                     <Text style={styles.itemVariants}>
                       {[
                         item.selectedSize ? `Tam. ${item.selectedSize}` : '',
                         item.selectedColor ?? '',
                         item.availability === 'custom' ? 'Encomenda' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' • ') || 'Pronta entrega'}
+                      ].filter(Boolean).join(' • ') || 'Pronta entrega'}
                     </Text>
                     <Text style={styles.itemPrice}>{formatCurrency(item.subtotal)}</Text>
                   </View>
@@ -168,11 +196,7 @@ export default function AdminOrderDetailsScreen() {
               }
             />
             {order.customer.notes ? (
-              <InfoRow
-                icon="chatbox-ellipses-outline"
-                label="Observações"
-                value={order.customer.notes}
-              />
+              <InfoRow icon="chatbox-ellipses-outline" label="Observações" value={order.customer.notes} />
             ) : null}
           </View>
 
@@ -183,20 +207,13 @@ export default function AdminOrderDetailsScreen() {
                 key={status}
                 disabled={updating}
                 onPress={() => updateStatus(status)}
-                style={[
-                  styles.statusOption,
-                  order.status === status && styles.statusOptionActive,
-                ]}>
+                style={[styles.statusOption, order.status === status && styles.statusOptionActive]}>
                 <Ionicons
                   name={order.status === status ? 'checkmark-circle' : 'ellipse-outline'}
                   size={19}
                   color={order.status === status ? colors.primary : colors.textMuted}
                 />
-                <Text
-                  style={[
-                    styles.statusOptionText,
-                    order.status === status && styles.statusOptionTextActive,
-                  ]}>
+                <Text style={[styles.statusOptionText, order.status === status && styles.statusOptionTextActive]}>
                   {orderStatusLabel[status]}
                 </Text>
               </Pressable>
@@ -208,15 +225,7 @@ export default function AdminOrderDetailsScreen() {
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
+function InfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
     <View style={styles.infoRow}>
       <Ionicons name={icon} size={20} color={colors.primary} />
@@ -229,10 +238,22 @@ function InfoRow({
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  notice: {
+    minWidth: 0,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
+  noticeSuccess: { borderColor: 'rgba(35,134,87,0.28)', backgroundColor: colors.successSoft },
+  noticeError: { borderColor: 'rgba(180,61,56,0.28)', backgroundColor: '#FDEEEE' },
+  noticeText: { minWidth: 0, flex: 1, fontSize: 11, lineHeight: 17, fontWeight: '800' },
+  noticeTextSuccess: { color: colors.success },
+  noticeTextError: { color: colors.danger },
   statusCard: {
     padding: spacing.lg,
     borderRadius: radii.medium,
@@ -242,16 +263,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.surfaceWarm,
   },
-  date: {
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-  total: {
-    marginTop: 4,
-    color: colors.primary,
-    fontSize: 22,
-    fontWeight: '900',
-  },
+  date: { color: colors.textMuted, fontSize: 11 },
+  total: { marginTop: 4, color: colors.primary, fontSize: 22, fontWeight: '900' },
   sectionTitle: {
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
@@ -267,58 +280,17 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     backgroundColor: colors.surface,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  infoText: {
-    flex: 1,
-    gap: 2,
-  },
-  infoLabel: {
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  infoValue: {
-    color: colors.text,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  itemImage: {
-    width: 64,
-    height: 76,
-    borderRadius: radii.small,
-  },
-  itemInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  itemName: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  itemVariants: {
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  itemPrice: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  divider: {
-    height: 1,
-    marginVertical: spacing.lg,
-    backgroundColor: colors.border,
-  },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  infoText: { minWidth: 0, flex: 1, gap: 2 },
+  infoLabel: { color: colors.textMuted, fontSize: 10 },
+  infoValue: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  itemImage: { width: 64, height: 76, borderRadius: radii.small },
+  itemInfo: { minWidth: 0, flex: 1, gap: 4 },
+  itemName: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  itemVariants: { color: colors.textMuted, fontSize: 10 },
+  itemPrice: { color: colors.primary, fontSize: 13, fontWeight: '900' },
+  divider: { height: 1, marginVertical: spacing.lg, backgroundColor: colors.border },
   statusOptions: {
     overflow: 'hidden',
     borderWidth: 1,
@@ -335,16 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  statusOptionActive: {
-    backgroundColor: colors.surfaceWarm,
-  },
-  statusOptionText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  statusOptionTextActive: {
-    color: colors.primary,
-    fontWeight: '900',
-  },
+  statusOptionActive: { backgroundColor: colors.surfaceWarm },
+  statusOptionText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  statusOptionTextActive: { color: colors.primary, fontWeight: '900' },
 });
