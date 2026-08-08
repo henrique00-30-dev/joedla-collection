@@ -28,6 +28,15 @@ export async function loadClubSummary(token: string): Promise<ClubSummary> {
   if (error) throw rpcError(error, 'Não foi possível carregar seus pontos.');
   return data as ClubSummary;
 }
+export async function prepareCheckoutBenefit(input: { requestId: string; couponCode?: string; clubToken?: string; points?: number }) {
+  const { error } = await publicClient().rpc('prepare_checkout_benefit', {
+    p_request_id: input.requestId,
+    p_coupon_code: input.couponCode?.trim() || null,
+    p_club_token: input.clubToken?.trim() || null,
+    p_points: Math.max(0, Math.floor(input.points ?? 0)),
+  });
+  if (error) throw rpcError(error, 'Não foi possível validar o benefício.');
+}
 export async function loadAdminClubCustomers(search = ''): Promise<AdminClubCustomer[]> {
   const { data, error } = await adminClient().rpc('club_admin_customers', { p_search: search.trim() });
   if (error) throw rpcError(error, 'Não foi possível carregar os clientes.');
