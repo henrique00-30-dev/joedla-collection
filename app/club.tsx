@@ -7,12 +7,12 @@ import { AppHeader } from '@/src/components/app-header';
 import { ProductImage } from '@/src/components/product-image';
 import { Screen } from '@/src/components/screen';
 import { keyValueStorage } from '@/src/lib/storage';
-import { ClubSummary, loadClubSummary, loginClub, registerClub } from '@/src/services/club';
+import { ClubSummary, loadClubSummary, loginClub, registerClub, resetClubPin } from '@/src/services/club';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import { formatCurrency, formatDate } from '@/src/utils/format';
 
 const TOKEN_KEY = 'joedla.club.session.v1';
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'recover';
 type Notice = { type: 'success' | 'error'; text: string } | null;
 
 export default function ClubScreen() {
@@ -20,6 +20,7 @@ export default function ClubScreen() {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [pin, setPin] = useState('');
+  const [orderCode, setOrderCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<ClubSummary | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
@@ -63,6 +64,7 @@ export default function ClubScreen() {
     setMode(nextMode);
     setNotice(null);
     setPin('');
+    setOrderCode('');
   }
 
   function showError(title: string, message: string) {
@@ -85,13 +87,30 @@ export default function ClubScreen() {
       showError('Revise o WhatsApp', 'Informe DDD + celular, totalizando 11 números.');
       return;
     }
+    if (mode === 'recover' && !orderCode.trim()) {
+      showError('Informe o pedido', 'Digite o código de um pedido concluído feito com este WhatsApp.');
+      return;
+    }
     if (!/^\d{6}$/.test(pin)) {
-      showError('Revise o PIN', 'O PIN deve ter exatamente 6 números.');
+      showError('Revise o PIN', `${mode === 'recover' ? 'O novo PIN' : 'O PIN'} deve ter exatamente 6 números.`);
       return;
     }
 
     setLoading(true);
     try {
+      if (mode === 'recover') {
+        await resetClubPin(whatsapp, orderCode, pin);
+        setPin('');
+        setOrderCode('');
+        setMode('login');
+        setNotice({
+          type: 'success',
+          text: 'PIN redefinido com sucesso. Entre usando seu WhatsApp e o novo PIN.',
+        });
+        Alert.alert('PIN redefinido', 'Seu novo PIN já está ativo.');
+        return;
+      }
+
       const session = mode === 'register'
         ? await registerClub(cleanName, whatsapp, pin)
         : await loginClub(whatsapp, pin);
@@ -108,7 +127,14 @@ export default function ClubScreen() {
       setSummary(nextSummary);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Tente novamente.';
-      showError(mode === 'register' ? 'Não foi possível criar a conta' : 'Não foi possível entrar', message);
+      showError(
+        mode === 'register'
+          ? 'Não foi possível criar a conta'
+          : mode === 'recover'
+            ? 'Não foi possível redefinir o PIN'
+            : 'Não foi possível entrar',
+        message,
+      );
     } finally {
       setLoading(false);
     }
@@ -120,6 +146,8 @@ export default function ClubScreen() {
     setName('');
     setWhatsapp('');
     setPin('');
+    setOrderCode('');
+    setMode('login');
     setNotice({ type: 'success', text: 'Você saiu do Clube Joedla.' });
   }
 
@@ -134,31 +162,74 @@ export default function ClubScreen() {
             <Text style={styles.heroText}>Use sempre o mesmo WhatsApp das suas compras. Não é necessário e-mail.</Text>
           </View>
 
-          <View style={styles.switchRow}>
-            <Pressable onPress={() => changeMode('login')} style={[styles.switchButton, mode === 'login' && styles.switchButtonActive]}>
-              <Text style={[styles.switchText, mode === 'login' && styles.switchTextActive]}>Entrar</Text>
-            </Pressable>
-            <Pressable onPress={() => changeMode('register')} style={[styles.switchButton, mode === 'register' && styles.switchButtonActive]}>
-              <Text style={[styles.switchText, mode === 'register' && styles.switchTextActive]}>Criar conta</Text>
-            </Pressable>
-          </View>
+          {mode !== 'recover' ? (
+            <View style={styles.switchRow}>
+              <Pressable onPress={() => changeMode('login')} style={[styles.switchButton, mode === 'login' && styles.switchButtonActive]}>
+                <Text style={[styles.switchText, mode === 'login' && styles.switchTextActive]}>Entrar</Text>
+              </Pressable>
+              <Pressable onPress={() => changeMode('register')} style={[styles.switchButton, mode === 'register' && styles.switchButtonActive]}>
+                <Text style={[styles.switchText, mode === 'register' && styles.switchTextActive]}>Criar conta</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.recoverHeader}>
+              <Text style={styles.recoverTitle}>Redefinir PIN</Text>
+              <Text style={styles.recoverText}>Confirme seu WhatsApp e o código de um pedido concluído para criar um novo PIN.</Text>
+            </View>
+          )}
 
           <View style={styles.formCard}>
             {mode === 'register' ? (
               <Field label="Nome completo" value={name} onChangeText={(value) => { setName(value); setNotice(null); }} placeholder="Digite seu nome" autoCapitalize="words" />
             ) : null}
+
             <Field label="WhatsApp" value={whatsapp} onChangeText={(value) => { setWhatsapp(value); setNotice(null); }} placeholder="(79) 99999-9999" keyboardType="phone-pad" />
-            <Field label={mode === 'register' ? 'Crie um PIN de 6 números' : 'PIN de acesso'} value={pin} onChangeText={(value) => { setPin(value.replace(/\D/g, '').slice(0, 6)); setNotice(null); }} placeholder="••••••" keyboardType="number-pad" secureTextEntry />
+
+            {mode === 'recover' ? (
+              <Field
+                label="Código de um pedido concluído"
+                value={orderCode}
+                onChangeText={(value) => { setOrderCode(value.toUpperCase().trimStart()); setNotice(null); }}
+                placeholder="Ex.: JC-19A1AB27"
+                autoCapitalize="characters"
+              />
+            ) : null}
+
+            <Field
+              label={mode === 'register' ? 'Crie um PIN de 6 números' : mode === 'recover' ? 'Crie um novo PIN de 6 números' : 'PIN de acesso'}
+              value={pin}
+              onChangeText={(value) => { setPin(value.replace(/\D/g, '').slice(0, 6)); setNotice(null); }}
+              placeholder="••••••"
+              keyboardType="number-pad"
+              secureTextEntry
+            />
 
             {notice ? <NoticeBox notice={notice} /> : null}
 
             <Pressable disabled={loading} onPress={() => void submit()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}>
-              <Text style={styles.primaryButtonText}>{loading ? 'Aguarde...' : mode === 'register' ? 'Criar conta' : 'Entrar'}</Text>
+              <Text style={styles.primaryButtonText}>
+                {loading ? 'Aguarde...' : mode === 'register' ? 'Criar conta' : mode === 'recover' ? 'Redefinir PIN' : 'Entrar'}
+              </Text>
             </Pressable>
+
+            {mode === 'login' ? (
+              <Pressable onPress={() => changeMode('recover')} style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>Esqueci meu PIN</Text>
+              </Pressable>
+            ) : null}
+
+            {mode === 'recover' ? (
+              <Pressable onPress={() => changeMode('login')} style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>Voltar para entrar</Text>
+              </Pressable>
+            ) : null}
+
             <Text style={styles.helper}>
               {mode === 'register'
                 ? 'Você pode criar sua conta antes da primeira compra. Pedidos concluídos com este mesmo WhatsApp aparecerão aqui automaticamente.'
-                : 'Esqueceu o PIN? Entre em contato com a loja para validar a redefinição com segurança.'}
+                : mode === 'recover'
+                  ? 'O pedido informado precisa estar concluído e ter sido feito com o mesmo WhatsApp desta conta.'
+                  : 'Use o mesmo WhatsApp informado nas suas compras.'}
             </Text>
           </View>
         </ScrollView>
@@ -266,6 +337,9 @@ const styles = StyleSheet.create({
   switchButtonActive: { backgroundColor: colors.primary },
   switchText: { color: colors.textMuted, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   switchTextActive: { color: '#FFF' },
+  recoverHeader: { paddingHorizontal: spacing.sm, alignItems: 'center' },
+  recoverTitle: { fontFamily: fonts.display, color: colors.text, fontSize: 21, fontWeight: '800' },
+  recoverText: { marginTop: 4, color: colors.textMuted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
   formCard: { padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: 18, gap: spacing.md, backgroundColor: colors.surface, ...shadow },
   field: { gap: 6 },
   fieldLabel: { color: colors.text, fontSize: 12, fontWeight: '800' },
@@ -280,6 +354,8 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
   secondaryButton: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   secondaryButtonText: { color: colors.primary, fontWeight: '900' },
+  linkButton: { minHeight: 38, alignItems: 'center', justifyContent: 'center' },
+  linkText: { color: colors.primary, fontSize: 11, fontWeight: '900', textDecorationLine: 'underline' },
   helper: { color: colors.textMuted, fontSize: 10, lineHeight: 15, textAlign: 'center' },
   pressed: { opacity: 0.75 },
   disabled: { opacity: 0.5 },
