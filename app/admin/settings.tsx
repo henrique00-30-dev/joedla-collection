@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -44,8 +44,15 @@ export default function AdminSettingsScreen() {
 
   const [form, setForm] = useState(settings);
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (dirty) return;
+    setForm(settings);
+    setErrors({});
+  }, [dirty, settings]);
 
   const configuredChannels = useMemo(
     () => [form.whatsappNumber, form.pixKey, form.instagram].filter(Boolean).length,
@@ -56,6 +63,7 @@ export default function AdminSettingsScreen() {
     field: Exclude<keyof StoreSettings, 'tickerMessages'>,
     value: string,
   ) {
+    setDirty(true);
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -122,7 +130,7 @@ export default function AdminSettingsScreen() {
     setSaving(true);
 
     try {
-      await updateSettings({
+      const normalizedSettings = {
         ...form,
         storeName: normalizePlainText(form.storeName),
         city: normalizePlainText(form.city),
@@ -131,7 +139,11 @@ export default function AdminSettingsScreen() {
         pixKey: normalizePlainText(form.pixKey),
         instagram: normalizePlainText(form.instagram),
         pickupAddress: normalizePlainText(form.pickupAddress, true),
-      });
+      };
+
+      await updateSettings(normalizedSettings);
+      setForm(normalizedSettings);
+      setDirty(false);
 
       Alert.alert(
         'Configurações salvas',
