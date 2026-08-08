@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection, AdminStatCard } from '@/src/components/admin';
@@ -28,9 +29,7 @@ export default function AdminClubScreen() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
 
-  useEffect(() => { void load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setNotice('');
     try {
       const [nextSettings, nextRewards, nextCustomers] = await Promise.all([
@@ -46,7 +45,13 @@ export default function AdminClubScreen() {
       setNotice(message);
       Alert.alert('Erro', message);
     }
-  }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const rewardProducts = useMemo(() => rewards.map((reward) => ({ ...reward, product: products.find((item) => item.id === reward.productId) })).filter((item) => item.product), [rewards, products]);
   const availableProducts = useMemo(() => products.filter((product) => product.active && !rewards.some((reward) => reward.productId === product.id)), [products, rewards]);
