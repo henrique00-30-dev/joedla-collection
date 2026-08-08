@@ -41,6 +41,11 @@ export async function registerClub(name: string, whatsapp: string, pin: string) 
   if (error) throw rpcError(error, 'Não foi possível criar sua conta no Clube Joedla.');
   return data as { token: string; name: string };
 }
+export async function resetClubPin(whatsapp: string, orderCode: string, newPin: string) {
+  const { data, error } = await publicClient().rpc('club_reset_pin', { p_whatsapp: whatsapp, p_order_code: orderCode, p_new_pin: newPin });
+  if (error) throw rpcError(error, 'Não foi possível redefinir seu PIN.');
+  return data as { success: boolean };
+}
 export async function activateClub(whatsapp: string, orderCode: string, pin: string) {
   const { data, error } = await publicClient().rpc('club_activate', { p_whatsapp: whatsapp, p_order_code: orderCode, p_pin: pin });
   if (error) throw rpcError(error, 'Não foi possível ativar o Clube Joedla.');
