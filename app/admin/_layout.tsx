@@ -108,13 +108,18 @@ const MENU_GROUPS: AdminMenuGroup[] = [
     items: [
       {
         label: 'Financeiro',
-        icon: 'document-text-outline',
-        href: '/admin/reports',
+        icon: 'cash-outline',
+        href: '/admin/finance',
       },
       {
         label: 'Desempenho',
         icon: 'stats-chart-outline',
         href: '/admin/analytics',
+      },
+      {
+        label: 'Relatórios',
+        icon: 'document-text-outline',
+        href: '/admin/reports',
       },
     ],
   },
@@ -143,8 +148,7 @@ export default function AdminLayout() {
   const desktop = width >= 980;
   const isLoginPage = pathname === '/admin/login';
 
-  const [mobileMenuOpen, setMobileMenuOpen] =
-    useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -165,17 +169,11 @@ export default function AdminLayout() {
 
   return (
     <View style={styles.shell}>
-      {desktop ? (
-        <AdminSidebar pathname={pathname} />
-      ) : null}
+      {desktop ? <AdminSidebar pathname={pathname} /> : null}
 
       <View style={styles.main}>
         {!desktop ? (
-          <MobileHeader
-            onOpenMenu={() =>
-              setMobileMenuOpen(true)
-            }
-          />
+          <MobileHeader onOpenMenu={() => setMobileMenuOpen(true)} />
         ) : null}
 
         <View style={styles.page}>
@@ -187,9 +185,7 @@ export default function AdminLayout() {
         <View style={styles.mobileOverlay}>
           <Pressable
             accessibilityLabel="Fechar menu"
-            onPress={() =>
-              setMobileMenuOpen(false)
-            }
+            onPress={() => setMobileMenuOpen(false)}
             style={styles.overlayBackdrop}
           />
 
@@ -197,9 +193,7 @@ export default function AdminLayout() {
             <AdminSidebar
               pathname={pathname}
               mobile
-              onNavigate={() =>
-                setMobileMenuOpen(false)
-              }
+              onNavigate={() => setMobileMenuOpen(false)}
             />
           </View>
         </View>
@@ -220,11 +214,7 @@ function AdminSidebar({
   async function handleSignOut() {
     try {
       if (supabase) {
-        const { error } =
-          await supabase.auth.signOut({
-            scope: 'local',
-          });
-
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
         if (error) throw error;
       }
 
@@ -233,9 +223,7 @@ function AdminSidebar({
     } catch (error) {
       Alert.alert(
         'Não foi possível sair',
-        error instanceof Error
-          ? error.message
-          : 'Tente novamente.',
+        error instanceof Error ? error.message : 'Tente novamente.',
       );
     }
   }
@@ -246,34 +234,19 @@ function AdminSidebar({
   }
 
   return (
-    <View
-      style={[
-        styles.sidebar,
-        mobile && styles.sidebarMobile,
-      ]}>
+    <View style={[styles.sidebar, mobile && styles.sidebarMobile]}>
       <View style={styles.sidebarHeader}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Voltar para a loja"
           onPress={() => router.push('/')}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && styles.sidebarPressed,
-          ]}>
-          <Ionicons
-            name="arrow-back"
-            size={18}
-            color="#F7EEE7"
-          />
+          style={({ pressed }) => [styles.headerButton, pressed && styles.sidebarPressed]}>
+          <Ionicons name="arrow-back" size={18} color="#F7EEE7" />
         </Pressable>
 
         <View style={styles.brand}>
-          <Text style={styles.brandName}>
-            JOEDLA
-          </Text>
-          <Text style={styles.brandCollection}>
-            COLLECTION
-          </Text>
+          <Text style={styles.brandName}>JOEDLA</Text>
+          <Text style={styles.brandCollection}>COLLECTION</Text>
         </View>
 
         {mobile ? (
@@ -281,15 +254,8 @@ function AdminSidebar({
             accessibilityRole="button"
             accessibilityLabel="Fechar menu"
             onPress={onNavigate}
-            style={({ pressed }) => [
-              styles.headerButton,
-              pressed && styles.sidebarPressed,
-            ]}>
-            <Ionicons
-              name="close"
-              size={20}
-              color="#F7EEE7"
-            />
+            style={({ pressed }) => [styles.headerButton, pressed && styles.sidebarPressed]}>
+            <Ionicons name="close" size={20} color="#F7EEE7" />
           </Pressable>
         ) : (
           <View style={styles.headerSpacer} />
@@ -301,59 +267,33 @@ function AdminSidebar({
         showsVerticalScrollIndicator
         contentContainerStyle={styles.menuContent}>
         {MENU_GROUPS.map((group, groupIndex) => (
-          <View
-            key={
-              group.title ??
-              `group-${groupIndex}`
-            }
-            style={styles.menuGroup}>
-            {group.title ? (
-              <Text style={styles.groupTitle}>
-                {group.title}
-              </Text>
-            ) : null}
+          <View key={group.title ?? `group-${groupIndex}`} style={styles.menuGroup}>
+            {group.title ? <Text style={styles.groupTitle}>{group.title}</Text> : null}
 
             <View style={styles.groupItems}>
               {group.items.map((item) => {
-                const active = isRouteActive(
-                  pathname,
-                  item.href,
-                );
+                const active = isRouteActive(pathname, item.href);
 
                 return (
                   <Pressable
                     key={item.label}
                     accessibilityRole="button"
-                    accessibilityState={{
-                      selected: active,
-                    }}
-                    onPress={() =>
-                      openRoute(item.href)
-                    }
+                    accessibilityState={{ selected: active }}
+                    onPress={() => openRoute(item.href)}
                     style={({ pressed }) => [
                       styles.menuItem,
-                      active &&
-                        styles.menuItemActive,
-                      pressed &&
-                        styles.sidebarPressed,
+                      active && styles.menuItemActive,
+                      pressed && styles.sidebarPressed,
                     ]}>
                     <Ionicons
                       name={item.icon}
                       size={17}
-                      color={
-                        active
-                          ? '#FFFFFF'
-                          : '#D9CCC2'
-                      }
+                      color={active ? '#FFFFFF' : '#D9CCC2'}
                     />
 
                     <Text
                       numberOfLines={1}
-                      style={[
-                        styles.menuLabel,
-                        active &&
-                          styles.menuLabelActive,
-                      ]}>
+                      style={[styles.menuLabel, active && styles.menuLabelActive]}>
                       {item.label}
                     </Text>
                   </Pressable>
@@ -366,88 +306,50 @@ function AdminSidebar({
         <Pressable
           accessibilityRole="button"
           onPress={handleSignOut}
-          style={({ pressed }) => [
-            styles.signOut,
-            pressed && styles.sidebarPressed,
-          ]}>
-          <Ionicons
-            name="log-out-outline"
-            size={16}
-            color="#D9CCC2"
-          />
-
-          <Text style={styles.signOutText}>
-            Sair
-          </Text>
+          style={({ pressed }) => [styles.signOut, pressed && styles.sidebarPressed]}>
+          <Ionicons name="log-out-outline" size={16} color="#D9CCC2" />
+          <Text style={styles.signOutText}>Sair</Text>
         </Pressable>
       </ScrollView>
     </View>
   );
 }
 
-function MobileHeader({
-  onOpenMenu,
-}: {
-  onOpenMenu: () => void;
-}) {
+function MobileHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
     <View style={styles.mobileHeader}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Abrir menu administrativo"
         onPress={onOpenMenu}
-        style={({ pressed }) => [
-          styles.mobileHeaderButton,
-          pressed && styles.mobileHeaderPressed,
-        ]}>
-        <Ionicons
-          name="menu"
-          size={22}
-          color={colors.text}
-        />
+        style={({ pressed }) => [styles.mobileHeaderButton, pressed && styles.mobileHeaderPressed]}>
+        <Ionicons name="menu" size={22} color={colors.text} />
       </Pressable>
 
       <View style={styles.mobileHeaderBrand}>
-        <Text style={styles.mobileHeaderTitle}>
-          JOEDLA
-        </Text>
-        <Text style={styles.mobileHeaderSubtitle}>
-          PAINEL ADMINISTRATIVO
-        </Text>
+        <Text style={styles.mobileHeaderTitle}>JOEDLA</Text>
+        <Text style={styles.mobileHeaderSubtitle}>PAINEL ADMINISTRATIVO</Text>
       </View>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Ver loja"
         onPress={() => router.push('/')}
-        style={({ pressed }) => [
-          styles.storeButtonMobile,
-          pressed && styles.mobileHeaderPressed,
-        ]}>
-        <Ionicons
-          name="storefront-outline"
-          size={17}
-          color="#9D5F1D"
-        />
+        style={({ pressed }) => [styles.storeButtonMobile, pressed && styles.mobileHeaderPressed]}>
+        <Ionicons name="storefront-outline" size={17} color="#9D5F1D" />
       </Pressable>
     </View>
   );
 }
 
-function isRouteActive(
-  pathname: string,
-  href: Href,
-) {
+function isRouteActive(pathname: string, href: Href) {
   const route = String(href);
 
   if (route === '/admin') {
     return pathname === '/admin';
   }
 
-  return (
-    pathname === route ||
-    pathname.startsWith(`${route}/`)
-  );
+  return pathname === route || pathname.startsWith(`${route}/`);
 }
 
 const styles = StyleSheet.create({
@@ -468,7 +370,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#F4F0EA',
   },
-
   sidebar: {
     width: 190,
     minWidth: 190,
@@ -480,25 +381,20 @@ const styles = StyleSheet.create({
     borderRightColor: '#2D231C',
     backgroundColor: '#17110D',
   },
-
   sidebarMobile: {
     width: 274,
     minWidth: 274,
     maxWidth: 274,
   },
-
   sidebarHeader: {
     minHeight: 56,
     paddingHorizontal: 7,
-    borderBottomWidth:
-      StyleSheet.hairlineWidth,
-    borderBottomColor:
-      'rgba(255,255,255,0.10)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.10)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
   headerButton: {
     width: 30,
     height: 30,
@@ -506,15 +402,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  headerSpacer: {
-    width: 30,
-  },
-
-  brand: {
-    alignItems: 'center',
-  },
-
+  headerSpacer: { width: 30 },
+  brand: { alignItems: 'center' },
   brandName: {
     fontFamily: fonts.display,
     color: '#D9A65B',
@@ -523,7 +412,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.8,
   },
-
   brandCollection: {
     marginTop: 1,
     color: '#BFAE9E',
@@ -531,22 +419,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.8,
   },
-
-  menuScroll: {
-    flex: 1,
-  },
-
+  menuScroll: { flex: 1 },
   menuContent: {
     flexGrow: 1,
     paddingHorizontal: 6,
     paddingTop: 8,
     paddingBottom: 28,
   },
-
-  menuGroup: {
-    marginBottom: 9,
-  },
-
+  menuGroup: { marginBottom: 9 },
   groupTitle: {
     marginBottom: 4,
     paddingHorizontal: 7,
@@ -555,11 +435,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.7,
   },
-
-  groupItems: {
-    gap: 2,
-  },
-
+  groupItems: { gap: 2 },
   menuItem: {
     minHeight: 36,
     paddingHorizontal: 7,
@@ -568,11 +444,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
-
-  menuItemActive: {
-    backgroundColor: '#A66A27',
-  },
-
+  menuItemActive: { backgroundColor: '#A66A27' },
   menuLabel: {
     minWidth: 0,
     flex: 1,
@@ -581,47 +453,21 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontWeight: '700',
   },
-
-  menuLabelActive: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-
+  menuLabelActive: { color: '#FFFFFF', fontWeight: '900' },
   signOut: {
     minHeight: 36,
     marginTop: 6,
     paddingHorizontal: 7,
-    borderTopWidth:
-      StyleSheet.hairlineWidth,
-    borderTopColor:
-      'rgba(255,255,255,0.08)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
   },
-
-  signOutText: {
-    color: '#E7DCD3',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-
-  sidebarPressed: {
-    opacity: 0.68,
-  },
-
-  main: {
-    minWidth: 0,
-    flex: 1,
-    backgroundColor: '#F4F0EA',
-  },
-
-  page: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: '#F4F0EA',
-  },
-
+  signOutText: { color: '#E7DCD3', fontSize: 12, fontWeight: '800' },
+  sidebarPressed: { opacity: 0.68 },
+  main: { minWidth: 0, flex: 1, backgroundColor: '#F4F0EA' },
+  page: { flex: 1, minWidth: 0, backgroundColor: '#F4F0EA' },
   mobileHeader: {
     minHeight: 56,
     paddingHorizontal: 10,
@@ -633,7 +479,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDFC',
     ...shadow,
   },
-
   mobileHeaderButton: {
     width: 36,
     height: 36,
@@ -641,11 +486,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  mobileHeaderBrand: {
-    alignItems: 'center',
-  },
-
+  mobileHeaderBrand: { alignItems: 'center' },
   mobileHeaderTitle: {
     fontFamily: fonts.display,
     color: colors.primaryDark,
@@ -653,14 +494,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.8,
   },
-
   mobileHeaderSubtitle: {
     color: colors.textMuted,
     fontSize: 6,
     fontWeight: '800',
     letterSpacing: 1,
   },
-
   storeButtonMobile: {
     width: 36,
     height: 36,
@@ -670,34 +509,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  mobileHeaderPressed: {
-    opacity: 0.65,
-  },
-
+  mobileHeaderPressed: { opacity: 0.65 },
   mobileOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 100,
     flexDirection: 'row',
   },
-
   overlayBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor:
-      'rgba(18,13,10,0.55)',
+    backgroundColor: 'rgba(18,13,10,0.55)',
   },
-
   mobileSidebar: {
     zIndex: 2,
     height: '100%',
     ...Platform.select({
-      web: {
-        boxShadow:
-          '10px 0 26px rgba(0,0,0,0.24)',
-      },
-      default: {
-        elevation: 18,
-      },
+      web: { boxShadow: '10px 0 26px rgba(0,0,0,0.24)' },
+      default: { elevation: 18 },
     }),
   },
 });
