@@ -20,6 +20,8 @@ import { Screen } from '@/src/components/screen';
 import { StructuredField } from '@/src/components/structured-field';
 import { Button, Field } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
+import { keyValueStorage } from '@/src/lib/storage';
+import { prepareCheckoutBenefit } from '@/src/services/club';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
 import {
   CustomerDetails,
@@ -36,6 +38,8 @@ import {
 import { formatCurrency } from '@/src/utils/format';
 import { buildOrderMessage, openStoreWhatsApp } from '@/src/utils/whatsapp';
 
+const CLUB_TOKEN_KEY = 'joedla.club.session.v1';
+
 const initialCustomer: CustomerDetails = {
   name: '',
   whatsapp: '',
@@ -46,11 +50,17 @@ const initialCustomer: CustomerDetails = {
   notes: '',
 };
 
+type BenefitMode = 'none' | 'coupon' | 'points';
+
 export default function CheckoutScreen() {
   const { cart, cartSubtotal, createOrder, settings, refreshStore } = useStore();
   const [customer, setCustomer] = useState(initialCustomer);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
+  const [benefitMode, setBenefitMode] = useState<BenefitMode>('none');
+  const [couponCode, setCouponCode] = useState('');
+  const [pointsToUse, setPointsToUse] = useState('');
+  const [clubToken, setClubToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
@@ -66,8 +76,15 @@ export default function CheckoutScreen() {
   const addressRef = useRef<TextInput>(null);
   refreshStoreRef.current = refreshStore;
 
+  const hasPromotion = cart.some(
+    (item) =>
+      (item.priceSource && item.priceSource !== 'normal') ||
+      (item.originalUnitPrice !== undefined && item.originalUnitPrice > item.unitPrice),
+  );
+
   useFocusEffect(useCallback(() => {
     void refreshStoreRef.current().catch(() => undefined);
+    void keyValueStorage.getItem(CLUB_TOKEN_KEY).then((token) => setClubToken(token ?? '')).catch(() => setClubToken(''));
   }, []));
 
   function updateCustomer(field: keyof CustomerDetails, value: string) {
@@ -82,6 +99,18 @@ export default function CheckoutScreen() {
     } else {
       updateCustomer('city', '');
     }
+  }
+
+  function selectBenefit(mode: BenefitMode) {
+    if (mode !== 'none' && hasPromotion) {
+      Alert.alert(
+        'Pedido com promoção',
+        'Produtos em promoção já possuem desconto e não aceitam cupom nem pontos.',
+      );
+      setBenefitMode('none');
+      return;
+    }
+    setBenefitMode(mode);
   }
 
   function validate() {
@@ -121,9 +150,37 @@ export default function CheckoutScreen() {
     }
     if (!validate()) return;
 
+    if (hasPromotion && benefitMode !== 'none') {
+      Alert.alert('Benefício não permitido', 'Este pedido possui produto em promoção. Remova cupom ou pontos para continuar.');
+      return;
+    }
+
+    const requestedPoints = Number(pointsToUse.replace(/\D/g, '')) || 0;
+    if (benefitMode === 'coupon' && !couponCode.trim()) {
+      Alert.alert('Informe o cupom', 'Digite o código do cupom antes de fazer o pedido.');
+      return;
+    }
+    if (benefitMode === 'points') {
+      if (!clubToken) {
+        Alert.alert('Entre no Clube Joedla', 'Para usar pontos, entre no Clube Joedla com seu WhatsApp e PIN.');
+        return;
+      }
+      if (requestedPoints <= 0) {
+        Alert.alert('Informe os pontos', 'Digite quantos pontos deseja utilizar.');
+        return;
+      }
+    }
+
     submittingRef.current = true;
     setSubmitting(true);
     try {
+      await prepareCheckoutBenefit({
+        requestId: idempotencyKeyRef.current,
+        couponCode: benefitMode === 'coupon' ? couponCode : undefined,
+        clubToken: benefitMode === 'points' ? clubToken : undefined,
+        points: benefitMode === 'points' ? requestedPoints : 0,
+      });
+
       const order = await createOrder({
         customer: {
           name: normalizePlainText(customer.name),
@@ -237,7 +294,7 @@ export default function CheckoutScreen() {
             ))}
             <View style={styles.divider} />
             <View style={styles.orderTotalRow}>
-              <Text style={styles.orderTotalLabel}>Total dos produtos</Text>
+              <Text style={styles.orderTotalLabel}>Total do pedido</Text>
               <Text style={styles.orderTotalValue}>
                 {formatCurrency(completedOrder.total)}
               </Text>
@@ -454,7 +511,65 @@ export default function CheckoutScreen() {
             />
           </View>
 
-          <SectionTitle number="4" title="Observações" />
+          <SectionTitle number="4" title="Cupom ou pontos" />
+          <View style={styles.card}>
+            {hasPromotion ? (
+              <View style={styles.promotionNotice}>
+                <Ionicons name="pricetag-outline" size={20} color={colors.warning} />
+                <Text style={styles.promotionNoticeText}>
+                  Este pedido possui produto em promoção. Outros descontos não são acumulativos.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.benefitIntro}>
+                  Escolha somente uma opção. Cupom e pontos não podem ser usados juntos.
+                </Text>
+                <View style={styles.benefitChoices}>
+                  <BenefitButton label="Sem benefício" active={benefitMode === 'none'} onPress={() => selectBenefit('none')} />
+                  <BenefitButton label="Cupom" active={benefitMode === 'coupon'} onPress={() => selectBenefit('coupon')} />
+                  <BenefitButton label="Pontos" active={benefitMode === 'points'} onPress={() => selectBenefit('points')} />
+                </View>
+
+                {benefitMode === 'coupon' ? (
+                  <Field
+                    label="Código do cupom"
+                    value={couponCode}
+                    onChangeText={(value) => setCouponCode(value.toUpperCase())}
+                    placeholder="Digite seu cupom"
+                    autoCapitalize="characters"
+                    maxLength={40}
+                  />
+                ) : null}
+
+                {benefitMode === 'points' ? (
+                  <View style={styles.pointsArea}>
+                    {clubToken ? (
+                      <Field
+                        label="Quantos pontos deseja usar?"
+                        value={pointsToUse}
+                        onChangeText={(value) => setPointsToUse(value.replace(/\D/g, ''))}
+                        placeholder="Ex.: 500"
+                        keyboardType="number-pad"
+                        maxLength={8}
+                      />
+                    ) : (
+                      <View style={styles.clubRequired}>
+                        <Text style={styles.clubRequiredText}>
+                          Entre no Clube Joedla para usar seus pontos neste pedido.
+                        </Text>
+                        <Button variant="secondary" onPress={() => router.push('/club' as never)}>
+                          Entrar no Clube Joedla
+                        </Button>
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+              </>
+            )}
+          </View>
+
+          <SectionTitle number="5" title="Observações" />
           <View style={styles.card}>
             <Field
               label="Observação do pedido ou encomenda (opcional)"
@@ -478,16 +593,22 @@ export default function CheckoutScreen() {
                 {deliveryMethod === 'delivery' ? 'Grátis' : 'A combinar'}
               </Text>
             </View>
+            {benefitMode !== 'none' && !hasPromotion ? (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Benefício</Text>
+                <Text style={styles.benefitPending}>Validado ao fazer o pedido</Text>
+              </View>
+            ) : null}
             <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total dos produtos</Text>
+              <Text style={styles.totalLabel}>Total antes do benefício</Text>
               <Text style={styles.totalValue}>{formatCurrency(cartSubtotal)}</Text>
             </View>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
-          <View>
-            <Text style={styles.footerLabel}>Total</Text>
+          <View style={styles.footerTotal}>
+            <Text style={styles.footerLabel}>Produtos</Text>
             <Text style={styles.footerValue}>{formatCurrency(cartSubtotal)}</Text>
           </View>
           <Button loading={submitting} onPress={handleSubmit} style={styles.finishButton}>
@@ -507,6 +628,18 @@ function SectionTitle({ number, title }: { number: string; title: string }) {
       </View>
       <Text style={styles.sectionTitleText}>{title}</Text>
     </View>
+  );
+}
+
+function BenefitButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.benefitButton, active && styles.benefitButtonActive, pressed && styles.benefitButtonPressed]}>
+      <Text style={[styles.benefitButtonText, active && styles.benefitButtonTextActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -764,6 +897,8 @@ const styles = StyleSheet.create({
   },
 
   sectionTitleText: {
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: fonts.display,
     color: colors.text,
     fontSize: 21,
@@ -805,6 +940,7 @@ const styles = StyleSheet.create({
   selectionIcon: {
     width: 46,
     height: 46,
+    flexShrink: 0,
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
@@ -816,6 +952,7 @@ const styles = StyleSheet.create({
   },
 
   selectionText: {
+    minWidth: 0,
     flex: 1,
     gap: 4,
   },
@@ -827,6 +964,87 @@ const styles = StyleSheet.create({
   },
 
   selectionDescription: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+  },
+
+  promotionNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(166,106,63,0.25)',
+    borderRadius: radii.medium,
+    backgroundColor: '#FFF8EC',
+  },
+
+  promotionNoticeText: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.warning,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '800',
+  },
+
+  benefitIntro: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+  },
+
+  benefitChoices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  benefitButton: {
+    minWidth: 105,
+    minHeight: 42,
+    flexGrow: 1,
+    flexBasis: 105,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceWarm,
+  },
+
+  benefitButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+
+  benefitButtonPressed: {
+    opacity: 0.75,
+  },
+
+  benefitButtonText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+
+  benefitButtonTextActive: {
+    color: colors.white,
+    fontWeight: '900',
+  },
+
+  pointsArea: {
+    minWidth: 0,
+  },
+
+  clubRequired: {
+    gap: spacing.sm,
+  },
+
+  clubRequiredText: {
     color: colors.textMuted,
     fontSize: 11,
     lineHeight: 17,
@@ -846,9 +1064,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
 
   summaryLabel: {
+    minWidth: 0,
+    flexShrink: 1,
     color: colors.textMuted,
     fontSize: 13,
   },
@@ -857,6 +1078,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '800',
+  },
+
+  benefitPending: {
+    minWidth: 0,
+    flexShrink: 1,
+    color: colors.primary,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '800',
+    textAlign: 'right',
   },
 
   free: {
@@ -872,6 +1103,8 @@ const styles = StyleSheet.create({
   },
 
   totalLabel: {
+    minWidth: 0,
+    flexShrink: 1,
     color: colors.text,
     fontSize: 16,
     fontWeight: '900',
@@ -897,6 +1130,11 @@ const styles = StyleSheet.create({
     ...shadow,
   },
 
+  footerTotal: {
+    minWidth: 0,
+    flexShrink: 1,
+  },
+
   footerLabel: {
     color: colors.textMuted,
     fontSize: 10,
@@ -912,7 +1150,8 @@ const styles = StyleSheet.create({
   },
 
   finishButton: {
-    minWidth: 190,
+    minWidth: 160,
     minHeight: 52,
+    flexShrink: 0,
   },
 });
