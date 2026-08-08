@@ -2,6 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -25,21 +26,12 @@ import { StatusBadge } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
 import { deleteCancelledOrder } from '@/src/services/admin-finance';
 import { colors, radii, spacing } from '@/src/theme';
-import type {
-  Order,
-  OrderStatus,
-} from '@/src/types';
-import {
-  formatCurrency,
-  formatDate,
-} from '@/src/utils/format';
+import type { Order, OrderStatus } from '@/src/types';
+import { formatCurrency, formatDate } from '@/src/utils/format';
 
 type Filter = 'all' | 'custom' | OrderStatus;
 
-const filters: {
-  value: Filter;
-  label: string;
-}[] = [
+const filters: { value: Filter; label: string }[] = [
   { value: 'all', label: 'Todos' },
   { value: 'custom', label: 'Encomendas' },
   { value: 'pending', label: 'Pendentes' },
@@ -96,28 +88,43 @@ export default function AdminOrdersScreen() {
     router.push({ pathname: '/admin/order/[id]', params: { id: order.id } });
   }
 
+  async function performDelete(order: Order) {
+    if (order.status !== 'cancelled' || deletingId) return;
+    setDeletingId(order.id);
+    try {
+      await deleteCancelledOrder(order.id);
+      await refreshAdminOrders();
+      if (Platform.OS === 'web') {
+        globalThis.alert?.(`Pedido ${order.publicCode} excluído. A auditoria foi preservada.`);
+      } else {
+        Alert.alert('Pedido excluído', `O pedido ${order.publicCode} foi excluído e a auditoria foi preservada.`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      if (Platform.OS === 'web') globalThis.alert?.(`Não foi possível excluir: ${message}`);
+      else Alert.alert('Não foi possível excluir', message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function confirmDelete(order: Order) {
     if (order.status !== 'cancelled' || deletingId) return;
+    const message = `O pedido ${order.publicCode} sairá das telas e dos totais. A exclusão ficará registrada na auditoria.`;
+
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(`Excluir pedido cancelado?\n\n${message}`)) {
+        void performDelete(order);
+      }
+      return;
+    }
+
     Alert.alert(
       'Excluir pedido cancelado?',
-      `O pedido ${order.publicCode} sairá das telas e dos totais. A exclusão ficará registrada na auditoria.`,
+      message,
       [
         { text: 'Voltar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => void (async () => {
-            setDeletingId(order.id);
-            try {
-              await deleteCancelledOrder(order.id);
-              await refreshAdminOrders();
-            } catch (error) {
-              Alert.alert('Não foi possível excluir', error instanceof Error ? error.message : 'Tente novamente.');
-            } finally {
-              setDeletingId(null);
-            }
-          })(),
-        },
+        { text: 'Excluir', style: 'destructive', onPress: () => void performDelete(order) },
       ],
     );
   }
