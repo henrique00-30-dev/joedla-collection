@@ -22,6 +22,17 @@ function requireClient() {
   return supabase;
 }
 
+function databaseError(error: unknown, fallback: string) {
+  if (error && typeof error === 'object') {
+    const value = error as { message?: string; details?: string; hint?: string; code?: string };
+    const parts = [value.message, value.details, value.hint].filter((item): item is string => Boolean(item?.trim()));
+    if (parts.length) return new Error(parts.join(' — '));
+    if (value.code) return new Error(`${fallback} (${value.code})`);
+  }
+  if (typeof error === 'string' && error.trim()) return new Error(error);
+  return new Error(fallback);
+}
+
 function mapProduct(row: Record<string, any>): Product {
   return {
     id: row.id,
@@ -144,7 +155,7 @@ export async function loadCloudCatalog(): Promise<Product[]> {
     .eq('active', true)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível carregar os produtos.');
   return (data ?? []).map(mapProduct);
 }
 
@@ -157,7 +168,7 @@ export async function loadCloudCategories(): Promise<Category[]> {
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível carregar as categorias.');
   return (data ?? []).map(mapCategory);
 }
 
@@ -169,7 +180,7 @@ export async function loadCloudSettings(): Promise<StoreSettings | null> {
     .eq('id', 1)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível carregar as configurações da loja.');
   if (!data) return null;
 
   return {
@@ -181,8 +192,7 @@ export async function loadCloudSettings(): Promise<StoreSettings | null> {
     instagram: data.instagram ?? '',
     deliveryMessage: data.delivery_message,
     tickerMessages: Array.isArray(data.ticker_messages) ? data.ticker_messages : [],
-    banners: Array.isArray(data.banners) ? data.banners :
-    [],
+    banners: Array.isArray(data.banners) ? data.banners : [],
     bannerTitle: data.banner_title ?? 'Elegância para todos os momentos',
     bannerSubtitle: data.banner_subtitle ?? 'Novidades selecionadas para renovar seu estilo com leveza.',
     bannerButtonLabel: data.banner_button_label ?? 'Conhecer coleção',
@@ -220,7 +230,7 @@ export async function createTrustedCloudOrder(
       requested_items: requestedItems,
     }));
   }
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível criar o pedido.');
   if (!data || typeof data !== 'object') throw new Error('O banco não devolveu o pedido confirmado.');
   return mapOrder(data as Record<string, any>);
 }
@@ -244,14 +254,14 @@ export async function loadCloudCustomerOrders(
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível carregar os pedidos.');
   return (data ?? []).map(mapOrder);
 }
 
 export async function signInCloudAdmin(email: string, password: string): Promise<void> {
   const client = requireClient();
   const { data, error } = await client.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível entrar no painel.');
 
   const { data: profile, error: profileError } = await client
     .from('profiles')
@@ -285,7 +295,7 @@ export async function restoreCloudAdminSession(): Promise<boolean> {
 export async function signOutCloudAdmin(): Promise<void> {
   const client = requireClient();
   const { error } = await client.auth.signOut();
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível sair do painel.');
 }
 
 export async function loadCloudAdminOrders(): Promise<Order[]> {
@@ -295,7 +305,7 @@ export async function loadCloudAdminOrders(): Promise<Order[]> {
     .select('*')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível carregar os pedidos do painel.');
   return (data ?? []).map(mapOrder);
 }
 
@@ -305,7 +315,7 @@ export async function saveCloudProduct(product: Product): Promise<void> {
   if (error?.code === '23505') {
     throw new Error('Já existe um produto ativo com esse nome. Edite o produto existente.');
   }
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível salvar o produto.');
 }
 
 export async function saveCloudCategory(
@@ -330,7 +340,7 @@ export async function saveCloudCategory(
   if (error?.code === '23505') {
     throw new Error('Já existe uma categoria com esse nome.');
   }
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível salvar a categoria.');
   return mapCategory(data);
 }
 
@@ -342,7 +352,7 @@ export async function archiveCloudCategory(slug: string): Promise<void> {
     .eq('category', slug)
     .eq('active', true);
 
-  if (productsError) throw productsError;
+  if (productsError) throw databaseError(productsError, 'Não foi possível verificar a categoria.');
   if ((count ?? 0) > 0) {
     throw new Error('Mova ou exclua os produtos ativos desta categoria antes de apagá-la.');
   }
@@ -354,7 +364,7 @@ export async function archiveCloudCategory(slug: string): Promise<void> {
     .select('slug')
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível apagar a categoria.');
   if (!data) throw new Error('Categoria não encontrada ou sem permissão para excluir.');
 }
 
@@ -367,7 +377,7 @@ export async function archiveCloudProduct(productId: string): Promise<void> {
     .select('id')
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw databaseError(error, 'Não foi possível excluir o produto.');
   if (!data) {
     throw new Error('Produto não encontrado ou sem permissão para excluir.');
   }
@@ -385,7 +395,7 @@ export async function updateCloudOrderStatus(
     .select('id')
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw databaseError(error, 'Não foi possível atualizar o pedido.');
   if (!data) {
     throw new Error('Pedido não encontrado ou sem permissão para atualizar.');
   }
@@ -413,7 +423,7 @@ export async function saveCloudSettings(settings: StoreSettings): Promise<void> 
     banners: settings.banners,
   });
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível salvar as configurações.');
 }
 
 export async function uploadCloudProductImage(
@@ -439,7 +449,7 @@ export async function uploadCloudProductImage(
       upsert: false,
     });
 
-  if (error) throw error;
+  if (error) throw databaseError(error, 'Não foi possível enviar a imagem.');
 
   return client.storage.from('product-images').getPublicUrl(filePath).data.publicUrl;
 }
