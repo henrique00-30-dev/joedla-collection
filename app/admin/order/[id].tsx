@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AdminGuard } from '@/src/components/admin-guard';
@@ -32,21 +32,10 @@ type Notice = { type: 'success' | 'error'; text: string } | null;
 
 export default function AdminOrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { adminOrders, changeOrderStatus, refreshAdminOrders } = useStore();
+  const { adminOrders, changeOrderStatus } = useStore();
   const order = adminOrders.find((item) => item.id === id);
   const [updating, setUpdating] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      void refreshAdminOrders().catch((error) => {
-        setNotice({
-          type: 'error',
-          text: error instanceof Error ? error.message : 'Não foi possível atualizar o pedido.',
-        });
-      });
-    }, [refreshAdminOrders]),
-  );
 
   if (!order) {
     return (
