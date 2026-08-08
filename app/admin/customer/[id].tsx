@@ -38,7 +38,7 @@ export default function AdminCustomerDetailScreen() {
   );
 
   const totals = useMemo(() => {
-    const orders = detail?.orders ?? [];
+    const orders = (detail?.orders ?? []).filter((order) => order.status !== 'cancelled');
     return {
       ordered: orders.reduce((sum, order) => sum + Number(order.total || 0), 0),
       paid: orders.reduce((sum, order) => sum + Number(order.financial?.paid || 0), 0),
@@ -86,7 +86,7 @@ export default function AdminCustomerDetailScreen() {
 
         <AdminSection
           title="Histórico de compras"
-          description="Toque em um pedido para abrir o comprovante, pagamentos, estornos e situação completa.">
+          description="Pedidos cancelados permanecem no histórico, mas não entram em nenhum total financeiro.">
           <View style={styles.list}>
             {detail.orders.length ? detail.orders.map((order) => (
               <Pressable
