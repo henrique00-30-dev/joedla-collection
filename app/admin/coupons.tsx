@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection, AdminStatCard } from '@/src/components/admin';
@@ -19,15 +20,19 @@ export default function AdminCouponsScreen() {
   const [maxUses, setMaxUses] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { void load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setCoupons(await loadAdminCoupons());
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar os cupons.');
     }
-  }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   async function createCoupon() {
     const value = Number(discountValue.replace(',', '.'));
