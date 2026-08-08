@@ -9,6 +9,7 @@ import {
   AdminClubCustomer,
   AdminClubReward,
   ClubSettings,
+  deleteAdminClubCustomer,
   loadAdminClubCustomers,
   loadAdminClubRewards,
   loadClubSettings,
@@ -27,6 +28,7 @@ export default function AdminClubScreen() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [rewardPoints, setRewardPoints] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
@@ -47,11 +49,7 @@ export default function AdminClubScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const rewardProducts = useMemo(() => rewards.map((reward) => ({ ...reward, product: products.find((item) => item.id === reward.productId) })).filter((item) => item.product), [rewards, products]);
   const availableProducts = useMemo(() => products.filter((product) => product.active && !rewards.some((reward) => reward.productId === product.id)), [products, rewards]);
@@ -113,6 +111,33 @@ export default function AdminClubScreen() {
     } finally { setSaving(false); }
   }
 
+  function confirmDeleteCustomer(customer: AdminClubCustomer) {
+    if (deletingCustomerId) return;
+    Alert.alert(
+      'Excluir cliente do Clube?',
+      `${customer.name} será removido do Clube Joedla. A exclusão ficará registrada na auditoria e as compras da loja não serão apagadas.`,
+      [
+        { text: 'Voltar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => void (async () => {
+            setDeletingCustomerId(customer.id);
+            try {
+              await deleteAdminClubCustomer(customer.id);
+              await load();
+              setNotice('Cliente excluído do Clube com registro de auditoria.');
+            } catch (error) {
+              Alert.alert('Não foi possível excluir', error instanceof Error ? error.message : 'Tente novamente.');
+            } finally {
+              setDeletingCustomerId(null);
+            }
+          })(),
+        },
+      ],
+    );
+  }
+
   return (
     <AdminGuard>
       <AdminPage eyebrow="Fidelidade" title="Clube Joedla" description="Configure pontos e recompensas usando os produtos que já existem na loja.">
@@ -124,24 +149,40 @@ export default function AdminClubScreen() {
 
         {notice ? <AdminCard compact title="Atualização" description={notice} icon="information-circle-outline" /> : null}
 
-        <AdminSection title="Clientes do Clube" description="Ranking calculado somente com compras concluídas vinculadas ao WhatsApp de cada conta.">
+        <AdminSection title="Clientes do Clube" description="Ranking calculado somente com compras concluídas; pedidos cancelados nunca entram nos valores.">
           <View style={styles.rankingGrid}>
             <AdminCard title="Quem mais compra" description="Maiores valores acumulados em compras concluídas.">
               <View style={styles.rankingList}>
-                {mostBuyers.length ? mostBuyers.map((customer, index) => (
-                  <RankingRow key={customer.id} position={index + 1} customer={customer} />
-                )) : <Text style={styles.empty}>Ainda não há clientes cadastrados.</Text>}
+                {mostBuyers.length ? mostBuyers.map((customer, index) => <RankingRow key={customer.id} position={index + 1} customer={customer} />) : <Text style={styles.empty}>Ainda não há clientes cadastrados.</Text>}
               </View>
             </AdminCard>
-
             <AdminCard title="Quem menos compra" description="Menores valores acumulados em compras concluídas.">
               <View style={styles.rankingList}>
-                {leastBuyers.length ? leastBuyers.map((customer, index) => (
-                  <RankingRow key={customer.id} position={index + 1} customer={customer} />
-                )) : <Text style={styles.empty}>Ainda não há clientes cadastrados.</Text>}
+                {leastBuyers.length ? leastBuyers.map((customer, index) => <RankingRow key={customer.id} position={index + 1} customer={customer} />) : <Text style={styles.empty}>Ainda não há clientes cadastrados.</Text>}
               </View>
             </AdminCard>
           </View>
+        </AdminSection>
+
+        <AdminSection title="Gerenciar clientes" description="Use Excluir para remover cadastros de teste. A ação fica registrada e não apaga os pedidos da loja.">
+          <AdminCard>
+            <View style={styles.customerList}>
+              {customers.length ? customers.map((customer) => (
+                <View key={customer.id} style={styles.customerManageRow}>
+                  <View style={styles.rankingCopy}>
+                    <Text style={styles.rankingName}>{customer.name}</Text>
+                    <Text style={styles.rankingPhone}>{customer.whatsapp} • {Number(customer.points).toLocaleString('pt-BR')} pontos</Text>
+                  </View>
+                  <Pressable
+                    disabled={deletingCustomerId === customer.id}
+                    onPress={() => confirmDeleteCustomer(customer)}
+                    style={({ pressed }) => [styles.removeButton, pressed && styles.pressed, deletingCustomerId === customer.id && styles.disabled]}>
+                    <Text style={styles.removeText}>{deletingCustomerId === customer.id ? 'Excluindo...' : 'Excluir cliente'}</Text>
+                  </Pressable>
+                </View>
+              )) : <Text style={styles.empty}>Nenhum cliente cadastrado.</Text>}
+            </View>
+          </AdminCard>
         </AdminSection>
 
         <AdminSection title="Regras de pontuação" description="Os pontos são liberados somente sobre valores efetivamente pagos. Produto em promoção não acumula outro desconto.">
@@ -217,6 +258,8 @@ const styles = StyleSheet.create({
   rankingValueWrap: { alignItems: 'flex-end' },
   rankingValue: { color: '#9D5F1D', fontSize: 11, fontWeight: '900' },
   rankingOpen: { marginTop: 2, color: '#88776B', fontSize: 8 },
+  customerList: { gap: spacing.sm },
+  customerManageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5DBD2' },
   formGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   field: { minWidth: 220, flex: 1, gap: 5 }, label: { color: '#493A30', fontSize: 10, fontWeight: '900' },
   input: { minHeight: 42, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#D8C8B7', borderRadius: 10, color: '#2C211A', backgroundColor: '#FCF9F6' },
