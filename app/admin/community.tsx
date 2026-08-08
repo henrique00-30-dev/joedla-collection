@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AdminGuard } from '@/src/components/admin-guard';
@@ -26,9 +27,7 @@ export default function AdminCommunityScreen() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  useEffect(() => { void refresh(); }, []);
-
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const [nextReviews, nextQuestions] = await Promise.all([
@@ -42,7 +41,13 @@ export default function AdminCommunityScreen() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+  );
 
   const pendingReviews = useMemo(() => reviews.filter((item) => item.status === 'pending').length, [reviews]);
   const pendingQuestions = useMemo(() => questions.filter((item) => item.status === 'pending').length, [questions]);
