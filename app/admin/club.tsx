@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection, AdminStatCard } from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
@@ -111,29 +111,42 @@ export default function AdminClubScreen() {
     } finally { setSaving(false); }
   }
 
+  async function performDeleteCustomer(customer: AdminClubCustomer) {
+    if (deletingCustomerId) return;
+    setDeletingCustomerId(customer.id);
+    try {
+      await deleteAdminClubCustomer(customer.id);
+      await load();
+      const message = 'Cliente excluído do Clube com registro de auditoria.';
+      setNotice(message);
+      if (Platform.OS === 'web') globalThis.alert?.(message);
+      else Alert.alert('Cliente excluído', message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      if (Platform.OS === 'web') globalThis.alert?.(`Não foi possível excluir: ${message}`);
+      else Alert.alert('Não foi possível excluir', message);
+    } finally {
+      setDeletingCustomerId(null);
+    }
+  }
+
   function confirmDeleteCustomer(customer: AdminClubCustomer) {
     if (deletingCustomerId) return;
+    const message = `${customer.name} será removido do Clube Joedla. A exclusão ficará registrada na auditoria e as compras da loja não serão apagadas.`;
+
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(`Excluir cliente do Clube?\n\n${message}`)) {
+        void performDeleteCustomer(customer);
+      }
+      return;
+    }
+
     Alert.alert(
       'Excluir cliente do Clube?',
-      `${customer.name} será removido do Clube Joedla. A exclusão ficará registrada na auditoria e as compras da loja não serão apagadas.`,
+      message,
       [
         { text: 'Voltar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => void (async () => {
-            setDeletingCustomerId(customer.id);
-            try {
-              await deleteAdminClubCustomer(customer.id);
-              await load();
-              setNotice('Cliente excluído do Clube com registro de auditoria.');
-            } catch (error) {
-              Alert.alert('Não foi possível excluir', error instanceof Error ? error.message : 'Tente novamente.');
-            } finally {
-              setDeletingCustomerId(null);
-            }
-          })(),
-        },
+        { text: 'Excluir', style: 'destructive', onPress: () => void performDeleteCustomer(customer) },
       ],
     );
   }
