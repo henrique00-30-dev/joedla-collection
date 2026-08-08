@@ -46,9 +46,11 @@ export type OrderTransactionType = 'payment' | 'refund';
 
 export type OrderFinancialSummary = {
   total: number;
+  payments: number;
+  refunds: number;
   paid: number;
-  refunded: number;
   remaining: number;
+  status?: 'pending' | 'partial' | 'paid' | 'refunded';
 };
 
 export type OrderTransaction = {
