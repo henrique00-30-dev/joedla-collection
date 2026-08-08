@@ -1,47 +1,57 @@
 import { Linking } from 'react-native';
 
 import { Order, StoreSettings } from '@/src/types';
-import { formatCurrency, normalizeWhatsApp } from '@/src/utils/format';
+import { formatCurrency, formatDate, normalizeWhatsApp } from '@/src/utils/format';
 
 export function buildOrderMessage(order: Order, settings: StoreSettings): string {
+  const orderKind = order.publicCode.startsWith('ENC-')
+    || order.items.some((item) => item.availability === 'custom')
+    ? 'ENCOMENDA'
+    : 'COMPRA';
+
+  const deliveryLabel = order.deliveryMethod === 'delivery'
+    ? 'Entrega grátis em Rosário do Catete'
+    : order.deliveryMethod === 'pickup'
+      ? 'Retirada'
+      : 'Outra cidade — combinar com a loja';
+
+  const paymentLabel = order.paymentMethod === 'pix'
+    ? 'Pix'
+    : order.paymentMethod === 'card_link'
+      ? 'Cartão por link'
+      : 'A combinar';
+
   const lines = [
-    '🚨 NOVO PEDIDO RECEBIDO',
-    `Pedido: ${order.publicCode}`,
-    `Loja: ${settings.storeName}`,
+    `🧾 ${orderKind} — JOEDLA COLLECTION`,
+    `Número: ${order.publicCode}`,
+    `Data: ${formatDate(order.createdAt)}`,
     '',
-    'Acesse a área administrativa para confirmar ou cancelar o pedido:',
-    'https://www.joedla-collection.com.br/admin/orders',
-    '',
+    'ITENS',
     ...order.items.map((item) => {
       const variants = [
         item.selectedSize ? `Tam. ${item.selectedSize}` : '',
-        item.selectedColor ?? '',
+        item.selectedColor ? `Cor: ${item.selectedColor}` : '',
+        item.availability === 'custom' ? 'Encomenda' : 'Pronta entrega',
       ]
         .filter(Boolean)
         .join(' • ');
-      return `• ${item.quantity}x ${item.productName}${variants ? ` (${variants})` : ''} — ${formatCurrency(item.subtotal)}`;
+      return `• ${item.quantity}x ${item.productName}${variants ? ` — ${variants}` : ''}\n  ${formatCurrency(item.subtotal)}`;
     }),
     '',
-    `Total: ${formatCurrency(order.total)}`,
-    `Entrega: ${
-      order.deliveryMethod === 'delivery'
-        ? 'Entrega grátis em Rosário do Catete'
-        : order.deliveryMethod === 'pickup'
-          ? 'Retirada'
-          : 'Combinar para outra cidade'
-    }`,
-    `Pagamento: ${
-      order.paymentMethod === 'pix'
-        ? 'Pix'
-        : order.paymentMethod === 'card_link'
-          ? 'Cartão por link'
-          : 'A combinar'
-    }`,
+    'VALORES',
+    `Subtotal: ${formatCurrency(order.subtotal)}`,
+    order.deliveryFee > 0 ? `Entrega: ${formatCurrency(order.deliveryFee)}` : 'Entrega: R$ 0,00',
+    Number(order.discountAmount ?? 0) > 0 ? `Desconto: -${formatCurrency(Number(order.discountAmount))}` : '',
+    `TOTAL: ${formatCurrency(order.total)}`,
     '',
-    `Cliente: ${order.customer.name}`,
+    'ENTREGA E PAGAMENTO',
+    `Entrega: ${deliveryLabel}`,
+    `Pagamento escolhido: ${paymentLabel}`,
+    '',
+    'CLIENTE',
+    `Nome: ${order.customer.name}`,
     `WhatsApp: ${order.customer.whatsapp}`,
-    '',
-    'Este pedido está aguardando confirmação da loja.',
+    `Cidade: ${order.customer.city}`,
   ];
 
   if (order.deliveryMethod === 'delivery') {
@@ -50,6 +60,18 @@ export function buildOrderMessage(order: Order, settings: StoreSettings): string
       order.customer.reference ? `Referência: ${order.customer.reference}` : '',
     );
   }
+
+  if (order.customer.notes) {
+    lines.push(`Observações: ${order.customer.notes}`);
+  }
+
+  lines.push(
+    '',
+    `Situação inicial: aguardando confirmação da loja.`,
+    '',
+    'Painel administrativo:',
+    'https://www.joedla-collection.com.br/admin/orders',
+  );
 
   return lines.filter((line) => line !== '').join('\n');
 }
