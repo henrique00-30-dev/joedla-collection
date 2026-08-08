@@ -52,6 +52,7 @@ const initialCustomer: CustomerDetails = {
 
 type BenefitMode = 'none' | 'coupon' | 'points';
 type CheckoutField = 'name' | 'whatsapp' | 'city' | 'neighborhood' | 'address' | 'reference' | 'notes';
+type CheckoutNotice = { type: 'error' | 'info'; message: string } | null;
 
 const FIELD_LABELS: Record<CheckoutField, string> = {
   name: 'nome completo',
@@ -74,6 +75,7 @@ export default function CheckoutScreen() {
   const [clubToken, setClubToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitNotice, setSubmitNotice] = useState<CheckoutNotice>(null);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [storeNotificationOpened, setStoreNotificationOpened] = useState(false);
   const [openingWhatsApp, setOpeningWhatsApp] = useState(false);
@@ -102,9 +104,11 @@ export default function CheckoutScreen() {
   function updateCustomer(field: keyof CustomerDetails, value: string) {
     setCustomer((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: '' }));
+    setSubmitNotice(null);
   }
 
   function selectDelivery(method: DeliveryMethod) {
+    setSubmitNotice(null);
     setDeliveryMethod(method);
     if (method === 'delivery' || method === 'pickup') {
       updateCustomer('city', 'Rosário do Catete');
@@ -114,11 +118,11 @@ export default function CheckoutScreen() {
   }
 
   function selectBenefit(mode: BenefitMode) {
+    setSubmitNotice(null);
     if (mode !== 'none' && hasPromotion) {
-      Alert.alert(
-        'Pedido com promoção',
-        'Produtos em promoção já possuem desconto e não aceitam cupom nem pontos.',
-      );
+      const message = 'Produtos em promoção já possuem desconto e não aceitam cupom nem pontos.';
+      setSubmitNotice({ type: 'error', message });
+      Alert.alert('Pedido com promoção', message);
       setBenefitMode('none');
       return;
     }
@@ -167,10 +171,9 @@ export default function CheckoutScreen() {
       .find((field) => Boolean(nextErrors[field]));
 
     if (firstInvalid) {
-      Alert.alert(
-        'Falta revisar um campo',
-        `Confira ${FIELD_LABELS[firstInvalid]}. ${nextErrors[firstInvalid]}`,
-      );
+      const message = `Confira ${FIELD_LABELS[firstInvalid]}. ${nextErrors[firstInvalid]}`;
+      setSubmitNotice({ type: 'error', message });
+      Alert.alert('Falta revisar um campo', message);
       focusInvalidField(firstInvalid);
       return false;
     }
@@ -179,14 +182,19 @@ export default function CheckoutScreen() {
   }
 
   function showBenefitError(title: string, message: string) {
+    setSubmitNotice({ type: 'error', message });
     Alert.alert(title, message);
     scrollRef.current?.scrollTo({ y: 1120, animated: true });
   }
 
   async function handleSubmit() {
     if (submittingRef.current) return;
+    setSubmitNotice(null);
+
     if (!cart.length) {
-      Alert.alert('Carrinho vazio', 'Adicione produtos antes de finalizar.');
+      const message = 'Adicione produtos antes de finalizar.';
+      setSubmitNotice({ type: 'error', message });
+      Alert.alert('Carrinho vazio', message);
       router.replace('/(tabs)/cart');
       return;
     }
@@ -215,6 +223,7 @@ export default function CheckoutScreen() {
 
     submittingRef.current = true;
     setSubmitting(true);
+    setSubmitNotice({ type: 'info', message: 'Enviando pedido. Aguarde a confirmação...' });
     try {
       if (benefitMode !== 'none') {
         await prepareCheckoutBenefit({
@@ -239,12 +248,13 @@ export default function CheckoutScreen() {
         paymentMethod,
         idempotencyKey: idempotencyKeyRef.current,
       });
+      setSubmitNotice(null);
       setCompletedOrder(order);
     } catch (error) {
-      Alert.alert(
-        'Não foi possível criar o pedido',
-        error instanceof Error ? error.message : 'Tente novamente.',
-      );
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      setSubmitNotice({ type: 'error', message });
+      scrollRef.current?.scrollToEnd({ animated: true });
+      Alert.alert('Não foi possível criar o pedido', message);
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -300,7 +310,7 @@ export default function CheckoutScreen() {
           </View>
           <Text style={styles.successTitle}>Pedido salvo!</Text>
           <Text style={styles.successSubtitle}>
-            Falta avisar a loja pelo WhatsApp para que o pedido seja confirmado ou cancelado.
+            Seu pedido foi criado com sucesso. Agora avise a loja pelo WhatsApp para que ele seja confirmado ou cancelado.
           </Text>
 
           <View style={styles.notificationNotice}>
@@ -538,21 +548,21 @@ export default function CheckoutScreen() {
               icon="qr-code-outline"
               title="Pix"
               description="A loja informa a chave e confirma o pagamento"
-              onPress={() => setPaymentMethod('pix')}
+              onPress={() => { setSubmitNotice(null); setPaymentMethod('pix'); }}
             />
             <SelectionCard
               active={paymentMethod === 'card_link'}
               icon="card-outline"
               title="Cartão por link"
               description="O link seguro será enviado pelo WhatsApp"
-              onPress={() => setPaymentMethod('card_link')}
+              onPress={() => { setSubmitNotice(null); setPaymentMethod('card_link'); }}
             />
             <SelectionCard
               active={paymentMethod === 'whatsapp'}
               icon="chatbubbles-outline"
               title="Combinar pelo WhatsApp"
               description="Converse com a loja antes de pagar"
-              onPress={() => setPaymentMethod('whatsapp')}
+              onPress={() => { setSubmitNotice(null); setPaymentMethod('whatsapp'); }}
             />
           </View>
 
@@ -580,7 +590,7 @@ export default function CheckoutScreen() {
                   <Field
                     label="Código do cupom"
                     value={couponCode}
-                    onChangeText={(value) => setCouponCode(value.toUpperCase())}
+                    onChangeText={(value) => { setCouponCode(value.toUpperCase()); setSubmitNotice(null); }}
                     placeholder="Digite seu cupom"
                     autoCapitalize="characters"
                     maxLength={40}
@@ -593,7 +603,7 @@ export default function CheckoutScreen() {
                       <Field
                         label="Quantos pontos deseja usar?"
                         value={pointsToUse}
-                        onChangeText={(value) => setPointsToUse(value.replace(/\D/g, ''))}
+                        onChangeText={(value) => { setPointsToUse(value.replace(/\D/g, '')); setSubmitNotice(null); }}
                         placeholder="Ex.: 500"
                         keyboardType="number-pad"
                         maxLength={8}
@@ -626,6 +636,27 @@ export default function CheckoutScreen() {
               error={errors.notes}
             />
           </View>
+
+          {submitNotice ? (
+            <View
+              accessibilityLiveRegion="polite"
+              style={[
+                styles.submitNotice,
+                submitNotice.type === 'error' ? styles.submitNoticeError : styles.submitNoticeInfo,
+              ]}>
+              <Ionicons
+                name={submitNotice.type === 'error' ? 'alert-circle-outline' : 'information-circle-outline'}
+                size={21}
+                color={submitNotice.type === 'error' ? colors.danger : colors.info}
+              />
+              <Text style={[
+                styles.submitNoticeText,
+                submitNotice.type === 'error' ? styles.submitNoticeTextError : styles.submitNoticeTextInfo,
+              ]}>
+                {submitNotice.message}
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.summary}>
             <View style={styles.summaryRow}>
@@ -726,7 +757,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FBF8F4',
   },
-
   successContent: {
     width: '100%',
     maxWidth: 760,
@@ -737,7 +767,6 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: spacing.lg,
   },
-
   successIcon: {
     width: 92,
     height: 92,
@@ -751,7 +780,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
     ...shadow,
   },
-
   notificationNotice: {
     padding: spacing.lg,
     borderWidth: 1,
@@ -762,7 +790,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: '#FFF8EC',
   },
-
   notificationNoticeText: {
     flex: 1,
     color: colors.warning,
@@ -770,11 +797,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '800',
   },
-
-  notificationNoticeTextSuccess: {
-    color: colors.success,
-  },
-
+  notificationNoticeTextSuccess: { color: colors.success },
   successTitle: {
     fontFamily: fonts.display,
     color: colors.text,
@@ -783,7 +806,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
-
   successSubtitle: {
     maxWidth: 620,
     marginBottom: spacing.sm,
@@ -793,7 +815,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
-
   codeCard: {
     padding: spacing.xl,
     borderWidth: 1,
@@ -803,7 +824,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7EFE6',
     ...shadow,
   },
-
   codeLabel: {
     color: colors.textMuted,
     fontSize: 10,
@@ -811,7 +831,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-
   code: {
     marginTop: spacing.sm,
     color: '#8B451C',
@@ -819,68 +838,38 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.6,
   },
-
   orderCardTitle: {
     fontFamily: fonts.display,
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
   },
-
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-
   itemName: {
     flex: 1,
     color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
   },
-
-  itemValue: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
-
+  itemValue: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  divider: { height: 1, backgroundColor: colors.border },
   orderTotalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
-  orderTotalLabel: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  orderTotalValue: {
-    color: '#8B451C',
-    fontSize: 21,
-    fontWeight: '900',
-  },
-
+  orderTotalLabel: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  orderTotalValue: { color: '#8B451C', fontSize: 21, fontWeight: '900' },
   paymentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-
-  paymentText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-
+  paymentText: { color: colors.textMuted, fontSize: 13, lineHeight: 20 },
   pixBox: {
     padding: spacing.md,
     borderWidth: 1,
@@ -891,23 +880,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: '#F7F1EA',
   },
-
-  pixKey: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  copyButton: {
-    minWidth: 96,
-  },
-
-  successActions: {
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-
+  pixKey: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
+  copyButton: { minWidth: 96 },
+  successActions: { marginTop: spacing.sm, gap: spacing.sm },
   content: {
     width: '100%',
     maxWidth: 860,
@@ -917,14 +892,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: spacing.lg,
   },
-
   sectionTitle: {
     marginTop: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-
   number: {
     width: 34,
     height: 34,
@@ -934,13 +907,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#8B451C',
     ...shadow,
   },
-
-  numberText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-
+  numberText: { color: colors.white, fontSize: 12, fontWeight: '900' },
   sectionTitleText: {
     minWidth: 0,
     flexShrink: 1,
@@ -949,7 +916,6 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '800',
   },
-
   card: {
     padding: spacing.xl,
     borderWidth: 1,
@@ -959,11 +925,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEFC',
     ...shadow,
   },
-
-  optionsColumn: {
-    gap: spacing.md,
-  },
-
+  optionsColumn: { gap: spacing.md },
   selectionCard: {
     minHeight: 86,
     padding: spacing.lg,
@@ -976,12 +938,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEFC',
     ...shadow,
   },
-
-  selectionCardActive: {
-    borderColor: '#9D6A2F',
-    backgroundColor: '#FFF7EA',
-  },
-
+  selectionCardActive: { borderColor: '#9D6A2F', backgroundColor: '#FFF7EA' },
   selectionIcon: {
     width: 46,
     height: 46,
@@ -991,29 +948,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceWarm,
   },
-
-  selectionIconActive: {
-    backgroundColor: '#8B451C',
-  },
-
-  selectionText: {
-    minWidth: 0,
-    flex: 1,
-    gap: 4,
-  },
-
-  selectionTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  selectionDescription: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 17,
-  },
-
+  selectionIconActive: { backgroundColor: '#8B451C' },
+  selectionText: { minWidth: 0, flex: 1, gap: 4 },
+  selectionTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  selectionDescription: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
   promotionNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1024,7 +962,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.medium,
     backgroundColor: '#FFF8EC',
   },
-
   promotionNoticeText: {
     minWidth: 0,
     flex: 1,
@@ -1033,19 +970,8 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: '800',
   },
-
-  benefitIntro: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 17,
-  },
-
-  benefitChoices: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-
+  benefitIntro: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
+  benefitChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   benefitButton: {
     minWidth: 105,
     minHeight: 42,
@@ -1059,42 +985,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceWarm,
   },
-
-  benefitButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-
-  benefitButtonPressed: {
-    opacity: 0.75,
-  },
-
+  benefitButtonActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  benefitButtonPressed: { opacity: 0.75 },
   benefitButtonText: {
     color: colors.textMuted,
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',
   },
-
-  benefitButtonTextActive: {
-    color: colors.white,
-    fontWeight: '900',
-  },
-
-  pointsArea: {
+  benefitButtonTextActive: { color: colors.white, fontWeight: '900' },
+  pointsArea: { minWidth: 0 },
+  clubRequired: { gap: spacing.sm },
+  clubRequiredText: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
+  submitNotice: {
     minWidth: 0,
-  },
-
-  clubRequired: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
-
-  clubRequiredText: {
-    color: colors.textMuted,
+  submitNoticeError: {
+    borderColor: 'rgba(180,61,56,0.28)',
+    backgroundColor: '#FDEEEE',
+  },
+  submitNoticeInfo: {
+    borderColor: 'rgba(77,113,169,0.24)',
+    backgroundColor: colors.infoSoft,
+  },
+  submitNoticeText: {
+    minWidth: 0,
+    flex: 1,
     fontSize: 11,
     lineHeight: 17,
+    fontWeight: '800',
   },
-
+  submitNoticeTextError: { color: colors.danger },
+  submitNoticeTextInfo: { color: colors.info },
   summary: {
     marginTop: spacing.md,
     padding: spacing.xl,
@@ -1104,27 +1032,19 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: '#F7EFE6',
   },
-
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-
   summaryLabel: {
     minWidth: 0,
     flexShrink: 1,
     color: colors.textMuted,
     fontSize: 13,
   },
-
-  summaryValue: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-
+  summaryValue: { color: colors.text, fontSize: 14, fontWeight: '800' },
   benefitPending: {
     minWidth: 0,
     flexShrink: 1,
@@ -1134,19 +1054,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'right',
   },
-
-  free: {
-    color: colors.success,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-
+  free: { color: colors.success, fontSize: 13, fontWeight: '900' },
   totalRow: {
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: 'rgba(157,106,47,0.2)',
   },
-
   totalLabel: {
     minWidth: 0,
     flexShrink: 1,
@@ -1154,13 +1067,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
-
-  totalValue: {
-    color: '#8B451C',
-    fontSize: 22,
-    fontWeight: '900',
-  },
-
+  totalValue: { color: '#8B451C', fontSize: 22, fontWeight: '900' },
   footer: {
     minHeight: 92,
     paddingHorizontal: spacing.lg,
@@ -1174,12 +1081,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEFC',
     ...shadow,
   },
-
-  footerTotal: {
-    minWidth: 0,
-    flexShrink: 1,
-  },
-
+  footerTotal: { minWidth: 0, flexShrink: 1 },
   footerLabel: {
     color: colors.textMuted,
     fontSize: 10,
@@ -1187,13 +1089,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-
-  footerValue: {
-    color: '#8B451C',
-    fontSize: 22,
-    fontWeight: '900',
-  },
-
+  footerValue: { color: '#8B451C', fontSize: 22, fontWeight: '900' },
   finishButton: {
     minWidth: 160,
     minHeight: 52,
