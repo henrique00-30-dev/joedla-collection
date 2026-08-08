@@ -12,6 +12,7 @@ import { formatCurrency, formatDate } from '@/src/utils/format';
 
 const TOKEN_KEY = 'joedla.club.session.v1';
 type Mode = 'login' | 'register';
+type Notice = { type: 'success' | 'error'; text: string } | null;
 
 export default function ClubScreen() {
   const [mode, setMode] = useState<Mode>('login');
@@ -20,6 +21,7 @@ export default function ClubScreen() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<ClubSummary | null>(null);
+  const [notice, setNotice] = useState<Notice>(null);
 
   useEffect(() => { void restore(); }, []);
 
@@ -27,27 +29,45 @@ export default function ClubScreen() {
     try {
       const token = await keyValueStorage.getItem(TOKEN_KEY);
       if (token) setSummary(await loadClubSummary(token));
-    } catch {
+    } catch (error) {
       await keyValueStorage.removeItem(TOKEN_KEY);
+      setNotice({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível restaurar seu acesso ao Clube.',
+      });
     } finally {
       setLoading(false);
     }
   }
 
+  function changeMode(nextMode: Mode) {
+    setMode(nextMode);
+    setNotice(null);
+    setPin('');
+  }
+
+  function showError(title: string, message: string) {
+    setNotice({ type: 'error', text: message });
+    Alert.alert(title, message);
+  }
+
   async function submit() {
+    if (loading) return;
+    setNotice(null);
+
     const cleanName = name.trim();
     const digits = whatsapp.replace(/\D/g, '');
 
     if (mode === 'register' && cleanName.length < 3) {
-      Alert.alert('Revise o nome', 'Informe seu nome completo para criar o cadastro.');
+      showError('Revise o nome', 'Informe seu nome completo para criar a conta.');
       return;
     }
     if (digits.length !== 11) {
-      Alert.alert('Revise o WhatsApp', 'Informe DDD + celular, totalizando 11 números.');
+      showError('Revise o WhatsApp', 'Informe DDD + celular, totalizando 11 números.');
       return;
     }
     if (!/^\d{6}$/.test(pin)) {
-      Alert.alert('Revise o PIN', 'O PIN deve ter exatamente 6 números.');
+      showError('Revise o PIN', 'O PIN deve ter exatamente 6 números.');
       return;
     }
 
@@ -56,14 +76,20 @@ export default function ClubScreen() {
       const session = mode === 'register'
         ? await registerClub(cleanName, whatsapp, pin)
         : await loginClub(whatsapp, pin);
+
       await keyValueStorage.setItem(TOKEN_KEY, session.token);
-      setSummary(await loadClubSummary(session.token));
+      const nextSummary = await loadClubSummary(session.token);
       setPin('');
-      if (mode === 'register') {
-        Alert.alert('Cadastro concluído', 'Seu Clube Joedla foi criado. As compras feitas com este mesmo WhatsApp serão vinculadas automaticamente.');
-      }
+      setNotice({
+        type: 'success',
+        text: mode === 'register'
+          ? 'Conta criada com sucesso. Compras concluídas com este mesmo WhatsApp serão vinculadas automaticamente.'
+          : 'Entrada realizada com sucesso.',
+      });
+      setSummary(nextSummary);
     } catch (error) {
-      Alert.alert('Não foi possível continuar', error instanceof Error ? error.message : 'Tente novamente.');
+      const message = error instanceof Error ? error.message : 'Tente novamente.';
+      showError(mode === 'register' ? 'Não foi possível criar a conta' : 'Não foi possível entrar', message);
     } finally {
       setLoading(false);
     }
@@ -75,6 +101,7 @@ export default function ClubScreen() {
     setName('');
     setWhatsapp('');
     setPin('');
+    setNotice({ type: 'success', text: 'Você saiu do Clube Joedla.' });
   }
 
   if (!summary) {
@@ -89,26 +116,51 @@ export default function ClubScreen() {
           </View>
 
           <View style={styles.switchRow}>
-            <Pressable onPress={() => setMode('login')} style={[styles.switchButton, mode === 'login' && styles.switchButtonActive]}>
+            <Pressable onPress={() => changeMode('login')} style={[styles.switchButton, mode === 'login' && styles.switchButtonActive]}>
               <Text style={[styles.switchText, mode === 'login' && styles.switchTextActive]}>Entrar</Text>
             </Pressable>
-            <Pressable onPress={() => setMode('register')} style={[styles.switchButton, mode === 'register' && styles.switchButtonActive]}>
-              <Text style={[styles.switchText, mode === 'register' && styles.switchTextActive]}>Criar cadastro</Text>
+            <Pressable onPress={() => changeMode('register')} style={[styles.switchButton, mode === 'register' && styles.switchButtonActive]}>
+              <Text style={[styles.switchText, mode === 'register' && styles.switchTextActive]}>Criar conta</Text>
             </Pressable>
           </View>
 
           <View style={styles.formCard}>
             {mode === 'register' ? (
-              <Field label="Nome completo" value={name} onChangeText={setName} placeholder="Digite seu nome" autoCapitalize="words" />
+              <Field
+                label="Nome completo"
+                value={name}
+                onChangeText={(value) => { setName(value); setNotice(null); }}
+                placeholder="Digite seu nome"
+                autoCapitalize="words"
+              />
             ) : null}
-            <Field label="WhatsApp" value={whatsapp} onChangeText={setWhatsapp} placeholder="(79) 99999-9999" keyboardType="phone-pad" />
-            <Field label={mode === 'register' ? 'Crie um PIN de 6 números' : 'PIN de acesso'} value={pin} onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" keyboardType="number-pad" secureTextEntry />
-            <Pressable disabled={loading} onPress={() => void submit()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}>
-              <Text style={styles.primaryButtonText}>{loading ? 'Aguarde...' : mode === 'register' ? 'Criar Clube Joedla' : 'Entrar'}</Text>
+            <Field
+              label="WhatsApp"
+              value={whatsapp}
+              onChangeText={(value) => { setWhatsapp(value); setNotice(null); }}
+              placeholder="(79) 99999-9999"
+              keyboardType="phone-pad"
+            />
+            <Field
+              label={mode === 'register' ? 'Crie um PIN de 6 números' : 'PIN de acesso'}
+              value={pin}
+              onChangeText={(value) => { setPin(value.replace(/\D/g, '').slice(0, 6)); setNotice(null); }}
+              placeholder="••••••"
+              keyboardType="number-pad"
+              secureTextEntry
+            />
+
+            {notice ? <NoticeBox notice={notice} /> : null}
+
+            <Pressable
+              disabled={loading}
+              onPress={() => void submit()}
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}>
+              <Text style={styles.primaryButtonText}>{loading ? 'Aguarde...' : mode === 'register' ? 'Criar conta' : 'Entrar'}</Text>
             </Pressable>
             <Text style={styles.helper}>
               {mode === 'register'
-                ? 'Você pode se cadastrar antes da primeira compra. Pedidos concluídos com este mesmo WhatsApp aparecerão aqui automaticamente.'
+                ? 'Você pode criar sua conta antes da primeira compra. Pedidos concluídos com este mesmo WhatsApp aparecerão aqui automaticamente.'
                 : 'Esqueceu o PIN? Entre em contato com a loja para validar a redefinição com segurança.'}
             </Text>
           </View>
@@ -123,6 +175,8 @@ export default function ClubScreen() {
     <Screen>
       <AppHeader compact title="Clube Joedla" showBack showStoreHome />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
+        {notice ? <NoticeBox notice={notice} /> : null}
+
         <View style={styles.balanceCard}>
           <View style={styles.balanceTop}>
             <View><Text style={styles.hello}>Olá, {summary.customer.name}!</Text><Text style={styles.balanceLabel}>Pontos disponíveis</Text></View>
@@ -180,6 +234,16 @@ export default function ClubScreen() {
   );
 }
 
+function NoticeBox({ notice }: { notice: Exclude<Notice, null> }) {
+  const success = notice.type === 'success';
+  return (
+    <View accessibilityLiveRegion="polite" style={[styles.notice, success ? styles.noticeSuccess : styles.noticeError]}>
+      <Ionicons name={success ? 'checkmark-circle-outline' : 'alert-circle-outline'} size={20} color={success ? '#238657' : '#B43D38'} />
+      <Text style={[styles.noticeText, success ? styles.noticeTextSuccess : styles.noticeTextError]}>{notice.text}</Text>
+    </View>
+  );
+}
+
 function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
   const { label, ...input } = props;
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput {...input} placeholderTextColor="#A8998C" style={styles.input} /></View>;
@@ -209,6 +273,12 @@ const styles = StyleSheet.create({
   field: { gap: 6 },
   fieldLabel: { color: colors.text, fontSize: 12, fontWeight: '800' },
   input: { minHeight: 48, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, backgroundColor: '#FFF' },
+  notice: { minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderWidth: 1, borderRadius: 12 },
+  noticeSuccess: { borderColor: 'rgba(35,134,87,0.28)', backgroundColor: '#EEF8F2' },
+  noticeError: { borderColor: 'rgba(180,61,56,0.28)', backgroundColor: '#FDEEEE' },
+  noticeText: { minWidth: 0, flex: 1, fontSize: 11, lineHeight: 17, fontWeight: '800' },
+  noticeTextSuccess: { color: '#238657' },
+  noticeTextError: { color: '#B43D38' },
   primaryButton: { minHeight: 50, paddingHorizontal: spacing.lg, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   primaryButtonText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
   secondaryButton: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
