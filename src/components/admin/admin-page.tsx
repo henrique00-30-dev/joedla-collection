@@ -47,7 +47,7 @@ export function AdminPage({
         contentStyle,
       ]}>
       <View style={[styles.header, stackedHeader && styles.headerStacked]}>
-        <View style={styles.headerCopy}>
+        <View style={[styles.headerCopy, stackedHeader && styles.headerCopyStacked]}>
           {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
           <Text style={[styles.title, phone && styles.titlePhone]}>{title}</Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -60,7 +60,7 @@ export function AdminPage({
         ) : null}
       </View>
 
-      <View style={styles.body}>{children}</View>
+      <View style={[styles.body, phone && styles.bodyPhone]}>{children}</View>
     </View>
   );
 
@@ -114,8 +114,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   headerStacked: {
+    minHeight: 0,
     flexDirection: 'column',
     alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    gap: spacing.sm,
   },
   headerCopy: {
     width: '100%',
@@ -123,6 +126,11 @@ const styles = StyleSheet.create({
     flexBasis: 260,
     flexGrow: 1,
     flexShrink: 1,
+  },
+  headerCopyStacked: {
+    flexBasis: 'auto',
+    flexGrow: 0,
+    flexShrink: 0,
   },
   eyebrow: {
     marginBottom: 4,
@@ -169,7 +177,11 @@ const styles = StyleSheet.create({
   body: {
     minWidth: 0,
     width: '100%',
-    marginTop: 20,
-    gap: 20,
+    marginTop: 16,
+    gap: 16,
+  },
+  bodyPhone: {
+    marginTop: 12,
+    gap: 12,
   },
 });
