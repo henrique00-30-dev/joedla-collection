@@ -13,6 +13,11 @@ function publicClient() { const client = customerSupabase ?? supabase; if (!clie
 function adminClient() { if (!supabase) throw new Error('A conexão administrativa não está configurada.'); return supabase; }
 function rpcError(error: unknown, fallback: string) { if (error && typeof error === 'object' && 'message' in error) return new Error(String((error as { message?: string }).message || fallback)); return new Error(fallback); }
 
+export async function registerClub(name: string, whatsapp: string, pin: string) {
+  const { data, error } = await publicClient().rpc('club_register', { p_name: name, p_whatsapp: whatsapp, p_pin: pin });
+  if (error) throw rpcError(error, 'Não foi possível criar seu cadastro no Clube Joedla.');
+  return data as { token: string; name: string };
+}
 export async function activateClub(whatsapp: string, orderCode: string, pin: string) {
   const { data, error } = await publicClient().rpc('club_activate', { p_whatsapp: whatsapp, p_order_code: orderCode, p_pin: pin });
   if (error) throw rpcError(error, 'Não foi possível ativar o Clube Joedla.');
