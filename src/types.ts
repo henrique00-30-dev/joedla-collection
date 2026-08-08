@@ -157,6 +157,10 @@ export type Order = {
   status: OrderStatus;
   createdAt: string;
   idempotencyKey?: string;
+  discountAmount?: number;
+  benefitType?: 'coupon' | 'points';
+  couponCode?: string;
+  pointsUsed?: number;
 };
 
 export type Banner = {
@@ -203,6 +207,9 @@ export type CheckoutDraft = {
   deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentMethod;
   idempotencyKey: string;
+  couponCode?: string;
+  clubToken?: string;
+  pointsToUse?: number;
 };
 
 export type AnalyticsProductMetric = {
