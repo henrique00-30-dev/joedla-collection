@@ -105,6 +105,11 @@ const MENU_GROUPS: AdminMenuGroup[] = [
     title: 'RELATÓRIOS',
     items: [
       {
+        label: 'Financeiro',
+        icon: 'document-text-outline',
+        href: '/admin/reports',
+      },
+      {
         label: 'Desempenho',
         icon: 'stats-chart-outline',
         href: '/admin/analytics',
