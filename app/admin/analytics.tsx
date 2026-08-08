@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -32,13 +33,7 @@ export default function AdminAnalyticsScreen() {
     useState<StoreAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    void refreshAnalytics();
-    // A troca do período deve recarregar as métricas.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
-
-  async function refreshAnalytics() {
+  const refreshAnalytics = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -55,7 +50,13 @@ export default function AdminAnalyticsScreen() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [period]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAnalytics();
+    }, [refreshAnalytics]),
+  );
 
   return (
     <AdminGuard>
