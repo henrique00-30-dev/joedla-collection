@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, usePathname } from 'expo-router';
-import { PropsWithChildren, useEffect, useMemo } from 'react';
+import { router, useFocusEffect, usePathname } from 'expo-router';
+import { PropsWithChildren, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,10 +15,40 @@ import { activePlacements } from '@/src/features/marketing/storefront';
 import { colors, spacing } from '@/src/theme';
 
 export function AdminGuard({ children }: PropsWithChildren) {
-  const { isAdmin, loading, marketing } = useStore();
+  const {
+    isAdmin,
+    loading,
+    marketing,
+    refreshStore,
+    refreshAdminOrders,
+  } = useStore();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const compact = width < 700;
+  const refreshStoreRef = useRef(refreshStore);
+  const refreshAdminOrdersRef = useRef(refreshAdminOrders);
+
+  useEffect(() => {
+    refreshStoreRef.current = refreshStore;
+    refreshAdminOrdersRef.current = refreshAdminOrders;
+  }, [refreshAdminOrders, refreshStore]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAdmin || loading) return;
+
+      void Promise.allSettled([
+        refreshStoreRef.current(),
+        refreshAdminOrdersRef.current(),
+      ]).then((results) => {
+        results.forEach((result) => {
+          if (result.status === 'rejected') {
+            console.warn('Falha ao sincronizar dados do painel.', result.reason);
+          }
+        });
+      });
+    }, [isAdmin, loading]),
+  );
 
   const carouselCampaigns = useMemo(() => {
     if (!marketing.settings.enabled) return [];
