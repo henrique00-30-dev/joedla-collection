@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppHeader } from '@/src/components/app-header';
@@ -23,22 +24,40 @@ export default function ClubScreen() {
   const [summary, setSummary] = useState<ClubSummary | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
 
-  useEffect(() => { void restore(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
 
-  async function restore() {
-    try {
-      const token = await keyValueStorage.getItem(TOKEN_KEY);
-      if (token) setSummary(await loadClubSummary(token));
-    } catch (error) {
-      await keyValueStorage.removeItem(TOKEN_KEY);
-      setNotice({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Não foi possível restaurar seu acesso ao Clube.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
+      async function refresh() {
+        try {
+          const token = await keyValueStorage.getItem(TOKEN_KEY);
+          if (!token) {
+            if (active) {
+              setSummary(null);
+              setLoading(false);
+            }
+            return;
+          }
+          const nextSummary = await loadClubSummary(token);
+          if (active) setSummary(nextSummary);
+        } catch (error) {
+          await keyValueStorage.removeItem(TOKEN_KEY);
+          if (active) {
+            setSummary(null);
+            setNotice({
+              type: 'error',
+              text: error instanceof Error ? error.message : 'Não foi possível atualizar seus dados do Clube.',
+            });
+          }
+        } finally {
+          if (active) setLoading(false);
+        }
+      }
+
+      void refresh();
+      return () => { active = false; };
+    }, []),
+  );
 
   function changeMode(nextMode: Mode) {
     setMode(nextMode);
@@ -126,36 +145,14 @@ export default function ClubScreen() {
 
           <View style={styles.formCard}>
             {mode === 'register' ? (
-              <Field
-                label="Nome completo"
-                value={name}
-                onChangeText={(value) => { setName(value); setNotice(null); }}
-                placeholder="Digite seu nome"
-                autoCapitalize="words"
-              />
+              <Field label="Nome completo" value={name} onChangeText={(value) => { setName(value); setNotice(null); }} placeholder="Digite seu nome" autoCapitalize="words" />
             ) : null}
-            <Field
-              label="WhatsApp"
-              value={whatsapp}
-              onChangeText={(value) => { setWhatsapp(value); setNotice(null); }}
-              placeholder="(79) 99999-9999"
-              keyboardType="phone-pad"
-            />
-            <Field
-              label={mode === 'register' ? 'Crie um PIN de 6 números' : 'PIN de acesso'}
-              value={pin}
-              onChangeText={(value) => { setPin(value.replace(/\D/g, '').slice(0, 6)); setNotice(null); }}
-              placeholder="••••••"
-              keyboardType="number-pad"
-              secureTextEntry
-            />
+            <Field label="WhatsApp" value={whatsapp} onChangeText={(value) => { setWhatsapp(value); setNotice(null); }} placeholder="(79) 99999-9999" keyboardType="phone-pad" />
+            <Field label={mode === 'register' ? 'Crie um PIN de 6 números' : 'PIN de acesso'} value={pin} onChangeText={(value) => { setPin(value.replace(/\D/g, '').slice(0, 6)); setNotice(null); }} placeholder="••••••" keyboardType="number-pad" secureTextEntry />
 
             {notice ? <NoticeBox notice={notice} /> : null}
 
-            <Pressable
-              disabled={loading}
-              onPress={() => void submit()}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}>
+            <Pressable disabled={loading} onPress={() => void submit()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, loading && styles.disabled]}>
               <Text style={styles.primaryButtonText}>{loading ? 'Aguarde...' : mode === 'register' ? 'Criar conta' : 'Entrar'}</Text>
             </Pressable>
             <Text style={styles.helper}>
