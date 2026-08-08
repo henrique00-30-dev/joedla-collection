@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   RefreshControl,
   StyleSheet,
@@ -83,6 +83,20 @@ export default function AdminOrdersScreen() {
     adminLoading,
     refreshAdminOrders,
   } = useStore();
+
+  const refreshAdminOrdersRef = useRef(refreshAdminOrders);
+
+  useEffect(() => {
+    refreshAdminOrdersRef.current = refreshAdminOrders;
+  }, [refreshAdminOrders]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAdminOrdersRef.current().catch((error) => {
+        console.warn('Falha ao atualizar pedidos do painel.', error);
+      });
+    }, []),
+  );
 
   const [filter, setFilter] =
     useState<Filter>(
