@@ -113,6 +113,12 @@ export default function MenuScreen() {
           description: 'Consulte o andamento das suas compras',
           onPress: () => router.push('/(tabs)/orders'),
         },
+        {
+          icon: 'star-outline',
+          label: 'Clube Joedla',
+          description: 'Consulte pontos, pagamentos e recompensas',
+          onPress: () => router.push('/club' as Href),
+        },
       ],
     },
     {
