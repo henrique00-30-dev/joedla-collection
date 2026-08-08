@@ -45,12 +45,14 @@ export default function AdminNoticesScreen() {
   );
 
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
+    if (dirty) return;
     setValue(
       (settings.tickerMessages ?? []).join(' ! '),
     );
-  }, [settings.tickerMessages]);
+  }, [dirty, settings.tickerMessages]);
 
   const previewMessages = useMemo(
     () => parseMessages(value),
@@ -123,6 +125,7 @@ export default function AdminNoticesScreen() {
             normalizePlainText(message),
         ),
       });
+      setDirty(false);
 
       Alert.alert(
         'Faixa atualizada',
@@ -223,7 +226,10 @@ export default function AdminNoticesScreen() {
               <AdminField
                 label="Conteúdo"
                 value={value}
-                onChangeText={setValue}
+                onChangeText={(next) => {
+                  setDirty(true);
+                  setValue(next);
+                }}
                 placeholder="Promoção de bolsas até sábado ! (Último dia da promoção)"
                 multiline
                 fullWidth
@@ -258,29 +264,8 @@ export default function AdminNoticesScreen() {
           <AdminSection
             title="Prévia da faixa"
             description="A visualização abaixo mostra como os comunicados aparecerão para os clientes.">
-            <View style={styles.previewFrame}>
-              <View style={styles.previewHeader}>
-                <Ionicons
-                  name="eye-outline"
-                  size={16}
-                  color="#9D5F1D"
-                />
-
-                <Text
-                  style={
-                    styles.previewHeaderText
-                  }>
-                  Prévia ao vivo
-                </Text>
-              </View>
-
-              <View style={styles.preview}>
-                <AnnouncementTicker
-                  messages={
-                    previewMessages
-                  }
-                />
-              </View>
+            <View style={styles.previewWrap}>
+              <AnnouncementTicker messages={previewMessages} />
             </View>
           </AdminSection>
         </AdminPage>
@@ -290,47 +275,14 @@ export default function AdminNoticesScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-
-  metrics: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-
-  messageField: {
-    flexBasis: '100%',
-  },
-
-  previewFrame: {
+  flex: { flex: 1 },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  messageField: { minWidth: 0 },
+  previewWrap: {
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#DED2C7',
+    borderColor: colors.border,
     borderRadius: radii.medium,
-    backgroundColor: '#FFFDFC',
-  },
-
-  previewHeader: {
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E9DFD5',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: '#F6ECE0',
-  },
-
-  previewHeaderText: {
-    color: '#493A30',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-
-  preview: {
-    overflow: 'hidden',
     backgroundColor: colors.surface,
   },
 });
