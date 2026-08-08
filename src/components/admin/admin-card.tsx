@@ -5,6 +5,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
@@ -32,10 +33,13 @@ export function AdminCard({
   compact = false,
   style,
 }: AdminCardProps) {
+  const { width } = useWindowDimensions();
+  const phone = width < 600;
+
   const content = (
     <>
       {title || description || icon || action ? (
-        <View style={styles.header}>
+        <View style={[styles.header, phone && styles.headerPhone]}>
           <View style={styles.headerMain}>
             {icon ? (
               <View style={[styles.icon, compact && styles.iconCompact]}>
@@ -58,7 +62,7 @@ export function AdminCard({
             </View>
           </View>
 
-          {action ? <View style={styles.action}>{action}</View> : null}
+          {action ? <View style={[styles.action, phone && styles.actionPhone]}>{action}</View> : null}
         </View>
       ) : null}
 
@@ -87,6 +91,7 @@ export function AdminCard({
 const styles = StyleSheet.create({
   card: {
     width: '100%',
+    maxWidth: '100%',
     minWidth: 0,
     padding: spacing.lg,
     borderWidth: 1,
@@ -97,11 +102,16 @@ const styles = StyleSheet.create({
   },
   cardCompact: { padding: 14, borderRadius: 12 },
   header: {
+    width: '100%',
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 16,
+  },
+  headerPhone: {
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   headerMain: {
     minWidth: 0,
@@ -124,9 +134,11 @@ const styles = StyleSheet.create({
   title: { color: '#2C211A', fontSize: 14, lineHeight: 19, fontWeight: '900' },
   titleCompact: { fontSize: 12, lineHeight: 17 },
   description: { marginTop: 3, color: '#88776B', fontSize: 10, lineHeight: 15 },
-  action: { flexShrink: 0 },
+  action: { maxWidth: '100%', flexShrink: 0 },
+  actionPhone: { width: '100%', flexDirection: 'row', flexWrap: 'wrap' },
   body: {
     width: '100%',
+    maxWidth: '100%',
     minWidth: 0,
     marginTop: 18,
     gap: spacing.md,
