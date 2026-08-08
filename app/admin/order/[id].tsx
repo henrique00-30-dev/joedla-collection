@@ -44,7 +44,6 @@ const paymentMethods: Array<{ value: PaymentMethod; label: string }> = [
 ];
 
 type Notice = { type: 'success' | 'error'; text: string } | null;
-
 type FinancialMode = 'payment' | 'refund';
 
 function moneyMask(value: string) {
@@ -68,6 +67,7 @@ export default function AdminOrderDetailsScreen() {
   const [financialAmount, setFinancialAmount] = useState('');
   const [financialMethod, setFinancialMethod] = useState<PaymentMethod>('pix');
   const [financialNote, setFinancialNote] = useState('');
+  const [financialError, setFinancialError] = useState('');
   const [financialSaving, setFinancialSaving] = useState(false);
   const financialSavingRef = useRef(false);
 
@@ -112,6 +112,11 @@ export default function AdminOrderDetailsScreen() {
   const currentOrder = order;
   const orderKind = currentOrder.publicCode.startsWith('ENC-') ? 'Encomenda' : 'Compra';
 
+  function showFinancialError(text: string) {
+    setFinancialError(text);
+    setNotice({ type: 'error', text });
+  }
+
   async function updateStatus(status: OrderStatus) {
     if (status === currentOrder.status || updating) return;
     setNotice(null);
@@ -155,10 +160,11 @@ export default function AdminOrderDetailsScreen() {
   async function saveFinancialMovement() {
     if (financialSavingRef.current) return;
     setNotice(null);
+    setFinancialError('');
 
     const cents = parseBrlCents(financialAmount);
     if (cents === null || cents <= 0) {
-      setNotice({ type: 'error', text: 'Informe um valor maior que zero.' });
+      showFinancialError('Informe um valor maior que zero.');
       return;
     }
 
@@ -167,16 +173,16 @@ export default function AdminOrderDetailsScreen() {
     const paid = Number(financial?.summary.paid ?? 0);
 
     if (financialMode === 'payment' && amount > remaining + 0.009) {
-      setNotice({ type: 'error', text: `O valor não pode ser maior que o saldo em aberto de ${formatCurrency(remaining)}.` });
+      showFinancialError(`O valor não pode ser maior que o saldo em aberto de ${formatCurrency(remaining)}.`);
       return;
     }
     if (financialMode === 'refund') {
       if (amount > paid + 0.009) {
-        setNotice({ type: 'error', text: `O estorno não pode ser maior que o valor líquido recebido de ${formatCurrency(paid)}.` });
+        showFinancialError(`O estorno não pode ser maior que o valor líquido recebido de ${formatCurrency(paid)}.`);
         return;
       }
       if (financialNote.trim().length < 3) {
-        setNotice({ type: 'error', text: 'Informe o motivo do estorno.' });
+        showFinancialError('Informe o motivo do estorno antes de confirmar.');
         return;
       }
     }
@@ -213,14 +219,12 @@ export default function AdminOrderDetailsScreen() {
           text: `Estorno de ${formatCurrency(amount)} registrado com sucesso.${pointsText}`,
         });
       }
+      setFinancialError('');
       setFinancialAmount('');
       setFinancialNote('');
       await loadFinancial();
     } catch (error) {
-      setNotice({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Não foi possível salvar a movimentação.',
-      });
+      showFinancialError(error instanceof Error ? error.message : 'Não foi possível salvar a movimentação.');
     } finally {
       financialSavingRef.current = false;
       setFinancialSaving(false);
@@ -333,25 +337,32 @@ export default function AdminOrderDetailsScreen() {
 
             <View style={styles.modeRow}>
               <Pressable
-                disabled={financialSaving}
-                onPress={() => { setFinancialMode('payment'); setFinancialNote(''); setNotice(null); }}
-                style={[styles.modeButton, financialMode === 'payment' && styles.modeButtonPayment]}>
+                disabled={financialSaving || currentOrder.status === 'cancelled'}
+                onPress={() => { setFinancialMode('payment'); setFinancialNote(''); setFinancialError(''); setNotice(null); }}
+                style={[styles.modeButton, financialMode === 'payment' && styles.modeButtonPayment, currentOrder.status === 'cancelled' && styles.disabled]}>
                 <Text style={financialMode === 'payment' ? styles.modeTextActive : styles.modeText}>Registrar pagamento</Text>
               </Pressable>
               <Pressable
                 disabled={financialSaving || Number(financial?.summary.paid ?? 0) <= 0}
-                onPress={() => { setFinancialMode('refund'); setFinancialNote(''); setNotice(null); }}
+                onPress={() => { setFinancialMode('refund'); setFinancialNote(''); setFinancialError(''); setNotice(null); }}
                 style={[styles.modeButton, financialMode === 'refund' && styles.modeButtonRefund, (financialSaving || Number(financial?.summary.paid ?? 0) <= 0) && styles.disabled]}>
                 <Text style={financialMode === 'refund' ? styles.modeTextActive : styles.modeText}>Registrar estorno</Text>
               </Pressable>
             </View>
+
+            {currentOrder.status === 'cancelled' ? (
+              <View style={styles.cancelledFinancialNotice}>
+                <Ionicons name="information-circle-outline" size={18} color={colors.warning} />
+                <Text style={styles.cancelledFinancialText}>Pedido cancelado: novos pagamentos ficam bloqueados, mas valores já recebidos podem ser estornados antes da exclusão.</Text>
+              </View>
+            ) : null}
 
             <View style={styles.formGrid}>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Valor</Text>
                 <TextInput
                   value={financialAmount}
-                  onChangeText={(value) => { setFinancialAmount(moneyMask(value)); setNotice(null); }}
+                  onChangeText={(value) => { setFinancialAmount(moneyMask(value)); setFinancialError(''); setNotice(null); }}
                   editable={!financialSaving}
                   keyboardType="number-pad"
                   placeholder="R$ 0,00"
@@ -363,11 +374,11 @@ export default function AdminOrderDetailsScreen() {
                 <Text style={styles.fieldLabel}>{financialMode === 'refund' ? 'Motivo do estorno' : 'Observação (opcional)'}</Text>
                 <TextInput
                   value={financialNote}
-                  onChangeText={(value) => { setFinancialNote(value.slice(0, 180)); setNotice(null); }}
+                  onChangeText={(value) => { setFinancialNote(value.slice(0, 180)); setFinancialError(''); setNotice(null); }}
                   editable={!financialSaving}
                   placeholder={financialMode === 'refund' ? 'Ex.: devolução ao cliente' : 'Ex.: pagamento recebido em mãos'}
                   placeholderTextColor="#A8998C"
-                  style={styles.input}
+                  style={[styles.input, financialMode === 'refund' && financialError.includes('motivo') && styles.inputError]}
                 />
               </View>
             </View>
@@ -378,20 +389,27 @@ export default function AdminOrderDetailsScreen() {
                 <Pressable
                   key={method.value}
                   disabled={financialSaving}
-                  onPress={() => { setFinancialMethod(method.value); setNotice(null); }}
+                  onPress={() => { setFinancialMethod(method.value); setFinancialError(''); setNotice(null); }}
                   style={[styles.method, financialMethod === method.value && styles.methodActive]}>
                   <Text style={financialMethod === method.value ? styles.methodTextActive : styles.methodText}>{method.label}</Text>
                 </Pressable>
               ))}
             </View>
 
+            {financialError ? (
+              <View accessibilityLiveRegion="polite" style={styles.financialInlineError}>
+                <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
+                <Text style={styles.financialInlineErrorText}>{financialError}</Text>
+              </View>
+            ) : null}
+
             <Pressable
-              disabled={financialSaving || financialLoading}
+              disabled={financialSaving || financialLoading || (currentOrder.status === 'cancelled' && financialMode === 'payment')}
               onPress={() => void saveFinancialMovement()}
               style={({ pressed }) => [
                 financialMode === 'payment' ? styles.savePayment : styles.saveRefund,
                 pressed && styles.pressed,
-                (financialSaving || financialLoading) && styles.disabled,
+                (financialSaving || financialLoading || (currentOrder.status === 'cancelled' && financialMode === 'payment')) && styles.disabled,
               ]}>
               <Text style={styles.saveText}>
                 {financialSaving ? 'Processando...' : financialMode === 'payment' ? 'Confirmar pagamento' : 'Confirmar estorno'}
@@ -519,16 +537,21 @@ const styles = StyleSheet.create({
   modeButtonRefund: { borderColor: '#B43D38', backgroundColor: '#FDEEEE' },
   modeText: { color: colors.textMuted, fontSize: 9, fontWeight: '800' },
   modeTextActive: { color: colors.text, fontSize: 9, fontWeight: '900' },
+  cancelledFinancialNotice: { minWidth: 0, padding: spacing.sm, borderWidth: 1, borderColor: 'rgba(176,106,29,0.24)', borderRadius: 10, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, backgroundColor: '#FFF8EC' },
+  cancelledFinancialText: { minWidth: 0, flex: 1, color: '#9A631F', fontSize: 9, lineHeight: 15, fontWeight: '800' },
   formGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   field: { minWidth: 160, flex: 1, gap: 5 },
   fieldWide: { minWidth: 230, flex: 2, gap: 5 },
   fieldLabel: { color: '#493A30', fontSize: 10, fontWeight: '900' },
   input: { minHeight: 44, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#D8C8B7', borderRadius: 10, color: '#2C211A', backgroundColor: '#FCF9F6' },
+  inputError: { borderColor: colors.danger, backgroundColor: '#FFF7F7' },
   methodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   method: { minHeight: 38, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#D8C8B7', borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FCF9F6' },
   methodActive: { borderColor: '#9D5F1D', backgroundColor: '#FBF1E6' },
   methodText: { color: '#7D6C60', fontSize: 9, fontWeight: '800' },
   methodTextActive: { color: '#9D5F1D', fontSize: 9, fontWeight: '900' },
+  financialInlineError: { minWidth: 0, padding: spacing.sm, borderWidth: 1, borderColor: 'rgba(180,61,56,0.28)', borderRadius: 10, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, backgroundColor: '#FDEEEE' },
+  financialInlineErrorText: { minWidth: 0, flex: 1, color: colors.danger, fontSize: 10, lineHeight: 16, fontWeight: '800' },
   savePayment: { minHeight: 46, paddingHorizontal: spacing.lg, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: '#238657' },
   saveRefund: { minHeight: 46, paddingHorizontal: spacing.lg, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: '#B43D38' },
   saveText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
