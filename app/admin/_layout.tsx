@@ -50,6 +50,16 @@ const MENU_GROUPS: AdminMenuGroup[] = [
         href: '/admin/orders',
       },
       {
+        label: 'Clientes',
+        icon: 'people-outline',
+        href: '/admin/customers',
+      },
+      {
+        label: 'Clube Joedla',
+        icon: 'star-outline',
+        href: '/admin/club',
+      },
+      {
         label: 'Produtos',
         icon: 'cube-outline',
         href: '/admin/products',
