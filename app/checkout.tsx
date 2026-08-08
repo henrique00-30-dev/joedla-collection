@@ -51,6 +51,17 @@ const initialCustomer: CustomerDetails = {
 };
 
 type BenefitMode = 'none' | 'coupon' | 'points';
+type CheckoutField = 'name' | 'whatsapp' | 'city' | 'neighborhood' | 'address' | 'reference' | 'notes';
+
+const FIELD_LABELS: Record<CheckoutField, string> = {
+  name: 'nome completo',
+  whatsapp: 'WhatsApp',
+  city: 'cidade',
+  neighborhood: 'bairro',
+  address: 'rua e número',
+  reference: 'ponto de referência',
+  notes: 'observações',
+};
 
 export default function CheckoutScreen() {
   const { cart, cartSubtotal, createOrder, settings, refreshStore } = useStore();
@@ -69,6 +80,7 @@ export default function CheckoutScreen() {
   const submittingRef = useRef(false);
   const idempotencyKeyRef = useRef(Crypto.randomUUID());
   const refreshStoreRef = useRef(refreshStore);
+  const scrollRef = useRef<ScrollView>(null);
   const nameRef = useRef<TextInput>(null);
   const whatsappRef = useRef<TextInput>(null);
   const cityRef = useRef<TextInput>(null);
@@ -113,6 +125,23 @@ export default function CheckoutScreen() {
     setBenefitMode(mode);
   }
 
+  function focusInvalidField(field: CheckoutField) {
+    const y = field === 'name' || field === 'whatsapp'
+      ? 0
+      : field === 'city' || field === 'neighborhood' || field === 'address' || field === 'reference'
+        ? 560
+        : 1380;
+
+    scrollRef.current?.scrollTo({ y, animated: true });
+    setTimeout(() => {
+      if (field === 'name') nameRef.current?.focus();
+      else if (field === 'whatsapp') whatsappRef.current?.focus();
+      else if (field === 'city') cityRef.current?.focus();
+      else if (field === 'neighborhood') neighborhoodRef.current?.focus();
+      else if (field === 'address') addressRef.current?.focus();
+    }, 250);
+  }
+
   function validate() {
     const nextErrors: Record<string, string> = {};
     const nameError = validatePlainText(customer.name, { minimum: 3, maximum: 120 });
@@ -133,12 +162,25 @@ export default function CheckoutScreen() {
     if (referenceError) nextErrors.reference = referenceError;
     if (notesError) nextErrors.notes = notesError;
     setErrors(nextErrors);
-    if (nextErrors.name) nameRef.current?.focus();
-    else if (nextErrors.whatsapp) whatsappRef.current?.focus();
-    else if (nextErrors.city) cityRef.current?.focus();
-    else if (nextErrors.neighborhood) neighborhoodRef.current?.focus();
-    else if (nextErrors.address) addressRef.current?.focus();
-    return !Object.keys(nextErrors).length;
+
+    const firstInvalid = (['name', 'whatsapp', 'city', 'neighborhood', 'address', 'reference', 'notes'] as CheckoutField[])
+      .find((field) => Boolean(nextErrors[field]));
+
+    if (firstInvalid) {
+      Alert.alert(
+        'Falta revisar um campo',
+        `Confira ${FIELD_LABELS[firstInvalid]}. ${nextErrors[firstInvalid]}`,
+      );
+      focusInvalidField(firstInvalid);
+      return false;
+    }
+
+    return true;
+  }
+
+  function showBenefitError(title: string, message: string) {
+    Alert.alert(title, message);
+    scrollRef.current?.scrollTo({ y: 1120, animated: true });
   }
 
   async function handleSubmit() {
@@ -151,22 +193,22 @@ export default function CheckoutScreen() {
     if (!validate()) return;
 
     if (hasPromotion && benefitMode !== 'none') {
-      Alert.alert('Benefício não permitido', 'Este pedido possui produto em promoção. Remova cupom ou pontos para continuar.');
+      showBenefitError('Benefício não permitido', 'Este pedido possui produto em promoção. Remova cupom ou pontos para continuar.');
       return;
     }
 
     const requestedPoints = Number(pointsToUse.replace(/\D/g, '')) || 0;
     if (benefitMode === 'coupon' && !couponCode.trim()) {
-      Alert.alert('Informe o cupom', 'Digite o código do cupom antes de fazer o pedido.');
+      showBenefitError('Informe o cupom', 'Digite o código do cupom antes de fazer o pedido.');
       return;
     }
     if (benefitMode === 'points') {
       if (!clubToken) {
-        Alert.alert('Entre no Clube Joedla', 'Para usar pontos, entre no Clube Joedla com seu WhatsApp e PIN.');
+        showBenefitError('Entre no Clube Joedla', 'Para usar pontos, entre no Clube Joedla com seu WhatsApp e PIN.');
         return;
       }
       if (requestedPoints <= 0) {
-        Alert.alert('Informe os pontos', 'Digite quantos pontos deseja utilizar.');
+        showBenefitError('Informe os pontos', 'Digite quantos pontos deseja utilizar.');
         return;
       }
     }
@@ -174,12 +216,14 @@ export default function CheckoutScreen() {
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      await prepareCheckoutBenefit({
-        requestId: idempotencyKeyRef.current,
-        couponCode: benefitMode === 'coupon' ? couponCode : undefined,
-        clubToken: benefitMode === 'points' ? clubToken : undefined,
-        points: benefitMode === 'points' ? requestedPoints : 0,
-      });
+      if (benefitMode !== 'none') {
+        await prepareCheckoutBenefit({
+          requestId: idempotencyKeyRef.current,
+          couponCode: benefitMode === 'coupon' ? couponCode : undefined,
+          clubToken: benefitMode === 'points' ? clubToken : undefined,
+          points: benefitMode === 'points' ? requestedPoints : 0,
+        });
+      }
 
       const order = await createOrder({
         customer: {
@@ -386,6 +430,7 @@ export default function CheckoutScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}>
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator>
