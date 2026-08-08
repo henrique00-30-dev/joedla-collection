@@ -78,6 +78,7 @@ type AdminToolbarButtonProps = {
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function AdminToolbarButton({
@@ -86,6 +87,7 @@ export function AdminToolbarButton({
   onPress,
   variant = 'secondary',
   disabled = false,
+  style,
 }: AdminToolbarButtonProps) {
   return (
     <Pressable
@@ -99,6 +101,7 @@ export function AdminToolbarButton({
         variant === 'danger' && styles.buttonDanger,
         disabled && styles.buttonDisabled,
         pressed && !disabled && styles.pressed,
+        style,
       ]}>
       {icon ? (
         <Ionicons
