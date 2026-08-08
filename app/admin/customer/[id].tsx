@@ -104,8 +104,8 @@ export default function AdminCustomerDetailScreen() {
 
                 <View style={styles.orderMoney}>
                   <Text style={styles.paid}>Recebido {formatCurrency(Number(order.financial?.paid ?? 0))}</Text>
-                  {Number(order.financial?.refunded ?? 0) > 0 ? (
-                    <Text style={styles.refund}>Estornado {formatCurrency(Number(order.financial.refunded))}</Text>
+                  {Number(order.financial?.refunds ?? 0) > 0 ? (
+                    <Text style={styles.refund}>Estornado {formatCurrency(Number(order.financial.refunds))}</Text>
                   ) : null}
                   <Text style={Number(order.financial?.remaining ?? 0) > 0 ? styles.open : styles.paid}>
                     Em aberto {formatCurrency(Number(order.financial?.remaining ?? 0))}
