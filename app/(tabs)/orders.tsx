@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -13,19 +14,47 @@ import { OrderReviewSection } from '@/src/components/orders/order-review-section
 import { Screen } from '@/src/components/screen';
 import { EmptyState, StatusBadge } from '@/src/components/ui';
 import { useStore } from '@/src/context/store-context';
+import { syncOrderStatuses } from '@/src/services/order-status';
 import { colors, fonts, radii, shadow, spacing } from '@/src/theme';
+import { Order } from '@/src/types';
 import { formatCurrency, formatDate } from '@/src/utils/format';
 
 export default function OrdersScreen() {
   const { customerOrders } = useStore();
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
+  const [orders, setOrders] = useState<Order[]>(customerOrders);
+  const [syncError, setSyncError] = useState('');
+
+  useEffect(() => {
+    setOrders(customerOrders);
+  }, [customerOrders]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setSyncError('');
+
+      void syncOrderStatuses(customerOrders)
+        .then((fresh) => {
+          if (active) setOrders(fresh);
+        })
+        .catch((error) => {
+          if (!active) return;
+          setSyncError(error instanceof Error ? error.message : 'Não foi possível atualizar seus pedidos agora.');
+        });
+
+      return () => {
+        active = false;
+      };
+    }, [customerOrders]),
+  );
 
   return (
     <Screen>
       <AppHeader compact title="Meus pedidos" showBack showStoreHome />
 
-      {!customerOrders.length ? (
+      {!orders.length ? (
         <EmptyState
           icon="receipt-outline"
           title="Nenhum pedido ainda"
@@ -49,13 +78,20 @@ export default function OrdersScreen() {
             <View style={styles.counter}>
               <Ionicons name="receipt-outline" size={20} color={colors.primary} />
               <View>
-                <Text style={styles.counterValue}>{customerOrders.length}</Text>
+                <Text style={styles.counterValue}>{orders.length}</Text>
                 <Text style={styles.counterLabel}>
-                  {customerOrders.length === 1 ? 'pedido' : 'pedidos'}
+                  {orders.length === 1 ? 'pedido' : 'pedidos'}
                 </Text>
               </View>
             </View>
           </View>
+
+          {syncError ? (
+            <View accessibilityLiveRegion="polite" style={styles.syncError}>
+              <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
+              <Text style={styles.syncErrorText}>{syncError}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.info}>
             <View style={styles.infoIcon}>
@@ -67,7 +103,7 @@ export default function OrdersScreen() {
           </View>
 
           <View style={styles.ordersList}>
-            {customerOrders.map((order) => (
+            {orders.map((order) => (
               <View key={order.id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <View style={styles.codeBlock}>
@@ -192,6 +228,25 @@ const styles = StyleSheet.create({
   },
   counterValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
   counterLabel: { color: colors.textMuted, fontSize: 10 },
+  syncError: {
+    minWidth: 0,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(180,61,56,0.22)',
+    borderRadius: radii.medium,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: '#FDEEEE',
+  },
+  syncErrorText: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.danger,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '800',
+  },
   info: {
     minWidth: 0,
     padding: spacing.lg,
