@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection, AdminTable, AdminTableBadge, AdminTableText, AdminToolbar, type AdminTableColumn } from '@/src/components/admin';
@@ -18,6 +18,12 @@ export default function AdminCustomersScreen() {
     const timer = setTimeout(() => void load(search), 220);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load(search);
+    }, [search]),
+  );
 
   async function load(value = search) {
     setLoading(true);
@@ -89,7 +95,7 @@ export default function AdminCustomersScreen() {
               loading={loading}
               emptyIcon="people-outline"
               emptyTitle="Nenhum cliente encontrado"
-              emptyDescription="Clientes entram nesta lista a partir de pedidos concluídos com WhatsApp válido."
+              emptyDescription="Contas criadas no Clube e clientes vinculados a compras concluídas aparecem aqui pelo mesmo WhatsApp."
             />
           </View>
         </AdminSection>
