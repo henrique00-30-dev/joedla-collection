@@ -47,3 +47,4 @@ cmd /c npx expo start --web --clear
 O script cria backups com extensão `.bak-selo-visual` antes de substituir arquivos existentes.
 
 <!-- production redeploy trigger 2026-08-08 -->
+<!-- production redeploy retry 2026-08-08 19:11 BRT -->
