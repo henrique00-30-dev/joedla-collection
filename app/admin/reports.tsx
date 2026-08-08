@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -61,9 +62,7 @@ export default function AdminReportsScreen() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  useEffect(() => { void load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     setNotice('');
@@ -76,7 +75,13 @@ export default function AdminReportsScreen() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   function downloadCsv() {
     if (!report) {
