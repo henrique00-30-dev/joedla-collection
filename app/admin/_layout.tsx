@@ -96,11 +96,6 @@ const MENU_GROUPS: AdminMenuGroup[] = [
         icon: 'reorder-three-outline',
         href: '/admin/notices',
       },
-      {
-        label: 'Moderação',
-        icon: 'chatbubbles-outline',
-        href: '/admin/community',
-      },
     ],
   },
   {
