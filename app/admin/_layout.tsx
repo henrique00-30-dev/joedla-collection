@@ -7,6 +7,7 @@ import {
 } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import {
   View,
 } from 'react-native';
 
+import { useStore } from '@/src/context/store-context';
 import { supabase } from '@/src/lib/supabase';
 import { colors, fonts, shadow } from '@/src/theme';
 
@@ -136,6 +138,7 @@ const MENU_GROUPS: AdminMenuGroup[] = [
 export default function AdminLayout() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
+  const { loading } = useStore();
 
   const desktop = width >= 980;
   const isLoginPage = pathname === '/admin/login';
@@ -149,6 +152,15 @@ export default function AdminLayout() {
 
   if (isLoginPage) {
     return <Slot />;
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.bootLoading}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.bootLoadingText}>Sincronizando painel...</Text>
+      </View>
+    );
   }
 
   return (
@@ -439,6 +451,18 @@ function isRouteActive(
 }
 
 const styles = StyleSheet.create({
+  bootLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#F4F0EA',
+  },
+  bootLoadingText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   shell: {
     flex: 1,
     flexDirection: 'row',
