@@ -60,6 +60,11 @@ const MENU_GROUPS: AdminMenuGroup[] = [
         href: '/admin/club',
       },
       {
+        label: 'Cupons',
+        icon: 'ticket-outline',
+        href: '/admin/coupons',
+      },
+      {
         label: 'Produtos',
         icon: 'cube-outline',
         href: '/admin/products',
