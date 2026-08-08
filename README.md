@@ -45,3 +45,5 @@ cmd /c npx expo start --web --clear
 7. Redimensione o navegador para desktop, tablet e celular.
 
 O script cria backups com extensão `.bak-selo-visual` antes de substituir arquivos existentes.
+
+<!-- production redeploy trigger 2026-08-08 -->
