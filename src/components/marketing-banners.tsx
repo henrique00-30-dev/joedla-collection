@@ -18,6 +18,25 @@ type MarketingBannersProps = {
   positions: CampaignPlacementPosition[];
 };
 
+function marketingTitleStyle(length: number, isHero: boolean, desktop: boolean) {
+  if (!isHero) {
+    if (length > 78) return styles.secondaryTitleVeryLong;
+    if (length > 48) return styles.secondaryTitleLong;
+    return null;
+  }
+
+  if (desktop) {
+    if (length > 88) return styles.heroTitleDesktopVeryLong;
+    if (length > 58) return styles.heroTitleDesktopLong;
+    if (length > 38) return styles.heroTitleDesktopMedium;
+    return styles.heroTitleDesktop;
+  }
+
+  if (length > 82) return styles.heroTitleMobileVeryLong;
+  if (length > 54) return styles.heroTitleMobileLong;
+  return null;
+}
+
 export function MarketingBanners({
   campaigns,
   desktop,
@@ -38,12 +57,14 @@ export function MarketingBanners({
         const asset = selectedAsset(campaign, placement, desktop);
         const destination = marketingDestination(placement, whatsappNumber);
         const isHero = placement.position === 'home_hero';
+        const title = (placement.title || campaign.name).trim();
+        const adaptiveTitleStyle = marketingTitleStyle(title.length, isHero, desktop);
 
         return (
           <Pressable
             key={placement.id}
             accessibilityRole={destination ? 'link' : undefined}
-            accessibilityLabel={asset?.altText || placement.title || campaign.name}
+            accessibilityLabel={asset?.altText || title}
             disabled={!destination}
             onPress={() => openDestination(destination)}
             style={({ pressed }) => [
@@ -69,18 +90,34 @@ export function MarketingBanners({
             <View style={[styles.copy, !isHero && styles.secondaryCopy]}>
               <Text style={styles.eyebrow}>JOEDLA COLLECTION</Text>
               <Text
-                numberOfLines={isHero ? 3 : 2}
-                style={[styles.title, isHero && desktop && styles.heroTitleDesktop]}>
-                {placement.title || campaign.name}
+                numberOfLines={isHero ? 4 : 3}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+                style={[
+                  styles.title,
+                  isHero && desktop && styles.heroTitleDesktop,
+                  adaptiveTitleStyle,
+                ]}>
+                {title}
               </Text>
               {placement.subtitle ? (
-                <Text numberOfLines={isHero ? 3 : 2} style={styles.subtitle}>
+                <Text
+                  numberOfLines={isHero ? 4 : 3}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  style={styles.subtitle}>
                   {placement.subtitle}
                 </Text>
               ) : null}
               {placement.buttonLabel && destination ? (
                 <View style={styles.button}>
-                  <Text style={styles.buttonText}>{placement.buttonLabel}</Text>
+                  <Text
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                    style={styles.buttonText}>
+                    {placement.buttonLabel}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -131,6 +168,8 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(28, 17, 11, 0.30)' },
   copy: {
     zIndex: 2,
+    width: '100%',
+    minWidth: 0,
     minHeight: 390,
     maxWidth: 690,
     padding: spacing.xl,
@@ -146,6 +185,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   title: {
+    width: '100%',
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: fonts.display,
     color: colors.white,
     fontSize: 34,
@@ -156,8 +198,18 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   heroTitleDesktop: { fontSize: 50, lineHeight: 56 },
+  heroTitleDesktopMedium: { fontSize: 44, lineHeight: 50 },
+  heroTitleDesktopLong: { fontSize: 37, lineHeight: 43 },
+  heroTitleDesktopVeryLong: { fontSize: 31, lineHeight: 37 },
+  heroTitleMobileLong: { fontSize: 30, lineHeight: 36 },
+  heroTitleMobileVeryLong: { fontSize: 26, lineHeight: 32 },
+  secondaryTitleLong: { fontSize: 29, lineHeight: 35 },
+  secondaryTitleVeryLong: { fontSize: 25, lineHeight: 31 },
   subtitle: {
+    width: '100%',
+    minWidth: 0,
     maxWidth: 560,
+    flexShrink: 1,
     marginTop: spacing.sm,
     color: '#FFF9F2',
     fontSize: 15,
@@ -167,12 +219,20 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   button: {
+    maxWidth: '100%',
     marginTop: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: 11,
     borderRadius: radii.pill,
     backgroundColor: colors.white,
   },
-  buttonText: { color: colors.primaryDark, fontSize: 13, fontWeight: '900' },
+  buttonText: {
+    maxWidth: '100%',
+    flexShrink: 1,
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
   pressed: { opacity: 0.9 },
 });
