@@ -57,12 +57,9 @@ export function MarketingBanners({
               <Image
                 source={{ uri: asset.publicUrl }}
                 accessibilityLabel={asset.altText}
-                contentFit="cover"
-                contentPosition={{
-                  left: `${Math.round(asset.focalX * 100)}%`,
-                  top: `${Math.round(asset.focalY * 100)}%`,
-                }}
-                style={[styles.image, { transform: [{ scale: asset.zoom }] }]}
+                contentFit="contain"
+                contentPosition="center"
+                style={[styles.image, { transform: [{ scale: Math.max(1, asset.zoom) }] }]}
               />
             ) : (
               <View style={styles.imageFallback} />
@@ -122,7 +119,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     borderRadius: radii.large,
-    backgroundColor: colors.primaryDark,
+    backgroundColor: '#F3EEE8',
     ...shadow,
   },
   hero: { width: '100%', minHeight: 390 },
@@ -131,7 +128,7 @@ const styles = StyleSheet.create({
   secondaryDesktop: { minWidth: 280, flex: 1 },
   image: { ...StyleSheet.absoluteFillObject },
   imageFallback: { ...StyleSheet.absoluteFillObject, backgroundColor: '#8A5A3A' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(28, 17, 11, 0.42)' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(28, 17, 11, 0.30)' },
   copy: {
     zIndex: 2,
     minHeight: 390,
@@ -154,6 +151,9 @@ const styles = StyleSheet.create({
     fontSize: 34,
     lineHeight: 40,
     fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   heroTitleDesktop: { fontSize: 50, lineHeight: 56 },
   subtitle: {
@@ -162,6 +162,9 @@ const styles = StyleSheet.create({
     color: '#FFF9F2',
     fontSize: 15,
     lineHeight: 22,
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   button: {
     marginTop: spacing.lg,

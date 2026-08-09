@@ -98,7 +98,8 @@ export function HeroBannerPremium({
         {imageUrl.trim() ? (
           <Image
             source={{ uri: imageUrl }}
-            contentFit="cover"
+            contentFit="contain"
+            contentPosition="center"
             transition={250}
             style={styles.image}
           />
@@ -107,8 +108,6 @@ export function HeroBannerPremium({
             <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.62)" />
           </View>
         )}
-
-        <View style={styles.imageShade} />
 
         {showNavigation && totalItems > 1 ? (
           <>
@@ -175,19 +174,19 @@ const styles = StyleSheet.create({
   textArea: {
     zIndex: 2,
     minWidth: 0,
-    flex: 0.86,
-    paddingHorizontal: 52,
-    paddingVertical: 46,
+    flex: 0.76,
+    paddingHorizontal: 46,
+    paddingVertical: 42,
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   textAreaTablet: {
-    paddingHorizontal: 34,
-    paddingVertical: 36,
+    paddingHorizontal: 30,
+    paddingVertical: 34,
   },
   textAreaMobile: {
     width: '100%',
-    minHeight: 290,
+    minHeight: 280,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xl,
   },
@@ -207,11 +206,11 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     fontFamily: fonts.display,
     color: colors.white,
-    fontSize: 49,
-    lineHeight: 55,
+    fontSize: 46,
+    lineHeight: 52,
     fontWeight: '800',
   },
-  titleTablet: { fontSize: 40, lineHeight: 46 },
+  titleTablet: { fontSize: 38, lineHeight: 44 },
   titleMobile: { maxWidth: '100%', fontSize: 36, lineHeight: 41 },
   titleNarrow: { fontSize: 31, lineHeight: 36 },
   subtitle: {
@@ -260,15 +259,16 @@ const styles = StyleSheet.create({
   imageArea: {
     position: 'relative',
     minWidth: 0,
-    flex: 1.15,
+    flex: 1.32,
     minHeight: 510,
     overflow: 'hidden',
+    backgroundColor: '#F3EEE8',
   },
   imageAreaTablet: { minHeight: 470 },
   imageAreaMobile: {
     flex: undefined,
     width: '100%',
-    minHeight: 330,
+    minHeight: 340,
   },
   image: { width: '100%', height: '100%' },
   imageFallback: {
@@ -277,14 +277,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#3A2A23',
-  },
-  imageShade: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: '28%',
-    backgroundColor: 'rgba(31,23,19,0.3)',
   },
   arrow: {
     position: 'absolute',
@@ -297,7 +289,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(20,13,10,0.48)',
+    backgroundColor: 'rgba(20,13,10,0.58)',
   },
   arrowNarrow: {
     width: 40,
@@ -319,7 +311,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(20,13,10,0.58)',
+    backgroundColor: 'rgba(20,13,10,0.66)',
   },
   counterNarrow: {
     right: spacing.md,

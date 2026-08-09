@@ -6,31 +6,37 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CustomerAccountBridge } from '@/src/components/customer-account-bridge';
+import { RealtimeStoreSync } from '@/src/components/realtime-store-sync';
 import { StoreProvider } from '@/src/context/store-context';
 import { colors } from '@/src/theme';
 
-let webDestructiveAlertPatched = false;
+let webAlertPatched = false;
 
-function ensureWebDestructiveAlerts() {
-  if (webDestructiveAlertPatched || Platform.OS !== 'web' || typeof window === 'undefined') return;
-  webDestructiveAlertPatched = true;
+function ensureWebAlerts() {
+  if (webAlertPatched || Platform.OS !== 'web' || typeof window === 'undefined') return;
+  webAlertPatched = true;
 
-  const originalAlert = Alert.alert.bind(Alert);
-  Alert.alert = (title, message, buttons, options) => {
-    const destructive = buttons?.find((button) => button.style === 'destructive');
-    if (!destructive) {
-      originalAlert(title, message, buttons, options);
+  Alert.alert = (title, message, buttons) => {
+    const text = [title, message].filter(Boolean).join('\n\n');
+    const options = buttons ?? [];
+
+    if (options.length <= 1) {
+      window.alert(text);
+      options[0]?.onPress?.();
       return;
     }
 
-    const cancel = buttons?.find((button) => button.style === 'cancel');
-    const confirmed = window.confirm([title, message].filter(Boolean).join('\n\n'));
-    if (confirmed) destructive.onPress?.();
+    const cancel = options.find((button) => button.style === 'cancel');
+    const action = options.find((button) => button.style === 'destructive')
+      ?? [...options].reverse().find((button) => button.style !== 'cancel');
+
+    const confirmed = window.confirm(text);
+    if (confirmed) action?.onPress?.();
     else cancel?.onPress?.();
   };
 }
 
-ensureWebDestructiveAlerts();
+ensureWebAlerts();
 
 export default function RootLayout() {
   return (
@@ -38,6 +44,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StoreProvider>
           <CustomerAccountBridge />
+          <RealtimeStoreSync />
           <StatusBar style="dark" backgroundColor={colors.background} />
           <Stack
             screenOptions={{

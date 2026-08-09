@@ -1,12 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection, AdminStatCard } from '@/src/components/admin';
 import { AdminGuard } from '@/src/components/admin-guard';
+import { supabase } from '@/src/lib/supabase';
 import {
   addFinancialEntry,
   AdminFinancialOverview,
+  FinancialEntry,
   FinancialEntryCategory,
   FinancialEntryKind,
   loadAdminFinancialOverview,
@@ -16,7 +19,6 @@ import { formatBrlInput, parseBrlCents } from '@/src/utils/fields';
 import { formatCurrency, formatDate } from '@/src/utils/format';
 
 type Notice = { type: 'success' | 'error'; text: string } | null;
-
 type ManualCategory = Exclude<FinancialEntryCategory, 'sale_payment' | 'refund'>;
 
 const CATEGORIES: Array<{ value: ManualCategory; label: string; kind: FinancialEntryKind }> = [
@@ -43,10 +45,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 function currentMonthRange() {
   const now = new Date();
-  return {
-    start: new Date(now.getFullYear(), now.getMonth(), 1),
-    end: now,
-  };
+  return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
 }
 
 function last30DaysRange() {
@@ -62,22 +61,45 @@ function moneyMask(value: string) {
   return digits ? formatBrlInput(Number(digits)) : '';
 }
 
+function isManualEntry(entry: FinancialEntry) {
+  return !entry.orderId && entry.category !== 'sale_payment' && entry.category !== 'refund';
+}
+
+async function confirmDeleteEntry() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.confirm('Excluir este lançamento manual? Os totais financeiros serão recalculados.');
+  }
+
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(
+      'Excluir lançamento',
+      'Tem certeza? Os totais financeiros serão recalculados.',
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Excluir', style: 'destructive', onPress: () => resolve(true) },
+      ],
+    );
+  });
+}
+
 export default function AdminFinanceScreen() {
   const [rangeMode, setRangeMode] = useState<'month' | '30d'>('month');
+  const [range, setRange] = useState(() => currentMonthRange());
   const [overview, setOverview] = useState<AdminFinancialOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [category, setCategory] = useState<ManualCategory>('merchandise');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
 
-  const range = useMemo(() => rangeMode === 'month' ? currentMonthRange() : last30DaysRange(), [rangeMode]);
-
   const load = useCallback(async () => {
+    const liveRange = rangeMode === 'month' ? currentMonthRange() : last30DaysRange();
+    setRange(liveRange);
     setLoading(true);
     try {
-      setOverview(await loadAdminFinancialOverview(range.start, range.end));
+      setOverview(await loadAdminFinancialOverview(liveRange.start, liveRange.end));
     } catch (error) {
       setNotice({
         type: 'error',
@@ -86,13 +108,27 @@ export default function AdminFinanceScreen() {
     } finally {
       setLoading(false);
     }
-  }, [range.start.getTime(), range.end.getTime()]);
+  }, [rangeMode]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
+
+  useEffect(() => {
+    if (!supabase) return;
+    const channel = supabase
+      .channel('admin-finance-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_transactions' }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => void load())
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [load]);
 
   async function saveEntry() {
     if (saving) return;
@@ -118,8 +154,8 @@ export default function AdminFinanceScreen() {
       });
       setAmount('');
       setDescription('');
-      setNotice({ type: 'success', text: 'Lançamento financeiro salvo com sucesso.' });
       await load();
+      setNotice({ type: 'success', text: 'Lançamento financeiro salvo com sucesso e totais atualizados.' });
     } catch (error) {
       setNotice({
         type: 'error',
@@ -127,6 +163,27 @@ export default function AdminFinanceScreen() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteEntry(entry: FinancialEntry) {
+    if (!supabase || deletingId || !isManualEntry(entry)) return;
+    if (!(await confirmDeleteEntry())) return;
+
+    setDeletingId(entry.id);
+    setNotice(null);
+    try {
+      const { error } = await supabase.rpc('admin_delete_financial_entry', { p_entry_id: entry.id });
+      if (error) throw new Error(error.message || 'Não foi possível excluir o lançamento.');
+      await load();
+      setNotice({ type: 'success', text: 'Lançamento manual excluído com sucesso e totais atualizados.' });
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível excluir o lançamento.',
+      });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -230,14 +287,24 @@ export default function AdminFinanceScreen() {
           </AdminCard>
         </AdminSection>
 
-        <AdminSection title="Últimas movimentações" description="Registros automáticos de pedidos e lançamentos manuais aparecem juntos.">
+        <AdminSection title="Últimas movimentações" description="Registros automáticos de pedidos e lançamentos manuais aparecem juntos. Somente lançamentos manuais podem ser excluídos.">
           <View style={styles.entries}>
             {(overview?.entries ?? []).slice(0, 20).map((entry) => (
               <AdminCard
                 key={entry.id}
                 compact
                 title={CATEGORY_LABELS[entry.category] ?? entry.category}
-                description={`${formatDate(entry.occurredAt)} • ${entry.description}`}>
+                description={`${formatDate(entry.occurredAt)} • ${entry.description}`}
+                action={isManualEntry(entry) ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Excluir lançamento ${entry.description}`}
+                    disabled={deletingId === entry.id}
+                    onPress={() => void deleteEntry(entry)}
+                    style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed, deletingId === entry.id && styles.disabled]}>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </Pressable>
+                ) : undefined}>
                 <Text style={entry.kind === 'income' ? styles.entryIncome : styles.entryExpense}>
                   {entry.kind === 'income' ? '+' : '-'} {formatCurrency(Number(entry.amount))}
                 </Text>
@@ -299,6 +366,7 @@ const styles = StyleSheet.create({
   entries: { gap: spacing.sm },
   entryIncome: { color: '#238657', fontSize: 12, fontWeight: '900' },
   entryExpense: { color: '#B43D38', fontSize: 12, fontWeight: '900' },
+  deleteButton: { width: 44, height: 44, borderWidth: 1, borderColor: 'rgba(180,61,56,0.24)', borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDEEEE' },
   muted: { color: colors.textMuted, fontSize: 10, lineHeight: 16 },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.5 },
