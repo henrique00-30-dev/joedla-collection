@@ -25,9 +25,11 @@ export default function CategoriesScreen() {
   const {
     campaign: campaignId,
     search,
+    products: productIdsParam,
   } = useLocalSearchParams<{
     campaign?: string;
     search?: string;
+    products?: string;
   }>();
 
   const { products, categories, marketing } = useStore();
@@ -42,6 +44,18 @@ export default function CategoriesScreen() {
     (item) => item.id === campaignId,
   );
 
+  const selectedProductIds = useMemo(() => {
+    const raw = typeof productIdsParam === 'string' ? productIdsParam : '';
+    return new Set(
+      raw
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
+    );
+  }, [productIdsParam]);
+
+  const hasExclusiveSelection = selectedProductIds.size > 0;
+
   useEffect(() => {
     if (typeof search === 'string') {
       setQuery(search);
@@ -55,6 +69,13 @@ export default function CategoriesScreen() {
 
     return products.filter((product) => {
       if (!product.active) {
+        return false;
+      }
+
+      if (
+        hasExclusiveSelection &&
+        !selectedProductIds.has(product.id)
+      ) {
         return false;
       }
 
@@ -82,21 +103,23 @@ export default function CategoriesScreen() {
           .includes(normalized)
       );
     });
-  }, [campaign, filter, products, query]);
+  }, [campaign, filter, hasExclusiveSelection, products, query, selectedProductIds]);
 
-  const currentTitle = campaign
-    ? campaign.name
-    : filter === 'all'
-      ? 'Todos os produtos'
-      : categories.find(
-          (category) => category.slug === filter,
-        )?.name ?? 'Categoria';
+  const currentTitle = hasExclusiveSelection
+    ? 'Seleção especial'
+    : campaign
+      ? campaign.name
+      : filter === 'all'
+        ? 'Todos os produtos'
+        : categories.find(
+            (category) => category.slug === filter,
+          )?.name ?? 'Categoria';
 
   function clearFilters() {
     setFilter('all');
     setQuery('');
 
-    if (campaignId) {
+    if (campaignId || hasExclusiveSelection) {
       router.replace('/(tabs)/categories');
     }
   }
@@ -120,16 +143,19 @@ export default function CategoriesScreen() {
         <View style={styles.pageHeader}>
           <View style={styles.pageHeaderCopy}>
             <Text style={styles.eyebrow}>
-              CATÁLOGO JOEDLA
+              {hasExclusiveSelection ? 'SELEÇÃO DA CAMPANHA' : 'CATÁLOGO JOEDLA'}
             </Text>
 
             <Text style={styles.pageTitle}>
-              Encontre seu próximo favorito
+              {hasExclusiveSelection
+                ? 'Produtos selecionados para você'
+                : 'Encontre seu próximo favorito'}
             </Text>
 
             <Text style={styles.pageSubtitle}>
-              Pesquise por nome, descrição ou navegue pelas
-              categorias da loja.
+              {hasExclusiveSelection
+                ? 'Veja somente os produtos escolhidos para este destaque. Você pode pesquisar e filtrar sem sair desta seleção.'
+                : 'Pesquise por nome, descrição ou navegue pelas categorias da loja.'}
             </Text>
           </View>
 
@@ -191,7 +217,7 @@ export default function CategoriesScreen() {
             </Text>
           </View>
 
-          {(filter !== 'all' || query.trim() || campaignId) ? (
+          {(filter !== 'all' || query.trim() || campaignId || hasExclusiveSelection) ? (
             <Pressable
               accessibilityRole="button"
               onPress={clearFilters}
@@ -206,7 +232,7 @@ export default function CategoriesScreen() {
               />
 
               <Text style={styles.clearButtonText}>
-                Limpar filtros
+                {hasExclusiveSelection ? 'Ver catálogo completo' : 'Limpar filtros'}
               </Text>
             </Pressable>
           ) : null}
@@ -229,7 +255,9 @@ export default function CategoriesScreen() {
             </Text>
 
             <Text style={styles.emptyText}>
-              Tente mudar a categoria ou ajustar sua pesquisa.
+              {hasExclusiveSelection
+                ? 'Os produtos selecionados podem estar indisponíveis ou o filtro atual não encontrou resultados.'
+                : 'Tente mudar a categoria ou ajustar sua pesquisa.'}
             </Text>
 
             <Pressable
@@ -240,7 +268,7 @@ export default function CategoriesScreen() {
                 pressed && styles.emptyButtonPressed,
               ]}>
               <Text style={styles.emptyButtonText}>
-                Limpar filtros
+                {hasExclusiveSelection ? 'Ver catálogo completo' : 'Limpar filtros'}
               </Text>
             </Pressable>
           </View>
