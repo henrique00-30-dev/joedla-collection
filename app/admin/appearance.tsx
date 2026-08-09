@@ -54,48 +54,29 @@ export default function AdminAppearanceScreen() {
       : '',
     banners: settings.banners.map((banner) => ({
       ...banner,
-      startAt: banner.startAt
-        ? isoDateToBrazilDate(banner.startAt)
-        : '',
-      endAt: banner.endAt
-        ? isoDateToBrazilDate(banner.endAt)
-        : '',
+      startAt: banner.startAt ? isoDateToBrazilDate(banner.startAt) : '',
+      endAt: banner.endAt ? isoDateToBrazilDate(banner.endAt) : '',
     })),
   }));
 
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] =
-    useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const activeBanners = useMemo(
-    () =>
-      form.banners.filter(
-        (banner) => banner.active,
-      ).length,
+    () => form.banners.filter((banner) => banner.active).length,
     [form.banners],
   );
 
   const scheduledBanners = useMemo(
-    () =>
-      form.banners.filter(
-        (banner) =>
-          Boolean(
-            banner.startAt || banner.endAt,
-          ),
-      ).length,
+    () => form.banners.filter((banner) => Boolean(banner.startAt || banner.endAt)).length,
     [form.banners],
   );
 
-  function update<
-    K extends keyof StoreSettings,
-  >(
+  function update<K extends keyof StoreSettings>(
     field: K,
     value: StoreSettings[K],
   ) {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setForm((current) => ({ ...current, [field]: value }));
   }
 
   function createEmptyBanner(): Banner {
@@ -122,10 +103,7 @@ export default function AdminAppearanceScreen() {
       return;
     }
 
-    update('banners', [
-      ...form.banners,
-      createEmptyBanner(),
-    ]);
+    update('banners', [...form.banners, createEmptyBanner()]);
   }
 
   function removeBanner(bannerId: string) {
@@ -133,26 +111,13 @@ export default function AdminAppearanceScreen() {
       update(
         'banners',
         form.banners
-          .filter(
-            (banner) =>
-              banner.id !== bannerId,
-          )
-          .map((banner, index) => ({
-            ...banner,
-            order: index,
-          })),
+          .filter((banner) => banner.id !== bannerId)
+          .map((banner, index) => ({ ...banner, order: index })),
       );
     };
 
-    if (
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined'
-    ) {
-      if (
-        window.confirm(
-          'Tem certeza que deseja remover este banner?',
-        )
-      ) {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm('Tem certeza que deseja remover este banner?')) {
         remove();
       }
       return;
@@ -162,37 +127,23 @@ export default function AdminAppearanceScreen() {
       'Remover banner',
       'Tem certeza de que deseja remover este banner?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Remover',
-          style: 'destructive',
-          onPress: remove,
-        },
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Remover', style: 'destructive', onPress: remove },
       ],
     );
   }
 
-  function updateBanner(
-    bannerId: string,
-    changes: Partial<Banner>,
-  ) {
+  function updateBanner(bannerId: string, changes: Partial<Banner>) {
     setForm((current) => ({
       ...current,
-      banners: current.banners.map(
-        (banner) =>
-          banner.id === bannerId
-            ? { ...banner, ...changes }
-            : banner,
+      banners: current.banners.map((banner) =>
+        banner.id === bannerId ? { ...banner, ...changes } : banner,
       ),
     }));
   }
 
   async function chooseMainBanner() {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
       Alert.alert(
@@ -202,48 +153,33 @@ export default function AdminAppearanceScreen() {
       return;
     }
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.88,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.88,
+    });
 
-    if (result.canceled) {
-      return;
-    }
+    if (result.canceled) return;
 
     setUploading(true);
-
     try {
       const asset = result.assets[0];
-      const url =
-        await uploadProductImage(
-          asset.uri,
-          asset.mimeType ??
-            'image/jpeg',
-        );
-
-      setForm((current) => ({
-        ...current,
-        bannerImageUrl: url,
-      }));
+      const url = await uploadProductImage(
+        asset.uri,
+        asset.mimeType ?? 'image/jpeg',
+      );
+      setForm((current) => ({ ...current, bannerImageUrl: url }));
     } catch (error) {
       Alert.alert(
         'Não foi possível enviar',
-        error instanceof Error
-          ? error.message
-          : 'Tente novamente.',
+        error instanceof Error ? error.message : 'Tente novamente.',
       );
     } finally {
       setUploading(false);
     }
   }
 
-  async function chooseBannerImage(
-    bannerId: string,
-  ) {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+  async function chooseBannerImage(bannerId: string) {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
       Alert.alert(
@@ -253,36 +189,25 @@ export default function AdminAppearanceScreen() {
       return;
     }
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.88,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.88,
+    });
 
-    if (result.canceled) {
-      return;
-    }
+    if (result.canceled) return;
 
     setUploading(true);
-
     try {
       const asset = result.assets[0];
-      const url =
-        await uploadProductImage(
-          asset.uri,
-          asset.mimeType ??
-            'image/jpeg',
-        );
-
-      updateBanner(bannerId, {
-        imageUrl: url,
-      });
+      const url = await uploadProductImage(
+        asset.uri,
+        asset.mimeType ?? 'image/jpeg',
+      );
+      updateBanner(bannerId, { imageUrl: url });
     } catch (error) {
       Alert.alert(
         'Não foi possível enviar',
-        error instanceof Error
-          ? error.message
-          : 'Tente novamente.',
+        error instanceof Error ? error.message : 'Tente novamente.',
       );
     } finally {
       setUploading(false);
@@ -303,26 +228,14 @@ export default function AdminAppearanceScreen() {
     }
 
     const dates = [
-      ...(form.bannerStartAt
-        ? [form.bannerStartAt]
-        : []),
-      ...(form.bannerEndAt
-        ? [form.bannerEndAt]
-        : []),
+      ...(form.bannerStartAt ? [form.bannerStartAt] : []),
+      ...(form.bannerEndAt ? [form.bannerEndAt] : []),
       ...form.banners.flatMap((banner) =>
-        [
-          banner.startAt,
-          banner.endAt,
-        ].filter(Boolean),
+        [banner.startAt, banner.endAt].filter(Boolean),
       ),
     ];
 
-    if (
-      dates.some(
-        (date) =>
-          !isValidBrazilDate(date),
-      )
-    ) {
+    if (dates.some((date) => !isValidBrazilDate(date))) {
       Alert.alert(
         'Data inválida',
         'Informe as datas no formato dia/mês/ano.',
@@ -345,11 +258,8 @@ export default function AdminAppearanceScreen() {
     ] as [string, number][];
 
     if (
-      textValues.some(
-        ([value, maximum]) =>
-          validatePlainText(value, {
-            maximum,
-          }),
+      textValues.some(([value, maximum]) =>
+        validatePlainText(value, { maximum }),
       )
     ) {
       Alert.alert(
@@ -360,61 +270,30 @@ export default function AdminAppearanceScreen() {
     }
 
     setSaving(true);
-
     try {
       await updateSettings({
         ...form,
-        bannerTitle:
-          normalizePlainText(
-            form.bannerTitle,
-          ),
-        bannerSubtitle:
-          normalizePlainText(
-            form.bannerSubtitle,
-          ),
-        bannerButtonLabel:
-          normalizePlainText(
-            form.bannerButtonLabel,
-          ),
-        bannerStartAt:
-          form.bannerStartAt
-            ? brazilDateToIsoDate(
-                form.bannerStartAt,
-              ) ?? ''
+        bannerTitle: normalizePlainText(form.bannerTitle),
+        bannerSubtitle: normalizePlainText(form.bannerSubtitle),
+        bannerButtonLabel: normalizePlainText(form.bannerButtonLabel),
+        bannerStartAt: form.bannerStartAt
+          ? brazilDateToIsoDate(form.bannerStartAt) ?? ''
+          : '',
+        bannerEndAt: form.bannerEndAt
+          ? brazilDateToIsoDate(form.bannerEndAt) ?? ''
+          : '',
+        banners: form.banners.map((banner) => ({
+          ...banner,
+          title: normalizePlainText(banner.title),
+          subtitle: normalizePlainText(banner.subtitle),
+          buttonLabel: normalizePlainText(banner.buttonLabel),
+          startAt: banner.startAt
+            ? brazilDateToIsoDate(banner.startAt) ?? ''
             : '',
-        bannerEndAt:
-          form.bannerEndAt
-            ? brazilDateToIsoDate(
-                form.bannerEndAt,
-              ) ?? ''
+          endAt: banner.endAt
+            ? brazilDateToIsoDate(banner.endAt) ?? ''
             : '',
-        banners: form.banners.map(
-          (banner) => ({
-            ...banner,
-            title:
-              normalizePlainText(
-                banner.title,
-              ),
-            subtitle:
-              normalizePlainText(
-                banner.subtitle,
-              ),
-            buttonLabel:
-              normalizePlainText(
-                banner.buttonLabel,
-              ),
-            startAt: banner.startAt
-              ? brazilDateToIsoDate(
-                  banner.startAt,
-                ) ?? ''
-              : '',
-            endAt: banner.endAt
-              ? brazilDateToIsoDate(
-                  banner.endAt,
-                ) ?? ''
-              : '',
-          }),
-        ),
+        })),
       });
 
       Alert.alert(
@@ -424,9 +303,7 @@ export default function AdminAppearanceScreen() {
     } catch (error) {
       Alert.alert(
         'Não foi possível publicar',
-        error instanceof Error
-          ? error.message
-          : 'Tente novamente.',
+        error instanceof Error ? error.message : 'Tente novamente.',
       );
     } finally {
       setSaving(false);
@@ -436,11 +313,7 @@ export default function AdminAppearanceScreen() {
   return (
     <AdminGuard>
       <KeyboardAvoidingView
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}>
         <AdminPage
           eyebrow="Configurações"
@@ -448,16 +321,10 @@ export default function AdminAppearanceScreen() {
           description="Gerencie o banner principal, banners extras e campanhas que ocupam o mesmo carrossel da loja."
           actions={
             <AdminToolbarButton
-              label={
-                saving
-                  ? 'Publicando...'
-                  : 'Salvar e publicar'
-              }
+              label={saving ? 'Publicando...' : 'Salvar e publicar'}
               icon="save-outline"
               variant="primary"
-              disabled={
-                saving || uploading
-              }
+              disabled={saving || uploading}
               onPress={() => void save()}
             />
           }>
@@ -466,30 +333,22 @@ export default function AdminAppearanceScreen() {
               compact
               icon="images-outline"
               label="Banners"
-              value={String(
-                form.banners.length,
-              )}
+              value={String(form.banners.length)}
               helper="3 extras + 1 fixo"
             />
-
             <AdminStatCard
               compact
               icon="eye-outline"
               label="Ativos"
-              value={String(
-                activeBanners,
-              )}
+              value={String(activeBanners)}
               helper="Visíveis no carrossel"
               tone="success"
             />
-
             <AdminStatCard
               compact
               icon="calendar-outline"
               label="Agendados"
-              value={String(
-                scheduledBanners,
-              )}
+              value={String(scheduledBanners)}
               helper="Com período definido"
               tone="warning"
             />
@@ -507,62 +366,32 @@ export default function AdminAppearanceScreen() {
             description="Visualização do banner principal usado como destaque da página inicial.">
             <View style={styles.preview}>
               <View style={styles.previewCopy}>
-                <Text
-                  style={
-                    styles.previewEyebrow
-                  }>
-                  CURADORIA JOEDLA
+                <Text style={styles.previewEyebrow}>CURADORIA JOEDLA</Text>
+                <Text numberOfLines={3} style={styles.previewTitle}>
+                  {form.bannerTitle || 'Título do banner'}
                 </Text>
-
-                <Text
-                  numberOfLines={3}
-                  style={styles.previewTitle}>
-                  {form.bannerTitle ||
-                    'Título do banner'}
-                </Text>
-
-                <Text
-                  numberOfLines={2}
-                  style={
-                    styles.previewSubtitle
-                  }>
+                <Text numberOfLines={2} style={styles.previewSubtitle}>
                   {form.bannerSubtitle}
                 </Text>
-
-                <View
-                  style={
-                    styles.previewButton
-                  }>
-                  <Text
-                    style={
-                      styles.previewButtonText
-                    }>
-                    {form.bannerButtonLabel ||
-                      'Botão'}
+                <View style={styles.previewButton}>
+                  <Text style={styles.previewButtonText}>
+                    {form.bannerButtonLabel || 'Botão'}
                   </Text>
                 </View>
               </View>
 
               {form.bannerImageUrl ? (
                 <Image
-                  source={{
-                    uri:
-                      form.bannerImageUrl,
-                  }}
+                  source={{ uri: form.bannerImageUrl }}
                   contentFit="cover"
                   style={styles.previewImage}
                 />
               ) : (
-                <View
-                  style={
-                    styles.previewImageEmpty
-                  }>
+                <View style={styles.previewImageEmpty}>
                   <Ionicons
                     name="image-outline"
                     size={36}
-                    color={
-                      colors.textMuted
-                    }
+                    color={colors.textMuted}
                   />
                 </View>
               )}
@@ -576,42 +405,21 @@ export default function AdminAppearanceScreen() {
               <Field
                 label="Título"
                 value={form.bannerTitle}
-                onChangeText={(value) =>
-                  update(
-                    'bannerTitle',
-                    value,
-                  )
-                }
+                onChangeText={(value) => update('bannerTitle', value)}
                 placeholder="Elegância para todos os momentos"
                 maxLength={120}
               />
-
               <Field
                 label="Subtítulo curto"
-                value={
-                  form.bannerSubtitle
-                }
-                onChangeText={(value) =>
-                  update(
-                    'bannerSubtitle',
-                    value,
-                  )
-                }
+                value={form.bannerSubtitle}
+                onChangeText={(value) => update('bannerSubtitle', value)}
                 multiline
                 maxLength={240}
               />
-
               <Field
                 label="Texto do botão"
-                value={
-                  form.bannerButtonLabel
-                }
-                onChangeText={(value) =>
-                  update(
-                    'bannerButtonLabel',
-                    value,
-                  )
-                }
+                value={form.bannerButtonLabel}
+                onChangeText={(value) => update('bannerButtonLabel', value)}
                 maxLength={40}
               />
 
@@ -619,9 +427,7 @@ export default function AdminAppearanceScreen() {
                 value={form.bannerLink}
                 categories={categories}
                 products={products}
-                onChange={(value) =>
-                  update('bannerLink', value)
-                }
+                onChange={(value) => update('bannerLink', value)}
               />
 
               <View style={styles.inlineActions}>
@@ -629,9 +435,7 @@ export default function AdminAppearanceScreen() {
                   variant="secondary"
                   icon="image-outline"
                   loading={uploading}
-                  onPress={
-                    chooseMainBanner
-                  }>
+                  onPress={chooseMainBanner}>
                   Trocar imagem
                 </Button>
               </View>
@@ -640,30 +444,15 @@ export default function AdminAppearanceScreen() {
                 <StructuredField
                   kind="date"
                   label="Data de início (opcional)"
-                  value={
-                    form.bannerStartAt
-                  }
-                  onChangeText={(value) =>
-                    update(
-                      'bannerStartAt',
-                      value,
-                    )
-                  }
+                  value={form.bannerStartAt}
+                  onChangeText={(value) => update('bannerStartAt', value)}
                   placeholder="DD/MM/AAAA"
                 />
-
                 <StructuredField
                   kind="date"
                   label="Data de término (opcional)"
-                  value={
-                    form.bannerEndAt
-                  }
-                  onChangeText={(value) =>
-                    update(
-                      'bannerEndAt',
-                      value,
-                    )
-                  }
+                  value={form.bannerEndAt}
+                  onChangeText={(value) => update('bannerEndAt', value)}
                   placeholder="DD/MM/AAAA"
                 />
               </View>
@@ -678,248 +467,130 @@ export default function AdminAppearanceScreen() {
                 label="Adicionar banner"
                 icon="add"
                 variant="primary"
-                disabled={
-                  form.banners.length >=
-                    3 || uploading
-                }
+                disabled={form.banners.length >= 3 || uploading}
                 onPress={addBanner}
               />
             }>
             <View style={styles.bannerList}>
-              {form.banners.map(
-                (banner, index) => (
-                  <AdminCard
-                    key={banner.id}
-                    title={`Banner ${
-                      index + 1
-                    }`}
-                    description={
-                      banner.title ||
-                      'Preencha os dados deste banner.'
-                    }
-                    icon="image-outline"
-                    action={
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remover banner ${
-                          index + 1
-                        }`}
-                        onPress={() =>
-                          removeBanner(
-                            banner.id,
-                          )
-                        }
-                        style={({
-                          pressed,
-                        }) => [
-                          styles.removeButton,
-                          pressed &&
-                            styles.pressed,
-                        ]}>
-                        <Ionicons
-                          name="trash-outline"
-                          size={17}
-                          color={
-                            colors.danger
-                          }
+              {form.banners.map((banner, index) => (
+                <AdminCard
+                  key={banner.id}
+                  title={`Banner ${index + 1}`}
+                  description={banner.title || 'Preencha os dados deste banner.'}
+                  icon="image-outline"
+                  action={
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remover banner ${index + 1}`}
+                      onPress={() => removeBanner(banner.id)}
+                      style={({ pressed }) => [
+                        styles.removeButton,
+                        pressed && styles.pressed,
+                      ]}>
+                      <Ionicons
+                        name="trash-outline"
+                        size={17}
+                        color={colors.danger}
+                      />
+                    </Pressable>
+                  }>
+                  <View style={styles.bannerEditor}>
+                    <View style={styles.bannerPreviewColumn}>
+                      {banner.imageUrl ? (
+                        <Image
+                          source={{ uri: banner.imageUrl }}
+                          contentFit="cover"
+                          style={styles.bannerPreviewImage}
                         />
-                      </Pressable>
-                    }>
-                    <View
-                      style={
-                        styles.bannerEditor
-                      }>
-                      <View
-                        style={
-                          styles.bannerPreviewColumn
-                        }>
-                        {banner.imageUrl ? (
-                          <Image
-                            source={{
-                              uri:
-                                banner.imageUrl,
-                            }}
-                            contentFit="cover"
-                            style={
-                              styles.bannerPreviewImage
-                            }
+                      ) : (
+                        <View style={styles.bannerPreviewEmpty}>
+                          <Ionicons
+                            name="image-outline"
+                            size={30}
+                            color={colors.textMuted}
                           />
-                        ) : (
-                          <View
-                            style={
-                              styles.bannerPreviewEmpty
-                            }>
-                            <Ionicons
-                              name="image-outline"
-                              size={30}
-                              color={
-                                colors.textMuted
-                              }
-                            />
-                          </View>
-                        )}
+                        </View>
+                      )}
 
-                        <Button
-                          variant="secondary"
-                          icon="image-outline"
-                          disabled={
-                            uploading
-                          }
-                          onPress={() =>
-                            void chooseBannerImage(
-                              banner.id,
-                            )
-                          }>
-                          Trocar imagem
-                        </Button>
-                      </View>
+                      <Button
+                        variant="secondary"
+                        icon="image-outline"
+                        disabled={uploading}
+                        onPress={() => void chooseBannerImage(banner.id)}>
+                        Trocar imagem
+                      </Button>
+                    </View>
 
-                      <View
-                        style={
-                          styles.bannerFields
-                        }>
-                        <Field
-                          label="Título"
-                          value={
-                            banner.title
-                          }
-                          onChangeText={(
-                            value,
-                          ) =>
-                            updateBanner(
-                              banner.id,
-                              {
-                                title:
-                                  value,
-                              },
-                            )
-                          }
-                          maxLength={120}
-                        />
+                    <View style={styles.bannerFields}>
+                      <Field
+                        label="Título"
+                        value={banner.title}
+                        onChangeText={(value) =>
+                          updateBanner(banner.id, { title: value })
+                        }
+                        maxLength={120}
+                      />
+                      <Field
+                        label="Subtítulo"
+                        value={banner.subtitle}
+                        onChangeText={(value) =>
+                          updateBanner(banner.id, { subtitle: value })
+                        }
+                        multiline
+                        maxLength={240}
+                      />
 
-                        <Field
-                          label="Subtítulo"
-                          value={
-                            banner.subtitle
-                          }
-                          onChangeText={(
-                            value,
-                          ) =>
-                            updateBanner(
-                              banner.id,
-                              {
-                                subtitle:
-                                  value,
-                              },
-                            )
-                          }
-                          multiline
-                          maxLength={240}
-                        />
-
-                        <View
-                          style={
-                            styles.fieldRow
-                          }>
-                          <View
-                            style={
-                              styles.fieldHalf
-                            }>
-                            <Field
-                              label="Texto do botão"
-                              value={
-                                banner.buttonLabel
-                              }
-                              onChangeText={(
-                                value,
-                              ) =>
-                                updateBanner(
-                                  banner.id,
-                                  {
-                                    buttonLabel:
-                                      value,
-                                  },
-                                )
-                              }
-                              maxLength={40}
-                            />
-                          </View>
-
-                          <View
-                            style={
-                              styles.fieldHalf
-                            }>
-                            <BannerDestinationPicker
-                              value={banner.link}
-                              categories={categories}
-                              products={products}
-                              onChange={(value) =>
-                                updateBanner(
-                                  banner.id,
-                                  { link: value },
-                                )
-                              }
-                            />
-                          </View>
+                      <View style={styles.fieldRow}>
+                        <View style={styles.fieldHalf}>
+                          <Field
+                            label="Texto do botão"
+                            value={banner.buttonLabel}
+                            onChangeText={(value) =>
+                              updateBanner(banner.id, { buttonLabel: value })
+                            }
+                            maxLength={40}
+                          />
                         </View>
 
-                        <View
-                          style={
-                            styles.fieldRow
-                          }>
-                          <View
-                            style={
-                              styles.fieldHalf
-                            }>
-                            <StructuredField
-                              kind="date"
-                              label="Data de início"
-                              value={
-                                banner.startAt
-                              }
-                              onChangeText={(
-                                value,
-                              ) =>
-                                updateBanner(
-                                  banner.id,
-                                  {
-                                    startAt:
-                                      value,
-                                  },
-                                )
-                              }
-                            />
-                          </View>
+                        <View style={styles.fieldHalf}>
+                          <BannerDestinationPicker
+                            value={banner.link}
+                            categories={categories}
+                            products={products}
+                            onChange={(value) =>
+                              updateBanner(banner.id, { link: value })
+                            }
+                          />
+                        </View>
+                      </View>
 
-                          <View
-                            style={
-                              styles.fieldHalf
-                            }>
-                            <StructuredField
-                              kind="date"
-                              label="Data de término"
-                              value={
-                                banner.endAt
-                              }
-                              onChangeText={(
-                                value,
-                              ) =>
-                                updateBanner(
-                                  banner.id,
-                                  {
-                                    endAt:
-                                      value,
-                                  },
-                                )
-                              }
-                            />
-                          </View>
+                      <View style={styles.fieldRow}>
+                        <View style={styles.fieldHalf}>
+                          <StructuredField
+                            kind="date"
+                            label="Data de início"
+                            value={banner.startAt}
+                            onChangeText={(value) =>
+                              updateBanner(banner.id, { startAt: value })
+                            }
+                          />
+                        </View>
+
+                        <View style={styles.fieldHalf}>
+                          <StructuredField
+                            kind="date"
+                            label="Data de término"
+                            value={banner.endAt}
+                            onChangeText={(value) =>
+                              updateBanner(banner.id, { endAt: value })
+                            }
+                          />
                         </View>
                       </View>
                     </View>
-                  </AdminCard>
-                ),
-              )}
+                  </View>
+                </AdminCard>
+              ))}
 
               {!form.banners.length ? (
                 <View style={styles.empty}>
@@ -928,19 +599,9 @@ export default function AdminAppearanceScreen() {
                     size={30}
                     color="#9D5F1D"
                   />
-
-                  <Text
-                    style={styles.emptyTitle}>
-                    Nenhum banner no
-                    carrossel
-                  </Text>
-
-                  <Text
-                    style={styles.emptyText}>
-                    Adicione banners para
-                    criar uma sequência de
-                    destaques na página
-                    inicial.
+                  <Text style={styles.emptyTitle}>Nenhum banner no carrossel</Text>
+                  <Text style={styles.emptyText}>
+                    Adicione banners para criar uma sequência de destaques na página inicial.
                   </Text>
                 </View>
               ) : null}
@@ -949,16 +610,10 @@ export default function AdminAppearanceScreen() {
 
           <View style={styles.footerActions}>
             <AdminToolbarButton
-              label={
-                saving
-                  ? 'Publicando...'
-                  : 'Salvar e publicar'
-              }
+              label={saving ? 'Publicando...' : 'Salvar e publicar'}
               icon="save-outline"
               variant="primary"
-              disabled={
-                saving || uploading
-              }
+              disabled={saving || uploading}
               onPress={() => void save()}
             />
           </View>
@@ -967,7 +622,6 @@ export default function AdminAppearanceScreen() {
     </AdminGuard>
   );
 }
-
 
 type DestinationCategory = {
   slug: string;
@@ -998,16 +652,13 @@ function BannerDestinationPicker({
   onChange: (value: string) => void;
 }) {
   const kind = getDestinationKind(value);
+  const activeProducts = products.filter((product) => product.active);
 
   const selectedCategorySlug =
-    kind === 'category'
-      ? extractRouteValue(value, '/category/')
-      : '';
+    kind === 'category' ? extractRouteValue(value, '/category/') : '';
 
-  const selectedProductId =
-    kind === 'product'
-      ? extractRouteValue(value, '/product/')
-      : '';
+  const selectedProductIds =
+    kind === 'product' ? extractSelectedProductIds(value) : [];
 
   function chooseKind(nextKind: DestinationKind) {
     if (nextKind === 'home') {
@@ -1022,7 +673,6 @@ function BannerDestinationPicker({
 
     if (nextKind === 'category') {
       const firstCategory = categories[0];
-
       onChange(
         firstCategory
           ? `/category/${firstCategory.slug}`
@@ -1031,23 +681,30 @@ function BannerDestinationPicker({
       return;
     }
 
-    const firstProduct = products.find(
-      (product) => product.active,
-    );
-
+    const firstProduct = activeProducts[0];
     onChange(
       firstProduct
-        ? `/product/${firstProduct.id}`
+        ? buildProductsDestination([firstProduct.id])
         : '/(tabs)/categories',
     );
   }
 
+  function toggleProduct(productId: string) {
+    const selected = selectedProductIds.includes(productId);
+    const nextIds = selected
+      ? selectedProductIds.filter((id) => id !== productId)
+      : [...selectedProductIds, productId];
+
+    if (!nextIds.length) {
+      return;
+    }
+
+    onChange(buildProductsDestination(nextIds));
+  }
+
   return (
     <View style={styles.destinationField}>
-      <Text style={styles.destinationLabel}>
-        Destino do botão
-      </Text>
-
+      <Text style={styles.destinationLabel}>Destino do botão</Text>
       <Text style={styles.destinationHelper}>
         Escolha para onde o cliente será enviado. A rota é criada automaticamente.
       </Text>
@@ -1059,41 +716,29 @@ function BannerDestinationPicker({
           active={kind === 'home'}
           onPress={() => chooseKind('home')}
         />
-
         <DestinationChip
           label="Todos os produtos"
           icon="grid-outline"
           active={kind === 'categories'}
-          onPress={() =>
-            chooseKind('categories')
-          }
+          onPress={() => chooseKind('categories')}
         />
-
         <DestinationChip
           label="Categoria"
           icon="albums-outline"
           active={kind === 'category'}
-          onPress={() =>
-            chooseKind('category')
-          }
+          onPress={() => chooseKind('category')}
         />
-
         <DestinationChip
-          label="Produto"
+          label="Produtos"
           icon="bag-handle-outline"
           active={kind === 'product'}
-          onPress={() =>
-            chooseKind('product')
-          }
+          onPress={() => chooseKind('product')}
         />
       </View>
 
       {kind === 'category' ? (
         <View style={styles.destinationOptions}>
-          <Text style={styles.destinationOptionTitle}>
-            Escolha a categoria
-          </Text>
-
+          <Text style={styles.destinationOptionTitle}>Escolha a categoria</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator
@@ -1102,15 +747,8 @@ function BannerDestinationPicker({
               <DestinationChip
                 key={category.slug}
                 label={category.name}
-                active={
-                  selectedCategorySlug ===
-                  category.slug
-                }
-                onPress={() =>
-                  onChange(
-                    `/category/${category.slug}`,
-                  )
-                }
+                active={selectedCategorySlug === category.slug}
+                onPress={() => onChange(`/category/${category.slug}`)}
               />
             ))}
           </ScrollView>
@@ -1119,35 +757,53 @@ function BannerDestinationPicker({
 
       {kind === 'product' ? (
         <View style={styles.destinationOptions}>
-          <Text style={styles.destinationOptionTitle}>
-            Escolha o produto
-          </Text>
+          <View style={styles.destinationOptionHeader}>
+            <View style={styles.destinationOptionCopy}>
+              <Text style={styles.destinationOptionTitle}>
+                Escolha os produtos
+              </Text>
+              <Text style={styles.destinationOptionHelper}>
+                Marque um ou mais produtos. O cliente verá uma tela exclusiva apenas com os itens selecionados.
+              </Text>
+            </View>
+            <View style={styles.selectionCounter}>
+              <Text style={styles.selectionCounterValue}>
+                {selectedProductIds.length}
+              </Text>
+              <Text style={styles.selectionCounterLabel}>
+                selecionado{selectedProductIds.length === 1 ? '' : 's'}
+              </Text>
+            </View>
+          </View>
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator
             contentContainerStyle={styles.destinationOptionList}>
-            {products
-              .filter((product) => product.active)
-              .map((product) => (
-                <DestinationChip
-                  key={product.id}
-                  label={product.name}
-                  active={
-                    selectedProductId ===
-                    product.id
-                  }
-                  onPress={() =>
-                    onChange(
-                      `/product/${product.id}`,
-                    )
-                  }
-                />
-              ))}
+            {activeProducts.map((product) => (
+              <DestinationChip
+                key={product.id}
+                label={product.name}
+                active={selectedProductIds.includes(product.id)}
+                onPress={() => toggleProduct(product.id)}
+              />
+            ))}
           </ScrollView>
+
+          <View style={styles.destinationResult}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={17}
+              color={colors.success}
+            />
+            <Text style={styles.destinationResultText}>
+              {selectedProductIds.length === 1
+                ? '1 produto será exibido ao abrir este banner.'
+                : `${selectedProductIds.length} produtos serão exibidos ao abrir este banner.`}
+            </Text>
+          </View>
         </View>
       ) : null}
-
     </View>
   );
 }
@@ -1177,20 +833,14 @@ function DestinationChip({
         <Ionicons
           name={icon}
           size={14}
-          color={
-            active
-              ? colors.white
-              : '#7D4D1E'
-          }
+          color={active ? colors.white : '#7D4D1E'}
         />
       ) : null}
-
       <Text
         numberOfLines={1}
         style={[
           styles.destinationChipText,
-          active &&
-            styles.destinationChipTextActive,
+          active && styles.destinationChipTextActive,
         ]}>
         {label}
       </Text>
@@ -1198,110 +848,82 @@ function DestinationChip({
   );
 }
 
-function getDestinationKind(
-  value: string,
-): DestinationKind {
-  if (value.startsWith('/category/')) {
-    return 'category';
-  }
-
-  if (value.startsWith('/product/')) {
-    return 'product';
-  }
-
+function getDestinationKind(value: string): DestinationKind {
+  if (value.startsWith('/category/')) return 'category';
+  if (value.startsWith('/product/')) return 'product';
+  if (hasProductsQuery(value)) return 'product';
   if (
     value === '/(tabs)/categories' ||
     value === '/categories'
   ) {
     return 'categories';
   }
-
   return 'home';
 }
 
-function extractRouteValue(
-  value: string,
-  prefix: string,
-) {
-  return value.startsWith(prefix)
-    ? value.slice(prefix.length)
-    : '';
+function extractRouteValue(value: string, prefix: string) {
+  return value.startsWith(prefix) ? value.slice(prefix.length) : '';
 }
 
-function getDestinationLabel(
-  value: string,
-  categories: DestinationCategory[],
-  products: DestinationProduct[],
-) {
-  const kind = getDestinationKind(value);
+function hasProductsQuery(value: string) {
+  return /[?&]products=/.test(value);
+}
 
-  if (kind === 'home') {
-    return 'Destino selecionado: página inicial';
+function extractSelectedProductIds(value: string) {
+  if (value.startsWith('/product/')) {
+    const id = extractRouteValue(value, '/product/').split('?')[0].trim();
+    return id ? [id] : [];
   }
 
-  if (kind === 'categories') {
-    return 'Destino selecionado: todos os produtos';
+  const match = value.match(/[?&]products=([^&]+)/);
+  if (!match?.[1]) return [];
+
+  try {
+    return decodeURIComponent(match[1])
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+  } catch {
+    return match[1]
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
   }
+}
 
-  if (kind === 'category') {
-    const slug = extractRouteValue(
-      value,
-      '/category/',
-    );
-
-    const category = categories.find(
-      (item) => item.slug === slug,
-    );
-
-    return `Destino selecionado: ${
-      category?.name ?? 'categoria'
-    }`;
-  }
-
-  const productId = extractRouteValue(
-    value,
-    '/product/',
-  );
-
-  const product = products.find(
-    (item) => item.id === productId,
-  );
-
-  return `Destino selecionado: ${
-    product?.name ?? 'produto'
-  }`;
+function buildProductsDestination(productIds: string[]) {
+  const uniqueIds = [...new Set(productIds.filter(Boolean))];
+  return `/(tabs)/categories?products=${encodeURIComponent(uniqueIds.join(','))}`;
 }
 
 const styles = StyleSheet.create({
-
   destinationField: {
+    minWidth: 0,
+    maxWidth: '100%',
     gap: 16,
     marginTop: spacing.sm,
     marginBottom: 28,
   },
-
   destinationLabel: {
     color: '#493A30',
     fontSize: 12,
     fontWeight: '900',
   },
-
   destinationHelper: {
     color: colors.textMuted,
     fontSize: 10,
     lineHeight: 15,
   },
-
   destinationKinds: {
+    maxWidth: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 14,
     marginTop: 6,
     marginBottom: 22,
   },
-
   destinationChip: {
-    minHeight: 36,
+    minHeight: 40,
     maxWidth: '100%',
     paddingHorizontal: spacing.md,
     borderWidth: 1,
@@ -1313,24 +935,22 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     backgroundColor: '#FFFDFC',
   },
-
   destinationChipActive: {
     borderColor: '#9D5F1D',
     backgroundColor: '#9D5F1D',
   },
-
   destinationChipText: {
     maxWidth: 210,
     color: '#7D4D1E',
     fontSize: 10,
     fontWeight: '800',
   },
-
   destinationChipTextActive: {
     color: colors.white,
   },
-
   destinationOptions: {
+    minWidth: 0,
+    maxWidth: '100%',
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: '#E3D6CA',
@@ -1340,21 +960,55 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 18,
   },
-
+  destinationOptionHeader: {
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  destinationOptionCopy: {
+    minWidth: 0,
+    flex: 1,
+  },
   destinationOptionTitle: {
     color: '#493A30',
     fontSize: 10,
     fontWeight: '900',
   },
-
+  destinationOptionHelper: {
+    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: 9,
+    lineHeight: 14,
+  },
   destinationOptionList: {
     paddingRight: spacing.md,
     gap: 12,
     paddingVertical: 8,
   },
-
+  selectionCounter: {
+    minWidth: 78,
+    minHeight: 48,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFDFC',
+  },
+  selectionCounterValue: {
+    color: '#7D4D1E',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  selectionCounterLabel: {
+    color: colors.textMuted,
+    fontSize: 8,
+    fontWeight: '700',
+  },
   destinationResult: {
-    minHeight: 38,
+    minHeight: 42,
     paddingHorizontal: spacing.md,
     borderRadius: radii.small,
     flexDirection: 'row',
@@ -1362,7 +1016,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.successSoft,
   },
-
   destinationResultText: {
     minWidth: 0,
     flex: 1,
@@ -1370,17 +1023,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
-
-  flex: {
-    flex: 1,
-  },
-
+  flex: { flex: 1 },
   metrics: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-
   preview: {
     minHeight: 250,
     overflow: 'hidden',
@@ -1390,21 +1038,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#F2E4D2',
   },
-
   previewCopy: {
     zIndex: 2,
     width: '58%',
     padding: spacing.xl,
     justifyContent: 'center',
   },
-
   previewEyebrow: {
     color: colors.primary,
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 1.3,
   },
-
   previewTitle: {
     marginTop: spacing.sm,
     fontFamily: fonts.display,
@@ -1413,14 +1058,12 @@ const styles = StyleSheet.create({
     lineHeight: 29,
     fontWeight: '800',
   },
-
   previewSubtitle: {
     marginTop: spacing.sm,
     color: colors.textMuted,
     fontSize: 11,
     lineHeight: 16,
   },
-
   previewButton: {
     alignSelf: 'flex-start',
     marginTop: spacing.md,
@@ -1429,18 +1072,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.primary,
   },
-
   previewButtonText: {
     color: colors.white,
     fontSize: 9,
     fontWeight: '900',
   },
-
   previewImage: {
     width: '48%',
     marginLeft: '-6%',
   },
-
   previewImageEmpty: {
     width: '48%',
     marginLeft: '-6%',
@@ -1448,14 +1088,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#E7D5C0',
   },
-
   inlineActions: {
     alignItems: 'flex-start',
     marginTop: 18,
     marginBottom: 22,
     gap: 14,
   },
-
   dateGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1463,32 +1101,30 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 24,
   },
-
-  bannerList: {
-    gap: spacing.md,
-  },
-
+  bannerList: { gap: spacing.md },
   bannerEditor: {
+    minWidth: 0,
+    maxWidth: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
     gap: 24,
   },
-
   bannerPreviewColumn: {
     width: 190,
+    maxWidth: '100%',
     gap: 18,
   },
-
   bannerPreviewImage: {
     width: 190,
+    maxWidth: '100%',
     height: 120,
     borderRadius: radii.medium,
     backgroundColor: '#F4ECE3',
   },
-
   bannerPreviewEmpty: {
     width: 190,
+    maxWidth: '100%',
     height: 120,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -1498,37 +1134,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F8F3ED',
   },
-
   bannerFields: {
-    minWidth: 280,
-    flex: 1,
+    minWidth: 0,
+    flexBasis: 280,
+    flexGrow: 1,
+    flexShrink: 1,
+    maxWidth: '100%',
     gap: 20,
   },
-
   fieldRow: {
+    minWidth: 0,
+    maxWidth: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 22,
   },
-
   fieldHalf: {
-    minWidth: 220,
-    flex: 1,
+    minWidth: 0,
+    flexBasis: 220,
+    flexGrow: 1,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
-
   removeButton: {
     width: 34,
     height: 34,
     borderWidth: 1,
-    borderColor:
-      'rgba(188,72,72,0.22)',
+    borderColor: 'rgba(188,72,72,0.22)',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor:
-      colors.dangerSoft,
+    backgroundColor: colors.dangerSoft,
   },
-
   empty: {
     minHeight: 170,
     padding: spacing.xl,
@@ -1540,14 +1177,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFDFC',
   },
-
   emptyTitle: {
     marginTop: spacing.sm,
     color: '#2C211A',
     fontSize: 13,
     fontWeight: '900',
   },
-
   emptyText: {
     maxWidth: 420,
     marginTop: spacing.xs,
@@ -1556,13 +1191,9 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     textAlign: 'center',
   },
-
   footerActions: {
     marginTop: 24,
     alignItems: 'flex-end',
   },
-
-  pressed: {
-    opacity: 0.58,
-  },
+  pressed: { opacity: 0.58 },
 });
