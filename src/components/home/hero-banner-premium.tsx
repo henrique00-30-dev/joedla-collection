@@ -18,6 +18,31 @@ type HeroBannerPremiumProps = {
   onNext: () => void;
 };
 
+function titleLengthStyle(length: number, mobile: boolean, tablet: boolean, narrowMobile: boolean) {
+  if (narrowMobile) {
+    if (length > 70) return styles.titleNarrowVeryLong;
+    if (length > 48) return styles.titleNarrowLong;
+    return styles.titleNarrow;
+  }
+
+  if (mobile) {
+    if (length > 82) return styles.titleMobileVeryLong;
+    if (length > 56) return styles.titleMobileLong;
+    return styles.titleMobile;
+  }
+
+  if (tablet) {
+    if (length > 78) return styles.titleTabletVeryLong;
+    if (length > 52) return styles.titleTabletLong;
+    return styles.titleTablet;
+  }
+
+  if (length > 88) return styles.titleDesktopVeryLong;
+  if (length > 58) return styles.titleDesktopLong;
+  if (length > 38) return styles.titleDesktopMedium;
+  return null;
+}
+
 export function HeroBannerPremium({
   title,
   subtitle = '',
@@ -35,6 +60,8 @@ export function HeroBannerPremium({
   const mobile = width < 700;
   const narrowMobile = width < 390;
   const tablet = width >= 700 && width < 1000;
+  const cleanTitle = title.trim();
+  const adaptiveTitleStyle = titleLengthStyle(cleanTitle.length, mobile, tablet, narrowMobile);
 
   return (
     <View
@@ -53,19 +80,24 @@ export function HeroBannerPremium({
         <Text style={styles.overline}>JOEDLA COLLECTION</Text>
 
         <Text
-          numberOfLines={mobile ? 3 : 2}
+          numberOfLines={mobile ? 4 : 3}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
           style={[
             styles.title,
             tablet && styles.titleTablet,
             mobile && styles.titleMobile,
             narrowMobile && styles.titleNarrow,
+            adaptiveTitleStyle,
           ]}>
-          {title}
+          {cleanTitle}
         </Text>
 
         {subtitle.trim() ? (
           <Text
-            numberOfLines={mobile ? 3 : 4}
+            numberOfLines={mobile ? 4 : 3}
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
             style={[styles.subtitle, mobile && styles.subtitleMobile]}>
             {subtitle}
           </Text>
@@ -81,7 +113,11 @@ export function HeroBannerPremium({
               narrowMobile && styles.buttonNarrow,
               pressed && styles.buttonPressed,
             ]}>
-            <Text numberOfLines={2} style={styles.buttonText}>
+            <Text
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+              style={styles.buttonText}>
               {buttonLabel}
             </Text>
             <Ionicons name="arrow-forward" size={17} color={colors.white} />
@@ -203,18 +239,31 @@ const styles = StyleSheet.create({
     letterSpacing: 2.7,
   },
   title: {
+    width: '100%',
     maxWidth: 520,
+    flexShrink: 1,
     fontFamily: fonts.display,
     color: colors.white,
     fontSize: 46,
     lineHeight: 52,
     fontWeight: '800',
   },
+  titleDesktopMedium: { fontSize: 41, lineHeight: 47 },
+  titleDesktopLong: { fontSize: 35, lineHeight: 41 },
+  titleDesktopVeryLong: { fontSize: 30, lineHeight: 36 },
   titleTablet: { fontSize: 38, lineHeight: 44 },
+  titleTabletLong: { fontSize: 33, lineHeight: 39 },
+  titleTabletVeryLong: { fontSize: 29, lineHeight: 35 },
   titleMobile: { maxWidth: '100%', fontSize: 36, lineHeight: 41 },
+  titleMobileLong: { fontSize: 31, lineHeight: 36 },
+  titleMobileVeryLong: { fontSize: 27, lineHeight: 32 },
   titleNarrow: { fontSize: 31, lineHeight: 36 },
+  titleNarrowLong: { fontSize: 27, lineHeight: 32 },
+  titleNarrowVeryLong: { fontSize: 24, lineHeight: 29 },
   subtitle: {
+    width: '100%',
     maxWidth: 500,
+    flexShrink: 1,
     marginTop: spacing.lg,
     color: 'rgba(255,255,255,0.76)',
     fontSize: 16,
@@ -250,6 +299,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     minWidth: 0,
+    maxWidth: '100%',
     flexShrink: 1,
     color: colors.white,
     fontSize: 14,
