@@ -18,10 +18,7 @@ const STORE_TABLES = [
   'product_promotions',
 ] as const;
 
-const ORDER_TABLES = [
-  'orders',
-  'order_transactions',
-] as const;
+const ORDER_TABLES = ['orders', 'order_transactions'] as const;
 
 const AUXILIARY_TABLES = [
   'financial_entries',
@@ -33,21 +30,19 @@ const AUXILIARY_TABLES = [
   'club_settings',
 ] as const;
 
-const ALL_TABLES = [
-  ...STORE_TABLES,
-  ...ORDER_TABLES,
-  ...AUXILIARY_TABLES,
-] as const;
+const ALL_TABLES = [...STORE_TABLES, ...ORDER_TABLES, ...AUXILIARY_TABLES] as const;
 
 export function RealtimeStoreSync() {
   const pathname = usePathname();
-  const {
-    cloudEnabled,
-    isAdmin,
-    refreshStore,
-    refreshAdminOrders,
-  } = useStore();
+  const { cloudEnabled, isAdmin, refreshStore, refreshAdminOrders } = useStore();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshStoreRef = useRef(refreshStore);
+  const refreshAdminOrdersRef = useRef(refreshAdminOrders);
+
+  useEffect(() => {
+    refreshStoreRef.current = refreshStore;
+    refreshAdminOrdersRef.current = refreshAdminOrders;
+  }, [refreshAdminOrders, refreshStore]);
 
   useEffect(() => {
     if (!cloudEnabled || !supabase) return;
@@ -59,15 +54,12 @@ export function RealtimeStoreSync() {
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
 
-        const shouldRefreshStore = STORE_TABLES.includes(table as never);
-        const shouldRefreshOrders = ORDER_TABLES.includes(table as never);
-
-        if (shouldRefreshStore) {
-          void refreshStore().catch(() => undefined);
+        if (STORE_TABLES.includes(table as never)) {
+          void refreshStoreRef.current().catch(() => undefined);
         }
 
-        if (isAdmin && shouldRefreshOrders) {
-          void refreshAdminOrders().catch(() => undefined);
+        if (isAdmin && ORDER_TABLES.includes(table as never)) {
+          void refreshAdminOrdersRef.current().catch(() => undefined);
         }
       }, 180);
     };
@@ -89,20 +81,20 @@ export function RealtimeStoreSync() {
       }
       void supabase.removeChannel(channel);
     };
-  }, [cloudEnabled, isAdmin, refreshAdminOrders, refreshStore]);
+  }, [cloudEnabled, isAdmin]);
 
   useEffect(() => {
     if (!cloudEnabled) return;
 
     const timer = setTimeout(() => {
-      void refreshStore().catch(() => undefined);
+      void refreshStoreRef.current().catch(() => undefined);
       if (isAdmin && pathname.startsWith('/admin')) {
-        void refreshAdminOrders().catch(() => undefined);
+        void refreshAdminOrdersRef.current().catch(() => undefined);
       }
     }, 60);
 
     return () => clearTimeout(timer);
-  }, [cloudEnabled, isAdmin, pathname, refreshAdminOrders, refreshStore]);
+  }, [cloudEnabled, isAdmin, pathname]);
 
   return null;
 }
