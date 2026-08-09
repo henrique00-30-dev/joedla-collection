@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radii, spacing } from '@/src/theme';
+import { StructuredField } from '@/src/components/structured-field';
+import { spacing } from '@/src/theme';
 
 import { PromotionSectionCard } from './promotion-section-card';
 
@@ -38,51 +39,27 @@ export function PromotionPeriodSection({
       onToggle={onToggle}>
       <View style={styles.twoColumns}>
         <View style={styles.flexField}>
-          <Text style={styles.fieldLabel}>
-            Data inicial
-          </Text>
-
-          <TextInput
+          <StructuredField
             ref={startDateRef}
+            kind="date"
+            label="Data inicial"
             value={startDate}
             onChangeText={onStartDateChange}
-            placeholder="dd/mm/aaaa"
-            keyboardType="numeric"
-            style={[
-              styles.input,
-              startDateError && styles.inputError,
-            ]}
+            placeholder="DD/MM/AAAA"
+            error={startDateError}
           />
-
-          {startDateError ? (
-            <Text style={styles.errorText}>
-              {startDateError}
-            </Text>
-          ) : null}
         </View>
 
         <View style={styles.flexField}>
-          <Text style={styles.fieldLabel}>
-            Data final
-          </Text>
-
-          <TextInput
+          <StructuredField
             ref={endDateRef}
+            kind="date"
+            label="Data final"
             value={endDate}
             onChangeText={onEndDateChange}
-            placeholder="dd/mm/aaaa"
-            keyboardType="numeric"
-            style={[
-              styles.input,
-              endDateError && styles.inputError,
-            ]}
+            placeholder="DD/MM/AAAA"
+            error={endDateError}
           />
-
-          {endDateError ? (
-            <Text style={styles.errorText}>
-              {endDateError}
-            </Text>
-          ) : null}
         </View>
       </View>
     </PromotionSectionCard>
@@ -99,33 +76,5 @@ const styles = StyleSheet.create({
   flexField: {
     minWidth: 220,
     flex: 1,
-    gap: spacing.sm,
-  },
-
-  fieldLabel: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-
-  input: {
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-    color: colors.text,
-    backgroundColor: colors.surface,
-    fontSize: 14,
-  },
-
-  inputError: {
-    borderColor: colors.danger,
-  },
-
-  errorText: {
-    color: colors.danger,
-    fontSize: 11,
-    lineHeight: 16,
   },
 });
