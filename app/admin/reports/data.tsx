@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AdminCard, AdminPage, AdminSection } from '@/src/components/admin';
@@ -29,8 +29,13 @@ export default function AdminDataReportScreen() {
   const { kind: rawKind } = useLocalSearchParams<{ kind?: string }>();
   const kind: Kind = rawKind === 'products' ? 'products' : 'orders';
   const { adminOrders, products, refreshAdminOrders } = useStore();
+  const refreshAdminOrdersRef = useRef(refreshAdminOrders);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    refreshAdminOrdersRef.current = refreshAdminOrders;
+  }, [refreshAdminOrders]);
 
   const report = useMemo<ReportData>(() => kind === 'products' ? {
     title: 'Relatório de produtos e estoques', description: 'Visão de catálogo, disponibilidade, valor e distribuição do estoque.',
@@ -67,8 +72,16 @@ export default function AdminDataReportScreen() {
       lowProducts: [...products].filter((p) => Number(p.stock || 0) <= 5).sort((a, b) => Number(a.stock || 0) - Number(b.stock || 0)).slice(0, 8) };
   }, [products]);
 
-  const load = useCallback(async () => { if (kind !== 'orders') return; setLoading(true); setNotice(''); try { await refreshAdminOrders(); } catch (error) { setNotice(error instanceof Error ? error.message : 'Não foi possível atualizar o relatório.'); } finally { setLoading(false); } }, [kind, refreshAdminOrders]);
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    if (kind !== 'orders') return;
+    let active = true;
+    setLoading(true);
+    setNotice('');
+    void refreshAdminOrdersRef.current()
+      .catch((error) => { if (active) setNotice(error instanceof Error ? error.message : 'Não foi possível atualizar o relatório.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [kind]));
 
   function download() {
     try { const runtime = globalThis as typeof globalThis & { document?: any; URL?: any }; if (!runtime.document || !runtime.URL) { setNotice('Abra o painel no navegador para baixar o arquivo.'); return; }
