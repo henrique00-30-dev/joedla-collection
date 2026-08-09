@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CustomerAccountBridge } from '@/src/components/customer-account-bridge';
+import { RealtimeStoreSync } from '@/src/components/realtime-store-sync';
 import { StoreProvider } from '@/src/context/store-context';
 import { colors } from '@/src/theme';
 
@@ -38,6 +39,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StoreProvider>
           <CustomerAccountBridge />
+          <RealtimeStoreSync />
           <StatusBar style="dark" backgroundColor={colors.background} />
           <Stack
             screenOptions={{
